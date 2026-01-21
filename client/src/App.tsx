@@ -6,8 +6,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import MyIssues from "./pages/MyIssues";
 import ReportIssue from "./pages/ReportIssue";
 import IssueDetails from "./pages/IssueDetails";
+import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -27,9 +29,9 @@ const App = () => (
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/report" element={<ReportIssue />} />
-            <Route path="/issues" element={<Dashboard />} />
+            <Route path="/issues" element={<MyIssues />} />
             <Route path="/issues/:id" element={<IssueDetails />} />
-            <Route path="/settings" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           {/* Admin Routes */}
