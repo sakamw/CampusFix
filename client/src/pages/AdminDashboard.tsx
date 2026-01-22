@@ -109,6 +109,7 @@ const analyticsData = {
 export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleExportReport = () => {
     // TODO: Implement export functionality
