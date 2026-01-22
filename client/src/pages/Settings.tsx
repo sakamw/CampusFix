@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { User, Bell, Shield, Eye, Palette, Trash2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { User, Bell, Shield, Eye, Palette, Trash2, Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -22,39 +22,77 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useUserSettings } from "@/contexts/UserSettingsContext";
 
 export default function Settings() {
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
+  const { settings, updateProfile, updateAvatar, updateNotifications, updateSecurity, updateAppearance } = useUserSettings();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Profile state
-  const [firstName, setFirstName] = useState("John");
-  const [lastName, setLastName] = useState("Doe");
-  const [email, setEmail] = useState("john.doe@university.edu");
-  const [studentId, setStudentId] = useState("STU123456");
-  const [phone, setPhone] = useState("+1 (555) 123-4567");
+  // Local state for form fields (to allow editing before saving)
+  const [firstName, setFirstName] = useState(settings.profile.firstName);
+  const [lastName, setLastName] = useState(settings.profile.lastName);
+  const [phone, setPhone] = useState(settings.profile.phone);
 
-  // Notification preferences
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [issueUpdates, setIssueUpdates] = useState(true);
-  const [issueComments, setIssueComments] = useState(true);
-  const [weeklyDigest, setWeeklyDigest] = useState(false);
-  const [marketingEmails, setMarketingEmails] = useState(false);
-
-  // Security settings
+  // Security settings - local password state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Appearance settings
-  const [theme, setTheme] = useState("system");
-  const [language, setLanguage] = useState("en");
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 2MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file (JPG, PNG, or GIF)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateAvatar(reader.result as string);
+        toast({
+          title: "Photo updated",
+          description: "Your profile photo has been changed successfully.",
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    updateAvatar(null);
+    toast({
+      title: "Photo removed",
+      description: "Your profile photo has been removed.",
+    });
+  };
 
   const handleSaveProfile = () => {
+    updateProfile({
+      firstName,
+      lastName,
+      phone,
+    });
     toast({
       title: "Profile updated",
       description: "Your profile information has been saved successfully.",
@@ -62,6 +100,14 @@ export default function Settings() {
   };
 
   const handleChangePassword = () => {
+    if (!currentPassword) {
+      toast({
+        title: "Error",
+        description: "Please enter your current password",
+        variant: "destructive",
+      });
+      return;
+    }
     if (newPassword !== confirmPassword) {
       toast({
         title: "Error",
@@ -78,6 +124,7 @@ export default function Settings() {
       });
       return;
     }
+    // In a real app, this would call an API
     toast({
       title: "Password changed",
       description: "Your password has been updated successfully.",
@@ -87,10 +134,40 @@ export default function Settings() {
     setConfirmPassword("");
   };
 
+  const handleToggleTwoFactor = (enabled: boolean) => {
+    updateSecurity({ twoFactorEnabled: enabled });
+    toast({
+      title: enabled ? "2FA Enabled" : "2FA Disabled",
+      description: enabled
+        ? "Two-factor authentication has been enabled for your account."
+        : "Two-factor authentication has been disabled.",
+    });
+  };
+
+  const handleNotificationChange = (key: string, value: boolean) => {
+    updateNotifications({ [key]: value });
+  };
+
   const handleSavePreferences = () => {
     toast({
       title: "Preferences saved",
       description: "Your notification preferences have been updated.",
+    });
+  };
+
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme as "light" | "dark" | "system");
+    toast({
+      title: "Theme updated",
+      description: `Theme changed to ${newTheme}.`,
+    });
+  };
+
+  const handleLanguageChange = (newLanguage: string) => {
+    updateAppearance({ language: newLanguage });
+    toast({
+      title: "Language updated",
+      description: "Your language preference has been saved.",
     });
   };
 
@@ -158,16 +235,43 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Avatar Section */}
+            {/* Avatar Section */}
               <div className="flex items-center gap-6">
-                <Avatar className="h-20 w-20">
-                  <AvatarFallback className="text-lg">
-                    {firstName[0]}
-                    {lastName[0]}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-20 w-20">
+                    {settings.profile.avatar ? (
+                      <AvatarImage src={settings.profile.avatar} alt="Profile" />
+                    ) : null}
+                    <AvatarFallback className="text-lg">
+                      {firstName[0]}
+                      {lastName[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  {settings.profile.avatar && (
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                      onClick={handleRemoveAvatar}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-2">
-                  <Button variant="outline" size="sm">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
                     Change Photo
                   </Button>
                   <p className="text-sm text-muted-foreground">
@@ -203,17 +307,19 @@ export default function Settings() {
                   <Input
                     id="email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={settings.profile.email}
                     className="input-focus"
+                    disabled
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Email address cannot be changed
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="studentId">Student ID</Label>
                   <Input
                     id="studentId"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
+                    value={settings.profile.studentId}
                     className="input-focus"
                     disabled
                   />
@@ -265,8 +371,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="email-notifications"
-                    checked={emailNotifications}
-                    onCheckedChange={setEmailNotifications}
+                    checked={settings.notifications.emailNotifications}
+                    onCheckedChange={(checked) => handleNotificationChange("emailNotifications", checked)}
                   />
                 </div>
 
@@ -283,8 +389,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="push-notifications"
-                    checked={pushNotifications}
-                    onCheckedChange={setPushNotifications}
+                    checked={settings.notifications.pushNotifications}
+                    onCheckedChange={(checked) => handleNotificationChange("pushNotifications", checked)}
                   />
                 </div>
 
@@ -299,8 +405,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="issue-updates"
-                    checked={issueUpdates}
-                    onCheckedChange={setIssueUpdates}
+                    checked={settings.notifications.issueUpdates}
+                    onCheckedChange={(checked) => handleNotificationChange("issueUpdates", checked)}
                   />
                 </div>
 
@@ -315,8 +421,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="issue-comments"
-                    checked={issueComments}
-                    onCheckedChange={setIssueComments}
+                    checked={settings.notifications.issueComments}
+                    onCheckedChange={(checked) => handleNotificationChange("issueComments", checked)}
                   />
                 </div>
 
@@ -331,8 +437,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="weekly-digest"
-                    checked={weeklyDigest}
-                    onCheckedChange={setWeeklyDigest}
+                    checked={settings.notifications.weeklyDigest}
+                    onCheckedChange={(checked) => handleNotificationChange("weeklyDigest", checked)}
                   />
                 </div>
 
@@ -347,8 +453,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="marketing-emails"
-                    checked={marketingEmails}
-                    onCheckedChange={setMarketingEmails}
+                    checked={settings.notifications.marketingEmails}
+                    onCheckedChange={(checked) => handleNotificationChange("marketingEmails", checked)}
                   />
                 </div>
               </div>
@@ -470,8 +576,8 @@ export default function Settings() {
                 </div>
                 <Switch
                   id="two-factor"
-                  checked={twoFactorEnabled}
-                  onCheckedChange={setTwoFactorEnabled}
+                  checked={settings.security.twoFactorEnabled}
+                  onCheckedChange={handleToggleTwoFactor}
                 />
               </div>
             </CardContent>
@@ -516,7 +622,7 @@ export default function Settings() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="theme">Theme</Label>
-                  <Select value={theme} onValueChange={setTheme}>
+                  <Select value={theme} onValueChange={handleThemeChange}>
                     <SelectTrigger className="input-focus">
                       <SelectValue placeholder="Select theme" />
                     </SelectTrigger>
@@ -535,7 +641,7 @@ export default function Settings() {
 
                 <div className="space-y-2">
                   <Label htmlFor="language">Language</Label>
-                  <Select value={language} onValueChange={setLanguage}>
+                  <Select value={settings.appearance.language} onValueChange={handleLanguageChange}>
                     <SelectTrigger className="input-focus">
                       <SelectValue placeholder="Select language" />
                     </SelectTrigger>

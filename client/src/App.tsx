@@ -4,7 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { UserSettingsProvider } from "@/contexts/UserSettingsContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import MyIssues from "./pages/MyIssues";
 import ReportIssue from "./pages/ReportIssue";
@@ -17,37 +21,44 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          
-          {/* Student Routes */}
-          <Route element={<DashboardLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/report" element={<ReportIssue />} />
-            <Route path="/issues" element={<MyIssues />} />
-            <Route path="/issues/:id" element={<IssueDetails />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
+    <BrowserRouter>
+      <AuthProvider>
+        <UserSettingsProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <Routes>
+                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                
+                {/* Student Routes */}
+                <Route element={<DashboardLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/report" element={<ReportIssue />} />
+                  <Route path="/issues" element={<MyIssues />} />
+                  <Route path="/issues/:id" element={<IssueDetails />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
 
-          {/* Admin Routes */}
-          <Route element={<DashboardLayout />}>
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/issues" element={<AdminDashboard />} />
-            <Route path="/admin/analytics" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<AdminDashboard />} />
-            <Route path="/admin/settings" element={<AdminDashboard />} />
-          </Route>
+                {/* Admin Routes */}
+                <Route element={<DashboardLayout />}>
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin/issues" element={<AdminDashboard />} />
+                  <Route path="/admin/analytics" element={<AdminDashboard />} />
+                  <Route path="/admin/users" element={<AdminDashboard />} />
+                  <Route path="/admin/settings" element={<AdminDashboard />} />
+                </Route>
 
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </TooltipProvider>
+          </ThemeProvider>
+        </UserSettingsProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 

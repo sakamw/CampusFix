@@ -23,8 +23,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { IssueTable } from "@/components/dashboard/IssueTable";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 
 const allIssues = [
   {
@@ -112,6 +110,16 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
+  const handleExportReport = () => {
+    // TODO: Implement export functionality
+    console.log("Exporting report...");
+  };
+
+  const handleViewCriticalIssues = () => {
+    // TODO: Navigate to critical issues or filter
+    setStatusFilter("open");
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -137,11 +145,7 @@ export default function AdminDashboard() {
           icon={FileText}
           trend={{ value: 8, isPositive: false }}
         />
-        <StatCard
-          title="Open"
-          value={34}
-          icon={AlertCircle}
-        />
+        <StatCard title="Open" value={34} icon={AlertCircle} />
         <StatCard
           title="In Progress"
           value={28}
@@ -169,7 +173,9 @@ export default function AdminDashboard() {
         <div className="rounded-xl border bg-card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Avg. Resolution Time</p>
+              <p className="text-sm text-muted-foreground">
+                Avg. Resolution Time
+              </p>
               <p className="text-2xl font-bold">18h 24m</p>
             </div>
             <div className="flex items-center gap-1 text-success text-sm font-medium">
@@ -181,7 +187,9 @@ export default function AdminDashboard() {
         <div className="rounded-xl border bg-card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Student Satisfaction</p>
+              <p className="text-sm text-muted-foreground">
+                Student Satisfaction
+              </p>
               <p className="text-2xl font-bold">94.2%</p>
             </div>
             <div className="flex items-center gap-1 text-success text-sm font-medium">
@@ -196,7 +204,11 @@ export default function AdminDashboard() {
               <p className="text-sm text-muted-foreground">Critical Issues</p>
               <p className="text-2xl font-bold text-destructive">3</p>
             </div>
-            <Button size="sm" variant="destructive" onClick={handleViewCriticalIssues}>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleViewCriticalIssues}
+            >
               View All
             </Button>
           </div>
@@ -241,8 +253,8 @@ export default function AdminDashboard() {
                 <SelectItem value="equipment">Equipment</SelectItem>
               </SelectContent>
             </Select>
-            <Input 
-              placeholder="Search issues..." 
+            <Input
+              placeholder="Search issues..."
               className="w-64"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -251,19 +263,29 @@ export default function AdminDashboard() {
 
           {/* Issues Table */}
           <div data-issues-table>
-            <IssueTable issues={allIssues.filter(issue => {
-              if (searchQuery && !issue.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-                  !issue.id.toLowerCase().includes(searchQuery.toLowerCase())) {
-                return false;
-              }
-              if (statusFilter !== "all" && issue.status !== statusFilter) {
-                return false;
-              }
-              if (categoryFilter !== "all" && issue.category.toLowerCase() !== categoryFilter) {
-                return false;
-              }
-              return true;
-            })} />
+            <IssueTable
+              issues={allIssues.filter((issue) => {
+                if (
+                  searchQuery &&
+                  !issue.title
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase()) &&
+                  !issue.id.toLowerCase().includes(searchQuery.toLowerCase())
+                ) {
+                  return false;
+                }
+                if (statusFilter !== "all" && issue.status !== statusFilter) {
+                  return false;
+                }
+                if (
+                  categoryFilter !== "all" &&
+                  issue.category.toLowerCase() !== categoryFilter
+                ) {
+                  return false;
+                }
+                return true;
+              })}
+            />
           </div>
         </TabsContent>
 
@@ -322,7 +344,9 @@ export default function AdminDashboard() {
 
           {/* Performance Metrics */}
           <div className="rounded-xl border bg-card p-6">
-            <h3 className="text-lg font-semibold mb-6">Department Performance</h3>
+            <h3 className="text-lg font-semibold mb-6">
+              Department Performance
+            </h3>
             <div className="grid gap-4 md:grid-cols-4">
               {[
                 { dept: "Facilities", resolved: 45, pending: 12, rate: "78%" },
@@ -337,14 +361,20 @@ export default function AdminDashboard() {
                   <p className="font-medium">{dept.dept}</p>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Resolved</span>
-                    <span className="text-success font-medium">{dept.resolved}</span>
+                    <span className="text-success font-medium">
+                      {dept.resolved}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Pending</span>
-                    <span className="text-warning font-medium">{dept.pending}</span>
+                    <span className="text-warning font-medium">
+                      {dept.pending}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm pt-2 border-t">
-                    <span className="text-muted-foreground">Resolution Rate</span>
+                    <span className="text-muted-foreground">
+                      Resolution Rate
+                    </span>
                     <span className="font-bold">{dept.rate}</span>
                   </div>
                 </div>

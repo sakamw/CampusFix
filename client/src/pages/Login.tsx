@@ -1,24 +1,28 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { GraduationCap, Eye, EyeOff } from "lucide-react";
+import { GraduationCap, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login, register } = useAuth();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const email = (form.querySelector('#email') as HTMLInputElement)?.value;
-    const password = (form.querySelector('#password') as HTMLInputElement)?.value;
+    const email = (form.querySelector("#email") as HTMLInputElement)?.value;
+    const password = (form.querySelector("#password") as HTMLInputElement)
+      ?.value;
 
     if (!email || !password) {
       toast({
@@ -29,25 +33,49 @@ export default function Login() {
       return;
     }
 
-    // Simulate login
-    toast({
-      title: "Success",
-      description: "Logged in successfully",
-    });
-    navigate("/dashboard");
+    setIsLoading(true);
+    const result = await login(email, password);
+    setIsLoading(false);
+
+    if (result.success) {
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
+      navigate("/dashboard");
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Invalid email or password",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const firstName = (form.querySelector('#firstName') as HTMLInputElement)?.value;
-    const lastName = (form.querySelector('#lastName') as HTMLInputElement)?.value;
-    const studentId = (form.querySelector('#studentId') as HTMLInputElement)?.value;
-    const email = (form.querySelector('#regEmail') as HTMLInputElement)?.value;
-    const password = (form.querySelector('#regPassword') as HTMLInputElement)?.value;
-    const confirmPassword = (form.querySelector('#confirmPassword') as HTMLInputElement)?.value;
+    const firstName = (form.querySelector("#firstName") as HTMLInputElement)
+      ?.value;
+    const lastName = (form.querySelector("#lastName") as HTMLInputElement)
+      ?.value;
+    const studentId = (form.querySelector("#studentId") as HTMLInputElement)
+      ?.value;
+    const email = (form.querySelector("#regEmail") as HTMLInputElement)?.value;
+    const password = (form.querySelector("#regPassword") as HTMLInputElement)
+      ?.value;
+    const confirmPassword = (
+      form.querySelector("#confirmPassword") as HTMLInputElement
+    )?.value;
 
-    if (!firstName || !lastName || !studentId || !email || !password || !confirmPassword) {
+    if (
+      !firstName ||
+      !lastName ||
+      !studentId ||
+      !email ||
+      !password ||
+      !confirmPassword
+    ) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -65,12 +93,30 @@ export default function Login() {
       return;
     }
 
-    // Simulate registration
-    toast({
-      title: "Account Created",
-      description: "Your account has been created successfully",
+    setIsLoading(true);
+    const result = await register({
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      student_id: studentId,
+      password,
+      password_confirm: confirmPassword,
     });
-    navigate("/dashboard");
+    setIsLoading(false);
+
+    if (result.success) {
+      toast({
+        title: "Account Created",
+        description: "Your account has been created successfully",
+      });
+      navigate("/dashboard");
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Registration failed",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -147,7 +193,7 @@ export default function Login() {
 
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Student Email</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -192,7 +238,15 @@ export default function Login() {
                     </Link>
                   </div>
 
-                  <Button type="submit" className="w-full" size="lg">
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    size="lg"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
                     Sign In
                   </Button>
                 </form>
@@ -208,7 +262,12 @@ export default function Login() {
                   </div>
                 </div>
 
-                <Button variant="outline" className="w-full" size="lg" onClick={handleGoogleLogin}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                  onClick={handleGoogleLogin}
+                >
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -237,7 +296,7 @@ export default function Login() {
                 <div className="space-y-2 text-center">
                   <h2 className="text-2xl font-bold">Create an account</h2>
                   <p className="text-muted-foreground">
-                    Register with your university email
+                    Register with your email
                   </p>
                 </div>
 
@@ -271,7 +330,7 @@ export default function Login() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="regEmail">University Email</Label>
+                    <Label htmlFor="regEmail">Email</Label>
                     <Input
                       id="regEmail"
                       type="email"
@@ -314,7 +373,9 @@ export default function Login() {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                        onClick={() =>
+                          setShowRegConfirmPassword(!showRegConfirmPassword)
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showRegConfirmPassword ? (
@@ -326,7 +387,15 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full" size="lg">
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    size="lg"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
                     Create Account
                   </Button>
                 </form>
