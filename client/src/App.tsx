@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { UserSettingsProvider } from "@/contexts/UserSettingsContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
@@ -35,20 +36,60 @@ const App = () => (
                 
                 {/* Student Routes */}
                 <Route element={<DashboardLayout />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/report" element={<ReportIssue />} />
-                  <Route path="/issues" element={<MyIssues />} />
-                  <Route path="/issues/:id" element={<IssueDetails />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/report" element={
+                    <ProtectedRoute>
+                      <ReportIssue />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/issues" element={
+                    <ProtectedRoute>
+                      <MyIssues />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/issues/:id" element={
+                    <ProtectedRoute>
+                      <IssueDetails />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  } />
                 </Route>
 
                 {/* Admin Routes */}
                 <Route element={<DashboardLayout />}>
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/admin/issues" element={<AdminDashboard />} />
-                  <Route path="/admin/analytics" element={<AdminDashboard />} />
-                  <Route path="/admin/users" element={<AdminDashboard />} />
-                  <Route path="/admin/settings" element={<AdminDashboard />} />
+                  <Route path="/admin" element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/issues" element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/analytics" element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/users" element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/settings" element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
                 </Route>
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -17,9 +17,11 @@ interface UserData {
   last_name: string;
   student_id: string | null;
   phone: string | null;
-  role: 'student' | 'staff' | 'admin';
+  role: 'student' | 'admin';
   avatar: string | null;
   created_at: string;
+  is_superuser: boolean;
+  is_staff: boolean;
 }
 
 interface LoginResponse {

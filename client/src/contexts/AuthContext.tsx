@@ -5,7 +5,7 @@ interface AuthContextType {
   user: UserData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: UserData }>;
   register: (userData: {
     email: string;
     first_name: string;
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (result.data) {
       setUser(result.data.user);
-      return { success: true };
+      return { success: true, user: result.data.user };
     }
     
     return { success: false, error: result.error };

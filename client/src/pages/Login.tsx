@@ -42,7 +42,13 @@ export default function Login() {
         title: "Success",
         description: "Logged in successfully",
       });
-      navigate("/dashboard");
+      // Redirect superusers/admins to admin dashboard
+      const userData = result.user;
+      if (userData?.is_superuser || userData?.role === 'admin') {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } else {
       toast({
         title: "Error",
