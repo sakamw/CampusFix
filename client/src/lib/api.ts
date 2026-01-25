@@ -82,6 +82,39 @@ const refreshAccessToken = async (): Promise<string | null> => {
   return null;
 };
 
+// Parse API errors into user-friendly messages
+const parseApiError = (data: unknown): string => {
+  if (!data || typeof data !== 'object') return 'Something went wrong. Please try again.';
+  
+  const err = data as Record<string, unknown>;
+  
+  // Direct error/detail message
+  if (typeof err.error === 'string') return friendlyMessage(err.error);
+  if (typeof err.detail === 'string') return friendlyMessage(err.detail);
+  
+  // Field validation errors
+  for (const [, errors] of Object.entries(err)) {
+    if (Array.isArray(errors) && errors.length > 0) {
+      return friendlyMessage(String(errors[0]));
+    }
+  }
+  
+  return 'Something went wrong. Please try again.';
+};
+
+const friendlyMessage = (msg: string): string => {
+  const m = msg.toLowerCase();
+  if (m.includes('too short') || m.includes('at least 8')) return 'Password must be at least 8 characters.';
+  if (m.includes('too common')) return 'Password is too common. Choose a stronger one.';
+  if (m.includes('entirely numeric')) return 'Password cannot be all numbers.';
+  if (m.includes('too similar')) return 'Password is too similar to your personal info.';
+  if (m.includes('already exists')) return 'An account with this email already exists.';
+  if (m.includes('do not match')) return 'Passwords do not match.';
+  if (m.includes('invalid') || m.includes('incorrect')) return 'Invalid email or password.';
+  if (m.includes('required') || m.includes('blank')) return 'Please fill in all required fields.';
+  return msg;
+};
+
 // API fetch wrapper
 const apiFetch = async <T>(
   endpoint: string,
@@ -114,7 +147,7 @@ const apiFetch = async <T>(
     const data = await response.json();
 
     if (!response.ok) {
-      return { error: data.error || data.detail || 'An error occurred' };
+      return { error: parseApiError(data) };
     }
 
     return { data };
