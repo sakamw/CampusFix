@@ -59,7 +59,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full w-64 transform border-r bg-card transition-transform duration-200 md:static md:translate-x-0",
+          // Fixed on mobile, sticky on desktop
+          "fixed left-0 top-0 z-50 h-full w-64 transform border-r bg-card transition-transform duration-200 md:sticky md:top-0 md:self-start md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
