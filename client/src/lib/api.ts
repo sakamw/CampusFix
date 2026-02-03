@@ -251,5 +251,179 @@ export const authApi = {
   },
 };
 
+// Issue types
+export interface Issue {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  status: 'open' | 'in-progress' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  location: string;
+  reporter: UserData;
+  assigned_to: UserData | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  upvote_count: number;
+  upvoted_by_user: boolean;
+}
+
+export interface IssueDetail extends Issue {
+  comments: Comment[];
+  attachments: Attachment[];
+  comment_count: number;
+}
+
+export interface Comment {
+  id: number;
+  issue: number;
+  user: UserData;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Attachment {
+  id: number;
+  issue: number;
+  file: string;
+  filename: string;
+  uploaded_by: UserData;
+  uploaded_at: string;
+}
+
+export interface Notification {
+  id: number;
+  user: number;
+  title: string;
+  message: string;
+  type: 'comment' | 'status_change' | 'assignment' | 'upvote' | 'resolution' | 'system';
+  is_read: boolean;
+  related_issue: number | null;
+  related_issue_id: number | null;
+  related_issue_title: string | null;
+  created_at: string;
+}
+
+export interface DashboardStats {
+  total_issues: number;
+  open_issues: number;
+  in_progress_issues: number;
+  resolved_issues: number;
+  closed_issues: number;
+  resolution_rate: number;
+  avg_response_time_hours: number;
+}
+
+// Issues API
+export const issuesApi = {
+  getIssues: async (params?: {
+    status?: string;
+    priority?: string;
+    category?: string;
+    search?: string;
+    filter?: 'my-issues' | 'assigned-to-me';
+  }): Promise<ApiResponse<Issue[]>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.priority) queryParams.append('priority', params.priority);
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.filter) queryParams.append('filter', params.filter);
+    
+    const query = queryParams.toString();
+    return apiFetch<Issue[]>(`/issues/${query ? `?${query}` : ''}`);
+  },
+
+  getIssue: async (id: number): Promise<ApiResponse<IssueDetail>> => {
+    return apiFetch<IssueDetail>(`/issues/${id}/`);
+  },
+
+  createIssue: async (data: {
+    title: string;
+    description: string;
+    category: string;
+    priority: string;
+    location: string;
+  }): Promise<ApiResponse<Issue>> => {
+    return apiFetch<Issue>('/issues/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateIssue: async (id: number, data: Partial<Issue>): Promise<ApiResponse<Issue>> => {
+    return apiFetch<Issue>(`/issues/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteIssue: async (id: number): Promise<ApiResponse<void>> => {
+    return apiFetch<void>(`/issues/${id}/`, {
+      method: 'DELETE',
+    });
+  },
+
+  upvoteIssue: async (id: number): Promise<ApiResponse<{ message: string; upvoted: boolean; upvote_count: number }>> => {
+    return apiFetch(`/issues/${id}/upvote/`, {
+      method: 'POST',
+    });
+  },
+
+  getComments: async (issueId: number): Promise<ApiResponse<Comment[]>> => {
+    return apiFetch<Comment[]>(`/issues/${issueId}/comments/`);
+  },
+
+  addComment: async (issueId: number, content: string): Promise<ApiResponse<Comment>> => {
+    return apiFetch<Comment>(`/issues/${issueId}/comments/`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+};
+
+// Notifications API
+export const notificationsApi = {
+  getNotifications: async (): Promise<ApiResponse<Notification[]>> => {
+    return apiFetch<Notification[]>('/notifications/');
+  },
+
+  markAsRead: async (id: number): Promise<ApiResponse<Notification>> => {
+    return apiFetch<Notification>(`/notifications/${id}/mark_read/`, {
+      method: 'POST',
+    });
+  },
+
+  markAllAsRead: async (): Promise<ApiResponse<{ message: string; count: number }>> => {
+    return apiFetch(`/notifications/mark_all_read/`, {
+      method: 'POST',
+    });
+  },
+
+  getUnreadCount: async (): Promise<ApiResponse<{ unread_count: number }>> => {
+    return apiFetch('/notifications/unread_count/');
+  },
+};
+
+// Dashboard API
+export const dashboardApi = {
+  getStats: async (): Promise<ApiResponse<DashboardStats>> => {
+    return apiFetch<DashboardStats>('/dashboard/stats/');
+  },
+
+  getRecentIssues: async (limit: number = 5): Promise<ApiResponse<Issue[]>> => {
+    return apiFetch<Issue[]>(`/dashboard/recent_issues/?limit=${limit}`);
+  },
+
+  getAdminStats: async (): Promise<ApiResponse<DashboardStats & {
+    category_stats: { category: string; count: number }[];
+    priority_stats: { priority: string; count: number }[];
+  }>> => {
+    return apiFetch('/dashboard/admin_stats/');
+  },
+};
+
 export { getAccessToken, getRefreshToken, clearTokens, setTokens };
 export type { UserData, LoginResponse, RegisterResponse, ApiResponse };

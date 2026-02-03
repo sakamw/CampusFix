@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bell, Search, User, Menu } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Search, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationDropdown } from "./NotificationDropdown";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -21,29 +23,16 @@ export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     
-    // Navigate to dashboard with search query or show search results
-    if (location.pathname.startsWith("/admin")) {
-      navigate(`/admin?search=${encodeURIComponent(searchQuery)}`);
-    } else {
-      navigate(`/dashboard?search=${encodeURIComponent(searchQuery)}`);
-    }
-    toast({
-      title: "Search",
-      description: `Searching for "${searchQuery}"...`,
-    });
-  };
-
-  const handleNotifications = () => {
-    toast({
-      title: "Notifications",
-      description: "You have 3 new notifications",
-    });
+    // Navigate to issues page with search query
+    navigate(`/issues?search=${encodeURIComponent(searchQuery)}`);
+    setSearchQuery("");
   };
 
   const handleProfile = () => {
@@ -57,7 +46,8 @@ export function Header({ onMenuClick }: HeaderProps) {
     navigate(settingsPath);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    await logout();
     toast({
       title: "Signed out",
       description: "You have been successfully signed out",
@@ -97,10 +87,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             />
           </form>
 
-          <Button variant="ghost" size="icon" className="relative" onClick={handleNotifications}>
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
-          </Button>
+          <NotificationDropdown />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

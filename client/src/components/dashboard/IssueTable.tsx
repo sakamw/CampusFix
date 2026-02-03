@@ -16,22 +16,32 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-interface Issue {
-  id: string;
-  title: string;
-  category: string;
-  status: "open" | "in-progress" | "resolved" | "closed";
-  priority: "low" | "medium" | "high" | "critical";
-  location: string;
-  createdAt: string;
-  upvotes: number;
-}
+import { Issue } from "@/lib/api";
 
 interface IssueTableProps {
   issues: Issue[];
   showActions?: boolean;
 }
+
+// Helper function to format date
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+};
+
+// Helper function to format category
+const formatCategory = (category: string): string => {
+  return category
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
 
 const statusVariants = {
   open: "info",
@@ -77,7 +87,7 @@ export function IssueTable({ issues, showActions = true }: IssueTableProps) {
                 <p className="text-sm text-muted-foreground">#{issue.id}</p>
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {issue.category}
+                {formatCategory(issue.category)}
               </TableCell>
               <TableCell>
                 <Badge variant={statusVariants[issue.status]}>
@@ -93,7 +103,7 @@ export function IssueTable({ issues, showActions = true }: IssueTableProps) {
                 {issue.location}
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {issue.createdAt}
+                {formatDate(issue.created_at)}
               </TableCell>
               {showActions && (
                 <TableCell className="text-right">

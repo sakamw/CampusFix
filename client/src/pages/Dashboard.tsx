@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   FileText,
   AlertCircle,
@@ -6,55 +7,97 @@ import {
   Clock,
   PlusCircle,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { IssueTable } from "@/components/dashboard/IssueTable";
-
-const recentIssues = [
-  {
-    id: "ISS-001",
-    title: "Broken AC unit in Lecture Hall B",
-    category: "Facilities",
-    status: "open" as const,
-    priority: "high" as const,
-    location: "Building A, Room 201",
-    createdAt: "Jan 5, 2026",
-    upvotes: 12,
-  },
-  {
-    id: "ISS-002",
-    title: "Wi-Fi connectivity issues in Library",
-    category: "IT Infrastructure",
-    status: "in-progress" as const,
-    priority: "critical" as const,
-    location: "Main Library, Floor 2",
-    createdAt: "Jan 4, 2026",
-    upvotes: 45,
-  },
-  {
-    id: "ISS-003",
-    title: "Water leak in bathroom",
-    category: "Plumbing",
-    status: "resolved" as const,
-    priority: "medium" as const,
-    location: "Student Center",
-    createdAt: "Jan 3, 2026",
-    upvotes: 8,
-  },
-  {
-    id: "ISS-004",
-    title: "Faulty projector in Room 305",
-    category: "Equipment",
-    status: "open" as const,
-    priority: "low" as const,
-    location: "Building C, Room 305",
-    createdAt: "Jan 2, 2026",
-    upvotes: 3,
-  },
-];
+import { dashboardApi, Issue, DashboardStats } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const searchQuery = searchParams.get('search');
+
+  useEffect(() => {
+    fetchDashboardData();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchDashboardData(true);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [searchQuery]);
+
+  const fetchDashboardData = async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch stats and recent issues in parallel
+      const [statsResult, issuesResult] = await Promise.all([
+        dashboardApi.getStats(),
+        dashboardApi.getRecentIssues(5),
+      ]);
+
+      if (statsResult.error) {
+        throw new Error(statsResult.error);
+      }
+      if (issuesResult.error) {
+        throw new Error(issuesResult.error);
+      }
+
+      // Set data or defaults for new users
+      setStats(statsResult.data || {
+        total_issues: 0,
+        open_issues: 0,
+        in_progress_issues: 0,
+        resolved_issues: 0,
+        closed_issues: 0,
+        resolution_rate: 0,
+        avg_response_time_hours: 0,
+      });
+      setIssues(issuesResult.data || []);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
+      setError(errorMessage);
+      if (!silent) {
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !stats) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error && !stats) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-lg text-muted-foreground">{error}</p>
+        <Button onClick={() => fetchDashboardData()}>Retry</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -62,7 +105,9 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back! Here's an overview of your reported issues.
+            {searchQuery
+              ? `Search results for "${searchQuery}"`
+              : "Welcome back! Here's an overview of your reported issues."}
           </p>
         </div>
         <Button asChild size="lg">
@@ -77,31 +122,29 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Issues"
-          value={24}
+          value={stats?.total_issues || 0}
           description="All time reported"
           icon={FileText}
           variant="primary"
         />
         <StatCard
           title="Open Issues"
-          value={8}
+          value={stats?.open_issues || 0}
           description="Awaiting resolution"
           icon={AlertCircle}
-          trend={{ value: 12, isPositive: false }}
         />
         <StatCard
           title="In Progress"
-          value={5}
+          value={stats?.in_progress_issues || 0}
           description="Currently being addressed"
           icon={Clock}
           variant="warning"
         />
         <StatCard
           title="Resolved"
-          value={11}
+          value={stats?.resolved_issues || 0}
           description="Successfully completed"
           icon={CheckCircle2}
-          trend={{ value: 23, isPositive: true }}
           variant="success"
         />
       </div>
@@ -114,11 +157,15 @@ export default function Dashboard() {
           </div>
           <div>
             <p className="font-medium">Your Resolution Rate</p>
-            <p className="text-2xl font-bold text-primary">87.5%</p>
+            <p className="text-2xl font-bold text-primary">
+              {stats?.resolution_rate || 0}%
+            </p>
           </div>
           <div className="ml-auto text-right">
             <p className="text-sm text-muted-foreground">Average Response Time</p>
-            <p className="text-lg font-semibold">18 hours</p>
+            <p className="text-lg font-semibold">
+              {stats?.avg_response_time_hours || 0} hours
+            </p>
           </div>
         </div>
       </div>
@@ -131,7 +178,15 @@ export default function Dashboard() {
             <Link to="/issues">View all issues</Link>
           </Button>
         </div>
-        <IssueTable issues={recentIssues} />
+        {issues.length > 0 ? (
+          <IssueTable issues={issues} />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center">
+            <p className="text-muted-foreground">
+              No issues reported yet. Click "Report New Issue" to get started.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Info,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,16 +22,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { issuesApi } from "@/lib/api";
 
 const categories = [
-  "Facilities",
-  "IT Infrastructure",
-  "Plumbing",
-  "Electrical",
-  "Equipment",
-  "Security",
-  "Cleaning",
-  "Other",
+  { value: "facilities", label: "Facilities" },
+  { value: "it-infrastructure", label: "IT Infrastructure" },
+  { value: "plumbing", label: "Plumbing" },
+  { value: "electrical", label: "Electrical" },
+  { value: "equipment", label: "Equipment" },
+  { value: "safety", label: "Safety" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "other", label: "Other" },
 ];
 
 
@@ -44,6 +46,14 @@ const priorityOptions = [
 export default function ReportIssue() {
   const [images, setImages] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    priority: '',
+    location: '',
+  });
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -76,13 +86,49 @@ export default function ReportIssue() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Issue Reported Successfully",
-      description: "Your issue has been submitted and assigned ticket #ISS-025",
-    });
-    navigate("/dashboard");
+    
+    if (!formData.title || !formData.description || !formData.category || !formData.priority || !formData.location) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await issuesApi.createIssue({
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        location: formData.location,
+      });
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      toast({
+        title: "Issue Reported Successfully",
+        description: `Your issue has been submitted and assigned ID #${result.data?.id}`,
+      });
+      
+      navigate("/dashboard");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit issue';
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -111,6 +157,8 @@ export default function ReportIssue() {
                 id="title"
                 placeholder="Brief description of the issue"
                 className="input-focus"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
               />
             </div>
@@ -121,6 +169,8 @@ export default function ReportIssue() {
                 id="description"
                 placeholder="Please provide as much detail as possible about the issue..."
                 className="min-h-32 input-focus"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 required
               />
             </div>
@@ -128,14 +178,14 @@ export default function ReportIssue() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select required>
+                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })} required>
                   <SelectTrigger className="input-focus">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat.toLowerCase()}>
-                        {cat}
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -144,7 +194,7 @@ export default function ReportIssue() {
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority Level</Label>
-                <Select required>
+                <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })} required>
                   <SelectTrigger className="input-focus">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
@@ -177,6 +227,8 @@ export default function ReportIssue() {
               id="location"
               placeholder="e.g., Building A, Room 201, Floor 3"
               className="input-focus"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               required
             />
             <p className="text-xs text-muted-foreground">
