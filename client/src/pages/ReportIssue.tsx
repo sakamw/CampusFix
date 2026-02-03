@@ -53,6 +53,7 @@ export default function ReportIssue() {
     category: '',
     priority: '',
     location: '',
+    visibility: 'public',
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -107,6 +108,7 @@ export default function ReportIssue() {
         category: formData.category,
         priority: formData.priority,
         location: formData.location,
+        visibility: formData.visibility,
       });
 
       if (result.error) {
@@ -176,6 +178,21 @@ export default function ReportIssue() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="visibility">Visibility</Label>
+                              <Select
+                                value={formData.visibility}
+                                onValueChange={(value) => setFormData({ ...formData, visibility: value as 'public' | 'private' })}
+                              >
+                                <SelectTrigger id="visibility" className="input-focus">
+                                  <SelectValue placeholder="Select visibility" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="public">Public (visible to all users)</SelectItem>
+                                  <SelectItem value="private">Private (visible only to admin)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })} required>

@@ -267,6 +267,7 @@ export interface Issue {
   resolved_at: string | null;
   upvote_count: number;
   upvoted_by_user: boolean;
+  visibility: 'public' | 'private';
 }
 
 export interface IssueDetail extends Issue {
@@ -346,6 +347,7 @@ export const issuesApi = {
     category: string;
     priority: string;
     location: string;
+    visibility?: 'public' | 'private';
   }): Promise<ApiResponse<Issue>> => {
     return apiFetch<Issue>('/issues/', {
       method: 'POST',

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,88 +8,14 @@ import {
   ThumbsUp,
   MessageSquare,
   Send,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Wrench,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-
-const issueData = {
-  id: "ISS-002",
-  title: "Wi-Fi connectivity issues in Library",
-  description:
-    "The Wi-Fi connection on the second floor of the main library has been extremely unreliable for the past week. Students are unable to access online resources and submit assignments. The issue seems to be worse during peak hours (10 AM - 2 PM).",
-  category: "IT Infrastructure",
-  status: "in-progress",
-  priority: "critical",
-  location: "Main Library, Floor 2",
-  createdAt: "January 4, 2026",
-  reporter: {
-    name: "Sarah Johnson",
-    studentId: "STU123456",
-    email: "sarah.johnson@university.edu",
-  },
-  upvotes: 45,
-  assignedTo: "IT Department - Network Team",
-  timeline: [
-    {
-      id: 1,
-      type: "created",
-      title: "Issue Reported",
-      description: "Issue was submitted by Sarah Johnson",
-      timestamp: "Jan 4, 2026 - 9:15 AM",
-      icon: AlertCircle,
-    },
-    {
-      id: 2,
-      type: "assigned",
-      title: "Assigned to IT Department",
-      description: "Issue assigned to Network Team for investigation",
-      timestamp: "Jan 4, 2026 - 10:30 AM",
-      icon: User,
-    },
-    {
-      id: 3,
-      type: "update",
-      title: "Investigation Started",
-      description: "Network team is on-site diagnosing the issue",
-      timestamp: "Jan 4, 2026 - 2:00 PM",
-      icon: Wrench,
-    },
-    {
-      id: 4,
-      type: "update",
-      title: "Root Cause Identified",
-      description: "Faulty access point detected. Replacement ordered.",
-      timestamp: "Jan 5, 2026 - 11:00 AM",
-      icon: Clock,
-    },
-  ],
-  comments: [
-    {
-      id: 1,
-      author: "Mike Chen",
-      role: "Student",
-      content:
-        "I've been experiencing the same issue. It's affecting my ability to attend online lectures.",
-      timestamp: "Jan 4, 2026 - 11:45 AM",
-    },
-    {
-      id: 2,
-      author: "IT Support",
-      role: "Staff",
-      content:
-        "We've identified the issue and are working on a fix. Expected resolution within 24-48 hours.",
-      timestamp: "Jan 5, 2026 - 9:00 AM",
-    },
-  ],
-};
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { Textarea } from "../components/ui/textarea";
+import { Avatar, AvatarFallback } from "../components/ui/avatar";
+import { Separator } from "../components/ui/separator";
+import { useToast } from "../hooks/use-toast";
+import { issuesApi, IssueDetail } from "../lib/api";
 
 const statusConfig = {
   open: { variant: "info" as const, label: "Open" },
@@ -109,46 +35,63 @@ export default function IssueDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [upvoted, setUpvoted] = useState(false);
+  const [issue, setIssue] = useState<IssueDetail | null>(null);
+  const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState(issueData.comments);
+  const [postingComment, setPostingComment] = useState(false);
+  const [upvoting, setUpvoting] = useState(false);
 
-  const status = statusConfig[issueData.status as keyof typeof statusConfig];
-  const priority = priorityConfig[issueData.priority as keyof typeof priorityConfig];
+  useEffect(() => {
+    async function fetchIssue() {
+      if (!id) return;
+      setLoading(true);
+      const res = await issuesApi.getIssue(Number(id));
+      setIssue(res.data || null);
+      setLoading(false);
+    }
+    fetchIssue();
+  }, [id]);
 
-  const handleUpvote = () => {
-    setUpvoted(!upvoted);
-    toast({
-      title: upvoted ? "Upvote removed" : "Issue upvoted",
-      description: upvoted 
-        ? "Your upvote has been removed" 
-        : "Thank you for upvoting this issue",
-    });
+  const status = issue
+    ? statusConfig[issue.status as keyof typeof statusConfig]
+    : undefined;
+  const priority = issue
+    ? priorityConfig[issue.priority as keyof typeof priorityConfig]
+    : undefined;
+
+  const handleUpvote = async () => {
+    if (!issue || upvoting) return;
+    setUpvoting(true);
+    const res = await issuesApi.upvoteIssue(issue.id);
+    if (res.data) {
+      setIssue({
+        ...issue,
+        upvote_count: res.data.upvote_count,
+        upvoted_by_user: res.data.upvoted,
+      });
+    }
+    setUpvoting(false);
   };
 
-  const handlePostComment = () => {
-    if (!comment.trim()) return;
-
-    const newComment = {
-      id: comments.length + 1,
-      author: "You",
-      role: "Student",
-      content: comment,
-      timestamp: new Date().toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    };
-
-    setComments([...comments, newComment]);
-    setComment("");
-    toast({
-      title: "Comment posted",
-      description: "Your comment has been added successfully",
-    });
+  const handlePostComment = async () => {
+    if (!issue || !comment.trim() || postingComment) return;
+    setPostingComment(true);
+    const res = await issuesApi.addComment(issue.id, comment);
+    if (res.data) {
+      setIssue({ ...issue, comments: [...issue.comments, res.data] });
+      setComment("");
+      toast({
+        title: "Comment posted",
+        description: "Your comment has been added successfully",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: res.error || "Failed to post comment",
+        variant: "destructive",
+      });
+    }
+    setPostingComment(false);
   };
 
   const handleContactSupport = () => {
@@ -157,8 +100,28 @@ export default function IssueDetails() {
       description: "Opening support contact options...",
     });
     // In a real app, this could open a modal, navigate to support page, or open email
-    window.location.href = `mailto:support@campusfix.edu?subject=Support Request for Issue ${issueData.id}`;
+    window.location.href = `mailto:support@campusfix.edu?subject=Support Request for Issue ${issue?.id}`;
   };
+
+  // Simulate current user for demo; replace with real user context in production
+  const currentUserEmail = issue?.reporter?.email || "";
+  const isReporter =
+    issue && issue.reporter && issue.reporter.email === currentUserEmail;
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 text-center text-muted-foreground">
+        Loading issue details...
+      </div>
+    );
+  }
+  if (!issue) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 text-center text-destructive">
+        Issue not found or you do not have access.
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -171,27 +134,40 @@ export default function IssueDetails() {
         Back to Dashboard
       </Link>
 
+      {/* Edit Issue Button (only for reporter) */}
+      {isReporter && (
+        <div className="flex justify-end mb-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/issues/${issue.id}/edit`)}
+          >
+            Edit Issue
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Badge variant={status.variant}>{status.label}</Badge>
-              <Badge variant={priority.variant}>{priority.label}</Badge>
+              <Badge variant={status?.variant}>{status?.label}</Badge>
+              <Badge variant={priority?.variant}>{priority?.label}</Badge>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {issueData.title}
-            </h1>
-            <p className="text-muted-foreground">#{issueData.id}</p>
+            <h1 className="text-3xl font-bold tracking-tight">{issue.title}</h1>
+            <p className="text-muted-foreground">#{issue.id}</p>
           </div>
 
           <Button
-            variant={upvoted ? "default" : "outline"}
+            variant={issue.upvoted_by_user ? "default" : "outline"}
             onClick={handleUpvote}
             className="gap-2"
+            disabled={upvoting}
           >
-            <ThumbsUp className={`h-4 w-4 ${upvoted ? "fill-current" : ""}`} />
-            <span>{upvoted ? issueData.upvotes + 1 : issueData.upvotes}</span>
+            <ThumbsUp
+              className={`h-4 w-4 ${issue.upvoted_by_user ? "fill-current" : ""}`}
+            />
+            <span>{issue.upvote_count}</span>
             Upvote
           </Button>
         </div>
@@ -199,15 +175,15 @@ export default function IssueDetails() {
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <MapPin className="h-4 w-4" />
-            {issueData.location}
+            {issue.location}
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
-            {issueData.createdAt}
+            {new Date(issue.created_at).toLocaleDateString()}
           </div>
           <div className="flex items-center gap-1">
             <User className="h-4 w-4" />
-            Reported by {issueData.reporter.name}
+            Reported by {issue.reporter.first_name} {issue.reporter.last_name}
           </div>
         </div>
       </div>
@@ -219,73 +195,54 @@ export default function IssueDetails() {
           <div className="rounded-xl border bg-card p-6">
             <h2 className="text-lg font-semibold mb-4">Description</h2>
             <p className="text-muted-foreground leading-relaxed">
-              {issueData.description}
+              {issue.description}
             </p>
           </div>
 
           {/* Timeline */}
-          <div className="rounded-xl border bg-card p-6">
-            <h2 className="text-lg font-semibold mb-6">Activity Timeline</h2>
-            <div className="space-y-6">
-              {issueData.timeline.map((event, index) => (
-                <div key={event.id} className="flex gap-4">
-                  <div className="relative flex flex-col items-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <event.icon className="h-5 w-5 text-primary" />
-                    </div>
-                    {index < issueData.timeline.length - 1 && (
-                      <div className="absolute top-10 h-full w-px bg-border" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-6">
-                    <p className="font-medium">{event.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {event.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {event.timestamp}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* You can implement timeline if your backend supports it, else remove this block */}
 
           {/* Comments */}
           <div className="rounded-xl border bg-card p-6">
             <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
-              Comments ({comments.length})
+              Comments ({issue.comments.length})
             </h2>
 
-            <div className="space-y-6">
-              {comments.map((c) => (
-                <div key={c.id} className="flex gap-4">
-                  <Avatar>
-                    <AvatarFallback>
-                      {c.author
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{c.author}</p>
-                      <Badge variant="secondary" className="text-xs">
-                        {c.role}
-                      </Badge>
+            {issue.comments.length === 0 ? (
+              <div className="text-muted-foreground text-center py-8">
+                No comments yet. Be the first to comment!
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {issue.comments.map((c) => (
+                  <div key={c.id} className="flex gap-4">
+                    <Avatar>
+                      <AvatarFallback>
+                        {c.user.first_name?.[0] || "?"}
+                        {c.user.last_name?.[0] || ""}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">
+                          {c.user.first_name} {c.user.last_name}
+                        </p>
+                        <Badge variant="secondary" className="text-xs">
+                          {c.user.role}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {c.content}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(c.created_at).toLocaleString()}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {c.content}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {c.timestamp}
-                    </p>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <Separator className="my-6" />
 
@@ -295,9 +252,13 @@ export default function IssueDetails() {
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 className="input-focus"
+                disabled={postingComment}
               />
               <div className="flex justify-end">
-                <Button disabled={!comment.trim()} onClick={handlePostComment}>
+                <Button
+                  disabled={!comment.trim() || postingComment}
+                  onClick={handlePostComment}
+                >
                   <Send className="mr-2 h-4 w-4" />
                   Post Comment
                 </Button>
@@ -315,19 +276,21 @@ export default function IssueDetails() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Category</span>
-                <span className="font-medium">{issueData.category}</span>
+                <span className="font-medium">{issue.category}</span>
               </div>
               <Separator />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Assigned To</span>
                 <span className="font-medium text-right text-xs">
-                  {issueData.assignedTo}
+                  {issue.assigned_to
+                    ? `${issue.assigned_to.first_name} ${issue.assigned_to.last_name}`
+                    : "Unassigned"}
                 </span>
               </div>
               <Separator />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Upvotes</span>
-                <span className="font-medium">{issueData.upvotes}</span>
+                <span className="font-medium">{issue.upvote_count}</span>
               </div>
             </div>
           </div>
@@ -338,16 +301,16 @@ export default function IssueDetails() {
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
                 <AvatarFallback>
-                  {issueData.reporter.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                  {issue.reporter.first_name?.[0] || "?"}
+                  {issue.reporter.last_name?.[0] || ""}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium">{issueData.reporter.name}</p>
+                <p className="font-medium">
+                  {issue.reporter.first_name} {issue.reporter.last_name}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  {issueData.reporter.studentId}
+                  {issue.reporter.student_id}
                 </p>
               </div>
             </div>
@@ -359,7 +322,11 @@ export default function IssueDetails() {
             <p className="text-sm text-muted-foreground">
               If this is urgent, contact facilities directly.
             </p>
-            <Button variant="outline" className="w-full" onClick={handleContactSupport}>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleContactSupport}
+            >
               Contact Support
             </Button>
           </div>

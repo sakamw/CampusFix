@@ -33,9 +33,12 @@ class IssueListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'category', 'status', 'priority', 
             'location', 'reporter', 'assigned_to', 'created_at', 'updated_at', 
-            'resolved_at', 'upvote_count', 'upvoted_by_user'
+            'resolved_at', 'upvote_count', 'upvoted_by_user', 'visibility'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count']
+        extra_kwargs = {
+            'visibility': {'required': False}
+        }
     
     def get_upvoted_by_user(self, obj):
         request = self.context.get('request')
@@ -58,7 +61,8 @@ class IssueDetailSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'category', 'status', 'priority', 
             'location', 'reporter', 'assigned_to', 'created_at', 'updated_at', 
             'resolved_at', 'upvote_count', 'upvoted_by_user', 'comments', 
-            'attachments', 'comment_count'
+            'attachments', 'comment_count',
+            'visibility'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count']
     
@@ -80,7 +84,7 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         model = Issue
         fields = [
             'id', 'title', 'description', 'category', 'status', 'priority', 
-            'location', 'reporter_id', 'assigned_to_id', 'created_at', 'updated_at'
+            'location', 'visibility', 'reporter_id', 'assigned_to_id', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     

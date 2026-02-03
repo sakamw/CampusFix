@@ -29,12 +29,18 @@ class Issue(models.Model):
         ('other', 'Other'),
     ]
     
+    VISIBILITY_CHOICES = [
+        ('public', 'Public'),
+        ('private', 'Private'),
+    ]
+
     title = models.CharField(max_length=255)
     description = models.TextField()
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
     location = models.CharField(max_length=255)
+    visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, default='public')
     
     reporter = models.ForeignKey(
         settings.AUTH_USER_MODEL,

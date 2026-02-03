@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Eye, MoreHorizontal } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import {
   Table,
   TableBody,
@@ -9,14 +9,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../../components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Issue } from "@/lib/api";
+} from "../../components/ui/dropdown-menu";
+import { Issue } from "../../lib/api";
 
 interface IssueTableProps {
   issues: Issue[];

@@ -21,6 +21,7 @@ const studentNavItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Report Issue", href: "/report", icon: PlusCircle },
   { title: "My Issues", href: "/issues", icon: FileText },
+  { title: "Public Posts", href: "/public-issues", icon: FileText },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
