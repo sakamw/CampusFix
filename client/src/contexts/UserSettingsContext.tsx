@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from "react";
 
 interface UserProfile {
   firstName: string;
@@ -74,7 +80,9 @@ const defaultSettings: UserSettings = {
 
 const STORAGE_KEY = "campusfix-user-settings";
 
-const UserSettingsContext = createContext<UserSettingsContextType | undefined>(undefined);
+const UserSettingsContext = createContext<UserSettingsContextType | undefined>(
+  undefined,
+);
 
 export function UserSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<UserSettings>(() => {
@@ -124,7 +132,9 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const updateAppearance = (appearanceSettings: Partial<AppearanceSettings>) => {
+  const updateAppearance = (
+    appearanceSettings: Partial<AppearanceSettings>,
+  ) => {
     setSettings((prev) => ({
       ...prev,
       appearance: { ...prev.appearance, ...appearanceSettings },
@@ -156,7 +166,9 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
 export function useUserSettings() {
   const context = useContext(UserSettingsContext);
   if (context === undefined) {
-    throw new Error("useUserSettings must be used within a UserSettingsProvider");
+    throw new Error(
+      "useUserSettings must be used within a UserSettingsProvider",
+    );
   }
   return context;
 }

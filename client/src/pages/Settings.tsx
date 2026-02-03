@@ -1,5 +1,14 @@
 import { useState, useRef } from "react";
-import { User, Bell, Shield, Eye, Palette, Trash2, Camera, X } from "lucide-react";
+import {
+  User,
+  Bell,
+  Shield,
+  Eye,
+  Palette,
+  Trash2,
+  Camera,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +37,14 @@ import { useUserSettings } from "@/contexts/UserSettingsContext";
 export default function Settings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
-  const { settings, updateProfile, updateAvatar, updateNotifications, updateSecurity, updateAppearance } = useUserSettings();
+  const {
+    settings,
+    updateProfile,
+    updateAvatar,
+    updateNotifications,
+    updateSecurity,
+    updateAppearance,
+  } = useUserSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Local state for form fields (to allow editing before saving)
@@ -181,7 +197,7 @@ export default function Settings() {
   const handleDeleteAccount = () => {
     if (
       window.confirm(
-        "Are you sure you want to delete your account? This action cannot be undone."
+        "Are you sure you want to delete your account? This action cannot be undone.",
       )
     ) {
       toast({
@@ -235,12 +251,15 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-            {/* Avatar Section */}
+              {/* Avatar Section */}
               <div className="flex items-center gap-6">
                 <div className="relative">
                   <Avatar className="h-20 w-20">
                     {settings.profile.avatar ? (
-                      <AvatarImage src={settings.profile.avatar} alt="Profile" />
+                      <AvatarImage
+                        src={settings.profile.avatar}
+                        alt="Profile"
+                      />
                     ) : null}
                     <AvatarFallback className="text-lg">
                       {firstName[0]}
@@ -372,7 +391,9 @@ export default function Settings() {
                   <Switch
                     id="email-notifications"
                     checked={settings.notifications.emailNotifications}
-                    onCheckedChange={(checked) => handleNotificationChange("emailNotifications", checked)}
+                    onCheckedChange={(checked) =>
+                      handleNotificationChange("emailNotifications", checked)
+                    }
                   />
                 </div>
 
@@ -390,7 +411,9 @@ export default function Settings() {
                   <Switch
                     id="push-notifications"
                     checked={settings.notifications.pushNotifications}
-                    onCheckedChange={(checked) => handleNotificationChange("pushNotifications", checked)}
+                    onCheckedChange={(checked) =>
+                      handleNotificationChange("pushNotifications", checked)
+                    }
                   />
                 </div>
 
@@ -406,7 +429,9 @@ export default function Settings() {
                   <Switch
                     id="issue-updates"
                     checked={settings.notifications.issueUpdates}
-                    onCheckedChange={(checked) => handleNotificationChange("issueUpdates", checked)}
+                    onCheckedChange={(checked) =>
+                      handleNotificationChange("issueUpdates", checked)
+                    }
                   />
                 </div>
 
@@ -422,7 +447,9 @@ export default function Settings() {
                   <Switch
                     id="issue-comments"
                     checked={settings.notifications.issueComments}
-                    onCheckedChange={(checked) => handleNotificationChange("issueComments", checked)}
+                    onCheckedChange={(checked) =>
+                      handleNotificationChange("issueComments", checked)
+                    }
                   />
                 </div>
 
@@ -438,7 +465,9 @@ export default function Settings() {
                   <Switch
                     id="weekly-digest"
                     checked={settings.notifications.weeklyDigest}
-                    onCheckedChange={(checked) => handleNotificationChange("weeklyDigest", checked)}
+                    onCheckedChange={(checked) =>
+                      handleNotificationChange("weeklyDigest", checked)
+                    }
                   />
                 </div>
 
@@ -454,7 +483,9 @@ export default function Settings() {
                   <Switch
                     id="marketing-emails"
                     checked={settings.notifications.marketingEmails}
-                    onCheckedChange={(checked) => handleNotificationChange("marketingEmails", checked)}
+                    onCheckedChange={(checked) =>
+                      handleNotificationChange("marketingEmails", checked)
+                    }
                   />
                 </div>
               </div>
@@ -641,7 +672,10 @@ export default function Settings() {
 
                 <div className="space-y-2">
                   <Label htmlFor="language">Language</Label>
-                  <Select value={settings.appearance.language} onValueChange={handleLanguageChange}>
+                  <Select
+                    value={settings.appearance.language}
+                    onValueChange={handleLanguageChange}
+                  >
                     <SelectTrigger className="input-focus">
                       <SelectValue placeholder="Select language" />
                     </SelectTrigger>

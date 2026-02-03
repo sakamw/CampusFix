@@ -29,7 +29,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    
+
     // Navigate to issues page with search query
     navigate(`/issues?search=${encodeURIComponent(searchQuery)}`);
     setSearchQuery("");
@@ -40,8 +40,8 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   const handleSettings = () => {
-    const settingsPath = location.pathname.startsWith("/admin") 
-      ? "/admin/settings" 
+    const settingsPath = location.pathname.startsWith("/admin")
+      ? "/admin/settings"
       : "/settings";
     navigate(settingsPath);
   };
@@ -69,7 +69,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
         <Link to="/dashboard" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <span className="text-sm font-bold text-primary-foreground">CF</span>
+            <span className="text-sm font-bold text-primary-foreground">
+              CF
+            </span>
           </div>
           <span className="hidden font-semibold text-foreground md:inline-block">
             CampusFix
@@ -100,10 +102,16 @@ export function Header({ onMenuClick }: HeaderProps) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleProfile}>Profile</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSettings}>Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleProfile}>
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSettings}>
+                Settings
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
+                Sign out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

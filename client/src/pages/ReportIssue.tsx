@@ -35,12 +35,26 @@ const categories = [
   { value: "other", label: "Other" },
 ];
 
-
 const priorityOptions = [
   { value: "low", label: "Low", icon: Info, color: "text-info" },
-  { value: "medium", label: "Medium", icon: AlertTriangle, color: "text-warning" },
-  { value: "high", label: "High", icon: AlertTriangle, color: "text-destructive" },
-  { value: "critical", label: "Critical", icon: AlertCircle, color: "text-destructive" },
+  {
+    value: "medium",
+    label: "Medium",
+    icon: AlertTriangle,
+    color: "text-warning",
+  },
+  {
+    value: "high",
+    label: "High",
+    icon: AlertTriangle,
+    color: "text-destructive",
+  },
+  {
+    value: "critical",
+    label: "Critical",
+    icon: AlertCircle,
+    color: "text-destructive",
+  },
 ];
 
 export default function ReportIssue() {
@@ -48,12 +62,12 @@ export default function ReportIssue() {
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    priority: '',
-    location: '',
-    visibility: 'public',
+    title: "",
+    description: "",
+    category: "",
+    priority: "",
+    location: "",
+    visibility: "public",
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -89,8 +103,14 @@ export default function ReportIssue() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.title || !formData.description || !formData.category || !formData.priority || !formData.location) {
+
+    if (
+      !formData.title ||
+      !formData.description ||
+      !formData.category ||
+      !formData.priority ||
+      !formData.location
+    ) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
@@ -108,7 +128,7 @@ export default function ReportIssue() {
         category: formData.category,
         priority: formData.priority,
         location: formData.location,
-        visibility: formData.visibility,
+        visibility: formData.visibility as "public" | "private",
       });
 
       if (result.error) {
@@ -119,10 +139,11 @@ export default function ReportIssue() {
         title: "Issue Reported Successfully",
         description: `Your issue has been submitted and assigned ID #${result.data?.id}`,
       });
-      
+
       navigate("/dashboard");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to submit issue';
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to submit issue";
       toast({
         title: "Error",
         description: errorMessage,
@@ -139,7 +160,8 @@ export default function ReportIssue() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Report an Issue</h1>
         <p className="text-muted-foreground mt-1">
-          Help us improve campus facilities by reporting any issues you encounter.
+          Help us improve campus facilities by reporting any issues you
+          encounter.
         </p>
       </div>
 
@@ -160,7 +182,9 @@ export default function ReportIssue() {
                 placeholder="Brief description of the issue"
                 className="input-focus"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 required
               />
             </div>
@@ -172,30 +196,47 @@ export default function ReportIssue() {
                 placeholder="Please provide as much detail as possible about the issue..."
                 className="min-h-32 input-focus"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 required
               />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label htmlFor="visibility">Visibility</Label>
-                              <Select
-                                value={formData.visibility}
-                                onValueChange={(value) => setFormData({ ...formData, visibility: value as 'public' | 'private' })}
-                              >
-                                <SelectTrigger id="visibility" className="input-focus">
-                                  <SelectValue placeholder="Select visibility" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="public">Public (visible to all users)</SelectItem>
-                                  <SelectItem value="private">Private (visible only to admin)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
+              <div className="space-y-2">
+                <Label htmlFor="visibility">Visibility</Label>
+                <Select
+                  value={formData.visibility}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      visibility: value as "public" | "private",
+                    })
+                  }
+                >
+                  <SelectTrigger id="visibility" className="input-focus">
+                    <SelectValue placeholder="Select visibility" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">
+                      Public (visible to all users)
+                    </SelectItem>
+                    <SelectItem value="private">
+                      Private (visible only to admin)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })} required>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, category: value })
+                  }
+                  required
+                >
                   <SelectTrigger className="input-focus">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -211,7 +252,13 @@ export default function ReportIssue() {
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority Level</Label>
-                <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })} required>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, priority: value })
+                  }
+                  required
+                >
                   <SelectTrigger className="input-focus">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
@@ -245,7 +292,9 @@ export default function ReportIssue() {
               placeholder="e.g., Building A, Room 201, Floor 3"
               className="input-focus"
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
               required
             />
             <p className="text-xs text-muted-foreground">
@@ -254,14 +303,17 @@ export default function ReportIssue() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="additionalLocation">Additional Location Details</Label>
+            <Label htmlFor="additionalLocation">
+              Additional Location Details
+            </Label>
             <Textarea
               id="additionalLocation"
               placeholder="Near the main entrance, by the water fountain, landmarks, directions, etc."
               className="min-h-20 input-focus"
             />
             <p className="text-xs text-muted-foreground">
-              Any additional details that can help locate the issue more precisely
+              Any additional details that can help locate the issue more
+              precisely
             </p>
           </div>
         </div>
@@ -295,8 +347,8 @@ export default function ReportIssue() {
             />
             <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-4 text-sm text-muted-foreground">
-              <span className="font-medium text-primary">Click to upload</span> or
-              drag and drop
+              <span className="font-medium text-primary">Click to upload</span>{" "}
+              or drag and drop
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               PNG, JPG or GIF (max 5 images, 10MB each)
@@ -327,11 +379,7 @@ export default function ReportIssue() {
 
         {/* Submit */}
         <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(-1)}
-          >
+          <Button type="button" variant="outline" onClick={() => navigate(-1)}>
             Cancel
           </Button>
           <Button type="submit" size="lg">

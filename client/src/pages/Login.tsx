@@ -44,7 +44,7 @@ export default function Login() {
       });
       // Redirect superusers/admins to admin dashboard
       const userData = result.user;
-      if (userData?.is_superuser || userData?.role === 'admin') {
+      if (userData?.is_superuser || userData?.role === "admin") {
         navigate("/admin");
       } else {
         navigate("/dashboard");

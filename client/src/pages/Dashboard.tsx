@@ -23,11 +23,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const searchQuery = searchParams.get('search');
+  const searchQuery = searchParams.get("search");
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       fetchDashboardData(true);
@@ -55,24 +55,27 @@ export default function Dashboard() {
       }
 
       // Set data or defaults for new users
-      setStats(statsResult.data || {
-        total_issues: 0,
-        open_issues: 0,
-        in_progress_issues: 0,
-        resolved_issues: 0,
-        closed_issues: 0,
-        resolution_rate: 0,
-        avg_response_time_hours: 0,
-      });
+      setStats(
+        statsResult.data || {
+          total_issues: 0,
+          open_issues: 0,
+          in_progress_issues: 0,
+          resolved_issues: 0,
+          closed_issues: 0,
+          resolution_rate: 0,
+          avg_response_time_hours: 0,
+        },
+      );
       setIssues(issuesResult.data || []);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load dashboard data";
       setError(errorMessage);
       if (!silent) {
         toast({
-          title: 'Error',
+          title: "Error",
           description: errorMessage,
-          variant: 'destructive',
+          variant: "destructive",
         });
       }
     } finally {
@@ -162,7 +165,9 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="ml-auto text-right">
-            <p className="text-sm text-muted-foreground">Average Response Time</p>
+            <p className="text-sm text-muted-foreground">
+              Average Response Time
+            </p>
             <p className="text-lg font-semibold">
               {stats?.avg_response_time_hours || 0} hours
             </p>

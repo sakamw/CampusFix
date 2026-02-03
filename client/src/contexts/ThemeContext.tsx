@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { useUserSettings, Theme } from "./UserSettingsContext";
@@ -24,7 +30,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname);
 
   // Get theme from user settings only if authenticated AND not on a public route
-  const theme: Theme = (isAuthenticated && !isPublicRoute) ? settings.appearance.theme : "light";
+  const theme: Theme =
+    isAuthenticated && !isPublicRoute ? settings.appearance.theme : "light";
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -36,7 +43,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (isPublicRoute) {
         effectiveTheme = "light";
       } else if (newTheme === "system") {
-        effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
           ? "dark"
           : "light";
       } else {

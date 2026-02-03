@@ -25,22 +25,22 @@ interface IssueTableProps {
 
 // Helper function to format date
 const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return '-';
+  if (!dateString) return "-";
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return '-';
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+  if (isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   }).format(date);
 };
 
 // Helper function to format category
 const formatCategory = (category: string): string => {
   return category
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 };
 
 const statusVariants = {

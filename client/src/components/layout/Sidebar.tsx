@@ -44,7 +44,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Get Support",
       description: "Opening support options...",
     });
-    window.location.href = "mailto:support@campusfix.edu?subject=Support Request";
+    window.location.href =
+      "mailto:support@campusfix.edu?subject=Support Request";
   };
 
   return (
@@ -62,13 +63,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         className={cn(
           // Fixed on mobile, sticky on desktop
           "fixed left-0 top-0 z-50 h-full w-64 transform border-r bg-card transition-transform duration-200 md:sticky md:top-0 md:self-start md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="flex h-16 items-center justify-between border-b px-4 md:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <span className="text-sm font-bold text-primary-foreground">CF</span>
+              <span className="text-sm font-bold text-primary-foreground">
+                CF
+              </span>
             </div>
             <span className="font-semibold">CampusFix</span>
           </div>
@@ -92,7 +95,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )
                 }
               >
@@ -109,7 +112,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Contact IT support for urgent issues
                 </p>
-                <Button size="sm" variant="secondary" className="mt-3 w-full" onClick={handleGetSupport}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-3 w-full"
+                  onClick={handleGetSupport}
+                >
                   Get Support
                 </Button>
               </div>

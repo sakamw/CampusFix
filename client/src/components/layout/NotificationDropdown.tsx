@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Check, MessageSquare, AlertCircle, UserPlus, CheckCircle, Info } from "lucide-react";
+import {
+  Bell,
+  Check,
+  MessageSquare,
+  AlertCircle,
+  UserPlus,
+  CheckCircle,
+  Info,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,7 +37,7 @@ const formatTimeAgo = (dateString: string): string => {
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (seconds < 60) return 'just now';
+  if (seconds < 60) return "just now";
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
@@ -77,12 +85,12 @@ export function NotificationDropdown() {
   const handleMarkAsRead = async (id: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const result = await notificationsApi.markAsRead(id);
     if (result.data) {
-      setNotifications(notifications.map(n => 
-        n.id === id ? { ...n, is_read: true } : n
-      ));
+      setNotifications(
+        notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      );
       setUnreadCount(Math.max(0, unreadCount - 1));
     }
   };
@@ -90,7 +98,7 @@ export function NotificationDropdown() {
   const handleMarkAllAsRead = async () => {
     const result = await notificationsApi.markAllAsRead();
     if (result.data) {
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+      setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
       toast({
         title: "Success",
@@ -113,7 +121,7 @@ export function NotificationDropdown() {
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
         </Button>
@@ -150,7 +158,7 @@ export function NotificationDropdown() {
                   key={notification.id}
                   className={cn(
                     "flex cursor-pointer flex-col items-start gap-1 p-3",
-                    !notification.is_read && "bg-accent/50"
+                    !notification.is_read && "bg-accent/50",
                   )}
                   asChild
                 >

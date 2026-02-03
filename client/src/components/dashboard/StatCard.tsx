@@ -38,18 +38,13 @@ export function StatCard({
   variant = "default",
 }: StatCardProps) {
   return (
-    <div
-      className={cn(
-        "stat-card animate-fade-in",
-        variantStyles[variant]
-      )}
-    >
+    <div className={cn("stat-card animate-fade-in", variantStyles[variant])}>
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <p
             className={cn(
               "text-sm font-medium",
-              variant === "default" ? "text-muted-foreground" : "opacity-90"
+              variant === "default" ? "text-muted-foreground" : "opacity-90",
             )}
           >
             {title}
@@ -59,7 +54,7 @@ export function StatCard({
             <p
               className={cn(
                 "text-sm",
-                variant === "default" ? "text-muted-foreground" : "opacity-80"
+                variant === "default" ? "text-muted-foreground" : "opacity-80",
               )}
             >
               {description}
@@ -69,17 +64,18 @@ export function StatCard({
             <p
               className={cn(
                 "text-sm font-medium",
-                trend.isPositive ? "text-success" : "text-destructive"
+                trend.isPositive ? "text-success" : "text-destructive",
               )}
             >
-              {trend.isPositive ? "+" : "-"}{trend.value}% from last month
+              {trend.isPositive ? "+" : "-"}
+              {trend.value}% from last month
             </p>
           )}
         </div>
         <div
           className={cn(
             "flex h-12 w-12 items-center justify-center rounded-lg",
-            iconVariantStyles[variant]
+            iconVariantStyles[variant],
           )}
         >
           <Icon className="h-6 w-6" />

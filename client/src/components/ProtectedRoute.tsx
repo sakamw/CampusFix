@@ -7,7 +7,10 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
 }
 
-export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  requireAdmin = false,
+}: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
@@ -24,13 +27,13 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requireAdmin && !user?.is_superuser && user?.role !== 'admin') {
+  if (requireAdmin && !user?.is_superuser && user?.role !== "admin") {
     // Non-admin trying to access admin routes - redirect to regular dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
   // Admin users trying to access regular routes - redirect to admin dashboard
-  if (!requireAdmin && (user?.is_superuser || user?.role === 'admin')) {
+  if (!requireAdmin && (user?.is_superuser || user?.role === "admin")) {
     return <Navigate to="/admin" replace />;
   }
 

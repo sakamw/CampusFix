@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GraduationCap, Eye, EyeOff, Loader2, ArrowLeft, Mail, KeyRound } from "lucide-react";
+import {
+  GraduationCap,
+  Eye,
+  EyeOff,
+  Loader2,
+  ArrowLeft,
+  Mail,
+  KeyRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,21 +18,21 @@ import { authApi } from "@/lib/api";
 export default function ForgotPassword() {
   const [searchParams] = useSearchParams();
   const tokenFromUrl = searchParams.get("token");
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [resetToken, setResetToken] = useState(tokenFromUrl || "");
   const [showResetForm, setShowResetForm] = useState(!!tokenFromUrl);
-  
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const email = (form.querySelector('#email') as HTMLInputElement)?.value;
+    const email = (form.querySelector("#email") as HTMLInputElement)?.value;
 
     if (!email) {
       toast({
@@ -61,9 +69,12 @@ export default function ForgotPassword() {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const token = (form.querySelector('#token') as HTMLInputElement)?.value;
-    const password = (form.querySelector('#password') as HTMLInputElement)?.value;
-    const confirmPassword = (form.querySelector('#confirmPassword') as HTMLInputElement)?.value;
+    const token = (form.querySelector("#token") as HTMLInputElement)?.value;
+    const password = (form.querySelector("#password") as HTMLInputElement)
+      ?.value;
+    const confirmPassword = (
+      form.querySelector("#confirmPassword") as HTMLInputElement
+    )?.value;
 
     if (!token || !password || !confirmPassword) {
       toast({
@@ -84,7 +95,11 @@ export default function ForgotPassword() {
     }
 
     setIsLoading(true);
-    const result = await authApi.resetPassword(token, password, confirmPassword);
+    const result = await authApi.resetPassword(
+      token,
+      password,
+      confirmPassword,
+    );
     setIsLoading(false);
 
     if (result.data) {
@@ -116,7 +131,8 @@ export default function ForgotPassword() {
             CampusFix
           </h1>
           <p className="text-lg text-primary-foreground/80 leading-relaxed">
-            Don't worry, it happens to the best of us. Let's get you back into your account.
+            Don't worry, it happens to the best of us. Let's get you back into
+            your account.
           </p>
         </div>
       </div>
@@ -143,7 +159,8 @@ export default function ForgotPassword() {
                 </div>
                 <h2 className="text-2xl font-bold">Forgot Password?</h2>
                 <p className="text-muted-foreground">
-                  Enter your email address and we'll send you a link to reset your password.
+                  Enter your email address and we'll send you a link to reset
+                  your password.
                 </p>
               </div>
 
@@ -158,8 +175,15 @@ export default function ForgotPassword() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Send Reset Link
                 </Button>
               </form>
@@ -291,7 +315,9 @@ export default function ForgotPassword() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showConfirmPassword ? (
@@ -303,8 +329,15 @@ export default function ForgotPassword() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Reset Password
                 </Button>
               </form>

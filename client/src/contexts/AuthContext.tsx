@@ -1,11 +1,20 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import { authApi, getAccessToken, clearTokens, UserData } from "@/lib/api";
 
 interface AuthContextType {
   user: UserData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: UserData }>;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string; user?: UserData }>;
   register: (userData: {
     email: string;
     first_name: string;
@@ -44,12 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const result = await authApi.login(email, password);
-    
+
     if (result.data) {
       setUser(result.data.user);
       return { success: true, user: result.data.user };
     }
-    
+
     return { success: false, error: result.error };
   };
 
@@ -62,12 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password_confirm: string;
   }) => {
     const result = await authApi.register(userData);
-    
+
     if (result.data) {
       setUser(result.data.user);
       return { success: true };
     }
-    
+
     return { success: false, error: result.error };
   };
 

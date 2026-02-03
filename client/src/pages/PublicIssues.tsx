@@ -81,7 +81,8 @@ export default function PublicIssues() {
             No public issues yet
           </p>
           <p className="text-sm text-muted-foreground mb-6">
-            When users report public issues, they will appear here for everyone to see.
+            When users report public issues, they will appear here for everyone
+            to see.
           </p>
         </div>
       )}

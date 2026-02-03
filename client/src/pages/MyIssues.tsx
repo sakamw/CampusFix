@@ -28,21 +28,22 @@ export default function MyIssues() {
     setError(null);
 
     try {
-      const result = await issuesApi.getIssues({ filter: 'my-issues' });
-      
+      const result = await issuesApi.getIssues({ filter: "my-issues" });
+
       if (result.error) {
         throw new Error(result.error);
       }
 
       setIssues(result.data || []);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load issues';
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load issues";
       setError(errorMessage);
       if (!silent) {
         toast({
-          title: 'Error',
+          title: "Error",
           description: errorMessage,
-          variant: 'destructive',
+          variant: "destructive",
         });
       }
     } finally {
@@ -95,7 +96,8 @@ export default function MyIssues() {
             No issues reported yet
           </p>
           <p className="text-sm text-muted-foreground mb-6">
-            Start by reporting your first issue to get help with campus facilities.
+            Start by reporting your first issue to get help with campus
+            facilities.
           </p>
           <Button asChild>
             <Link to="/report">
@@ -108,4 +110,3 @@ export default function MyIssues() {
     </div>
   );
 }
-
