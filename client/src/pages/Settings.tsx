@@ -50,7 +50,7 @@ export default function Settings() {
   // Local state for form fields (to allow editing before saving)
   const [firstName, setFirstName] = useState(settings.profile.firstName);
   const [lastName, setLastName] = useState(settings.profile.lastName);
-  const [phone, setPhone] = useState(settings.profile.phone);
+  const [phone, setPhone] = useState(settings.profile.phone || "");
 
   // Security settings - local password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -354,7 +354,7 @@ export default function Settings() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="input-focus"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="Enter your phone number"
                   />
                 </div>
               </div>

@@ -14,6 +14,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useUserSettings } from "@/contexts/UserSettingsContext";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -25,6 +27,8 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { toast } = useToast();
   const { logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+
+  const { settings } = useUserSettings();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,9 +98,16 @@ export function Header({ onMenuClick }: HeaderProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-                  <User className="h-4 w-4 text-primary-foreground" />
-                </div>
+                <Avatar className="h-8 w-8">
+                  {settings.profile.avatar ? (
+                    <AvatarImage src={settings.profile.avatar} alt="Profile" />
+                  ) : (
+                    <AvatarFallback>
+                      {settings.profile.firstName[0]}
+                      {settings.profile.lastName[0]}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

@@ -5,7 +5,7 @@ import {
   ReactNode,
   useEffect,
 } from "react";
-import { authApi } from "@/lib/api";
+import { authApi } from "../lib/api";
 
 interface UserProfile {
   firstName: string;

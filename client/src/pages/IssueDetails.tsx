@@ -12,7 +12,7 @@ import {
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
-import { Avatar, AvatarFallback } from "../components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/avatar";
 import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
 import { issuesApi, IssueDetail } from "../lib/api";
@@ -218,10 +218,14 @@ export default function IssueDetails() {
                 {issue.comments.map((c) => (
                   <div key={c.id} className="flex gap-4">
                     <Avatar>
-                      <AvatarFallback>
-                        {c.user.first_name?.[0] || "?"}
-                        {c.user.last_name?.[0] || ""}
-                      </AvatarFallback>
+                      {c.user.avatar ? (
+                        <AvatarImage src={c.user.avatar} alt="Profile" />
+                      ) : (
+                        <AvatarFallback>
+                          {c.user.first_name?.[0] || "?"}
+                          {c.user.last_name?.[0] || ""}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -300,10 +304,14 @@ export default function IssueDetails() {
             <h3 className="font-semibold">Reporter</h3>
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                <AvatarFallback>
-                  {issue.reporter.first_name?.[0] || "?"}
-                  {issue.reporter.last_name?.[0] || ""}
-                </AvatarFallback>
+                {issue.reporter.avatar ? (
+                  <AvatarImage src={issue.reporter.avatar} alt="Profile" />
+                ) : (
+                  <AvatarFallback>
+                    {issue.reporter.first_name?.[0] || "?"}
+                    {issue.reporter.last_name?.[0] || ""}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <div>
                 <p className="font-medium">
