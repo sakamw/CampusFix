@@ -7,7 +7,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Login from "./pages/Login";
@@ -18,6 +17,7 @@ import ReportIssue from "./pages/ReportIssue";
 import IssueDetails from "./pages/IssueDetails";
 import EditIssue from "./pages/EditIssue";
 import Settings from "./pages/Settings";
+import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 
 import NotFound from "./pages/NotFound";
 

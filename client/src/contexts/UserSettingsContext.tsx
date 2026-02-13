@@ -5,6 +5,7 @@ import {
   ReactNode,
   useEffect,
 } from "react";
+import { authApi } from "@/lib/api";
 
 interface UserProfile {
   firstName: string;
@@ -98,6 +99,37 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
     }
     return defaultSettings;
   });
+
+  // Fetch user profile from server and update settings
+  const fetchUserProfile = async () => {
+    try {
+      const res = await authApi.getProfile();
+      if (res.data) {
+        setSettings((prev) => ({
+          ...prev,
+          profile: {
+            ...prev.profile,
+            firstName: res.data.first_name || prev.profile.firstName,
+            lastName: res.data.last_name || prev.profile.lastName,
+            email: res.data.email || prev.profile.email,
+            studentId: res.data.student_id || prev.profile.studentId,
+            phone: res.data.phone || prev.profile.phone,
+            avatar: res.data.avatar || prev.profile.avatar,
+          },
+        }));
+      }
+    } catch (e) {
+      // Optionally handle error
+    }
+  };
+
+  // Fetch on mount and when window regains focus
+  useEffect(() => {
+    fetchUserProfile();
+    const onFocus = () => fetchUserProfile();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   // Persist settings to localStorage whenever they change
   useEffect(() => {
