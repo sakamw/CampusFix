@@ -18,7 +18,7 @@ import ReportIssue from "./pages/ReportIssue";
 import IssueDetails from "./pages/IssueDetails";
 import EditIssue from "./pages/EditIssue";
 import Settings from "./pages/Settings";
-import AdminDashboard from "./pages/AdminDashboard";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,50 +86,6 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Route>
-
-                {/* Admin Routes */}
-                <Route element={<DashboardLayout />}>
-                  <Route
-                    path="/admin"
-                    element={
-                      <ProtectedRoute requireAdmin>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/issues"
-                    element={
-                      <ProtectedRoute requireAdmin>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/analytics"
-                    element={
-                      <ProtectedRoute requireAdmin>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/users"
-                    element={
-                      <ProtectedRoute requireAdmin>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/settings"
-                    element={
-                      <ProtectedRoute requireAdmin>
-                        <AdminDashboard />
                       </ProtectedRoute>
                     }
                   />
