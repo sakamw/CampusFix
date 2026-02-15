@@ -3,7 +3,6 @@ import { Loader2, AlertCircle, Globe2 } from "lucide-react";
 import { IssueTable } from "../components/dashboard/IssueTable";
 import { issuesApi, Issue } from "../lib/api";
 import { useToast } from "../hooks/use-toast";
-import { Button } from "../components/ui/button";
 
 export default function PublicIssues() {
   const [issues, setIssues] = useState<Issue[]>([]);

@@ -99,11 +99,9 @@ export default function IssueDetails() {
       title: "Contact Support",
       description: "Opening support contact options...",
     });
-    // In a real app, this could open a modal, navigate to support page, or open email
     window.location.href = `mailto:support@campusfix.edu?subject=Support Request for Issue ${issue?.id}`;
   };
 
-  // Simulate current user for demo; replace with real user context in production
   const currentUserEmail = issue?.reporter?.email || "";
   const isReporter =
     issue && issue.reporter && issue.reporter.email === currentUserEmail;

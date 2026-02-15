@@ -9,30 +9,35 @@ import {
   Camera,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Switch } from "../components/ui/switch";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "../components/ui/card";
+import { Separator } from "../components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useUserSettings } from "@/contexts/UserSettingsContext";
+} from "../components/ui/select";
+import { useToast } from "../hooks/use-toast";
+import { useTheme } from "../contexts/ThemeContext";
+import { useUserSettings } from "../contexts/UserSettingsContext";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -140,7 +145,6 @@ export default function Settings() {
       });
       return;
     }
-    // In a real app, this would call an API
     toast({
       title: "Password changed",
       description: "Your password has been updated successfully.",

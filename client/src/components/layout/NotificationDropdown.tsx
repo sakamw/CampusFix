@@ -9,7 +9,7 @@ import {
   CheckCircle,
   Info,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../../components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,11 +17,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { notificationsApi, Notification } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+} from "../../components/ui/dropdown-menu";
+import { ScrollArea } from "../../components/ui/scroll-area";
+import { notificationsApi, Notification } from "../../lib/api";
+import { useToast } from "../../hooks/use-toast";
+import { cn } from "../../lib/utils";
 
 const notificationIcons = {
   comment: MessageSquare,

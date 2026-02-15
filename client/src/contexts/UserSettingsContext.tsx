@@ -55,11 +55,11 @@ interface UserSettingsContextType {
 
 const defaultSettings: UserSettings = {
   profile: {
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@university.edu",
-    studentId: "STU123456",
-    phone: "+1 (555) 123-4567",
+    firstName: "",
+    lastName: "",
+    email: "",
+    studentId: "",
+    phone: "",
     avatar: null,
   },
   notifications: {
@@ -195,6 +195,7 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUserSettings() {
   const context = useContext(UserSettingsContext);
   if (context === undefined) {

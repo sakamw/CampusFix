@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
-import { Search, User, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Search, Menu } from "lucide-react";
+import { Button } from "../../components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,14 +8,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+} from "../../components/ui/dropdown-menu";
+import { Input } from "../../components/ui/input";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../../hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useUserSettings } from "@/contexts/UserSettingsContext";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+} from "../../components/ui/avatar";
+import { useUserSettings } from "../../contexts/UserSettingsContext";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -41,13 +45,6 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const handleProfile = () => {
     navigate("/settings");
-  };
-
-  const handleSettings = () => {
-    const settingsPath = location.pathname.startsWith("/admin")
-      ? "/admin/settings"
-      : "/settings";
-    navigate(settingsPath);
   };
 
   const handleSignOut = async () => {
@@ -115,9 +112,6 @@ export function Header({ onMenuClick }: HeaderProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleProfile}>
                 Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSettings}>
-                Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>

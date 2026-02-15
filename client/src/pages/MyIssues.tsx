@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { PlusCircle, Loader2, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { IssueTable } from "@/components/dashboard/IssueTable";
-import { issuesApi, Issue } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "../components/ui/button";
+import { IssueTable } from "../components/dashboard/IssueTable";
+import { issuesApi, Issue } from "../lib/api";
+import { useToast } from "../hooks/use-toast";
 
 export default function MyIssues() {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -21,6 +21,7 @@ export default function MyIssues() {
     }, 30000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchMyIssues = async (silent = false) => {

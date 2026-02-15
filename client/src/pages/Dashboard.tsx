@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -9,11 +10,11 @@ import {
   TrendingUp,
   Loader2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { IssueTable } from "@/components/dashboard/IssueTable";
-import { dashboardApi, Issue, DashboardStats } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "../components/ui/button";
+import { StatCard } from "../components/dashboard/StatCard";
+import { IssueTable } from "../components/dashboard/IssueTable";
+import { dashboardApi, Issue, DashboardStats } from "../lib/api";
+import { useToast } from "../hooks/use-toast";
 
 export default function Dashboard() {
   const [searchParams] = useSearchParams();

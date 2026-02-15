@@ -5,7 +5,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { authApi, getAccessToken, clearTokens, UserData } from "@/lib/api";
+import { authApi, getAccessToken, clearTokens, UserData } from "../lib/api";
 
 interface AuthContextType {
   user: UserData | null;
@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

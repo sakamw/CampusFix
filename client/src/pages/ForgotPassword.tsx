@@ -9,11 +9,11 @@ import {
   Mail,
   KeyRound,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { authApi } from "@/lib/api";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { useToast } from "../hooks/use-toast";
+import { authApi } from "../lib/api";
 
 export default function ForgotPassword() {
   const [searchParams] = useSearchParams();
@@ -49,7 +49,6 @@ export default function ForgotPassword() {
 
     if (result.data) {
       setEmailSent(true);
-      // In dev mode, we get the token back for testing
       if (result.data.reset_token) {
         setResetToken(result.data.reset_token);
       }
