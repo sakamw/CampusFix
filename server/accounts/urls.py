@@ -9,6 +9,10 @@ from .views import (
     ChangePasswordView,
     ForgotPasswordView,
     ResetPasswordView,
+    AvatarUpdateView,
+    CloudinaryImageUploadView,
+    TwoFactorUpdateView,
+    TwoFactorSetupView,
 )
 
 urlpatterns = [
@@ -20,4 +24,8 @@ urlpatterns = [
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('reset-password/', ResetPasswordView.as_view(), name='reset_password'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('avatar-url/', AvatarUpdateView.as_view(), name='avatar_update'),
+    path('upload-avatar/', CloudinaryImageUploadView.as_view(), name='cloudinary_upload'),
+    path('two-factor/', TwoFactorUpdateView.as_view(), name='two_factor_update'),
+    path('2fa/setup/', TwoFactorSetupView.as_view(), name='two_factor_setup'),
 ]

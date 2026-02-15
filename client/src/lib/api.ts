@@ -19,6 +19,7 @@ interface UserData {
   phone: string | null;
   role: "student" | "admin";
   avatar: string | null;
+  two_factor_enabled: boolean;
   created_at: string;
   is_superuser: boolean;
   is_staff: boolean;
@@ -261,6 +262,17 @@ export const authApi = {
         token,
         new_password: newPassword,
         new_password_confirm: newPasswordConfirm,
+      }),
+    });
+  },
+
+  updateTwoFactor: async (
+    enabled: boolean,
+  ): Promise<ApiResponse<{ message: string; two_factor_enabled: boolean }>> => {
+    return apiFetch("/auth/two-factor/", {
+      method: "PATCH",
+      body: JSON.stringify({
+        two_factor_enabled: enabled,
       }),
     });
   },

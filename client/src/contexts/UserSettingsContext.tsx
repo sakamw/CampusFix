@@ -6,6 +6,7 @@ import {
   useEffect,
 } from "react";
 import { authApi } from "../lib/api";
+import { uploadImageToCloudinary, updateUserAvatarUrl } from "../lib/cloudinary";
 
 interface UserProfile {
   firstName: string;
@@ -16,15 +17,6 @@ interface UserProfile {
   avatar: string | null;
 }
 
-interface NotificationPreferences {
-  emailNotifications: boolean;
-  pushNotifications: boolean;
-  issueUpdates: boolean;
-  issueComments: boolean;
-  weeklyDigest: boolean;
-  marketingEmails: boolean;
-}
-
 interface SecuritySettings {
   twoFactorEnabled: boolean;
 }
@@ -32,23 +24,20 @@ interface SecuritySettings {
 type Theme = "light" | "dark" | "system";
 
 interface AppearanceSettings {
-  language: string;
   theme: Theme;
 }
 
 interface UserSettings {
   profile: UserProfile;
-  notifications: NotificationPreferences;
   security: SecuritySettings;
   appearance: AppearanceSettings;
 }
 
 interface UserSettingsContextType {
   settings: UserSettings;
-  updateProfile: (profile: Partial<UserProfile>) => void;
-  updateAvatar: (avatar: string | null) => void;
-  updateNotifications: (prefs: Partial<NotificationPreferences>) => void;
-  updateSecurity: (settings: Partial<SecuritySettings>) => void;
+  updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
+  updateAvatar: (avatar: string | null | File) => Promise<void>;
+  updateSecurity: (settings: Partial<SecuritySettings>) => Promise<void>;
   updateAppearance: (settings: Partial<AppearanceSettings>) => void;
   resetSettings: () => void;
 }
@@ -62,20 +51,11 @@ const defaultSettings: UserSettings = {
     phone: "",
     avatar: null,
   },
-  notifications: {
-    emailNotifications: true,
-    pushNotifications: true,
-    issueUpdates: true,
-    issueComments: true,
-    weeklyDigest: false,
-    marketingEmails: false,
-  },
   security: {
     twoFactorEnabled: false,
   },
   appearance: {
-    language: "en",
-    theme: "light" as Theme,
+    theme: "system" as Theme,
   },
 };
 
@@ -113,8 +93,12 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
             lastName: res.data.last_name || prev.profile.lastName,
             email: res.data.email || prev.profile.email,
             studentId: res.data.student_id || prev.profile.studentId,
-            phone: res.data.phone || prev.profile.phone,
+            phone: res.data.phone || "", // Ensure empty string instead of null
             avatar: res.data.avatar || prev.profile.avatar,
+          },
+          security: {
+            ...prev.security,
+            twoFactorEnabled: res.data.two_factor_enabled || false,
           },
         }));
       }
@@ -136,32 +120,91 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  const updateProfile = (profile: Partial<UserProfile>) => {
+  const updateProfile = async (profile: Partial<UserProfile>) => {
+    // Update local state immediately for responsive UI
     setSettings((prev) => ({
       ...prev,
       profile: { ...prev.profile, ...profile },
     }));
+    
+    // Sync with server
+    try {
+      await authApi.updateProfile({
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        phone: profile.phone,
+      });
+      
+      // Refresh user profile to ensure sync
+      await fetchUserProfile();
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      // Revert to previous state on error
+      await fetchUserProfile();
+      throw error;
+    }
   };
 
-  const updateAvatar = (avatar: string | null) => {
-    setSettings((prev) => ({
-      ...prev,
-      profile: { ...prev.profile, avatar },
-    }));
+  const updateAvatar = async (avatar: string | null | File) => {
+    try {
+      let avatarUrl: string | null = null;
+      
+      if (avatar instanceof File) {
+        // Upload file to Cloudinary via backend
+        avatarUrl = await uploadImageToCloudinary(avatar);
+      } else if (typeof avatar === 'string') {
+        avatarUrl = avatar;
+      }
+      
+      // Update local state immediately for responsive UI
+      setSettings((prev) => ({
+        ...prev,
+        profile: { ...prev.profile, avatar: avatarUrl },
+      }));
+      
+      // If it's a file upload, the backend already updated the avatar
+      // If it's a URL update or removal, sync with server
+      if (avatar instanceof File) {
+        // Backend already updated the avatar, just refresh to ensure sync
+        await fetchUserProfile();
+      } else {
+        // Handle URL update or removal
+        if (avatarUrl) {
+          await updateUserAvatarUrl(avatarUrl);
+        } else {
+          // Handle avatar removal - update profile with null avatar
+          await authApi.updateProfile({ avatar: null });
+        }
+        await fetchUserProfile();
+      }
+    } catch (error) {
+      console.error('Failed to update avatar:', error);
+      // Revert to previous state on error
+      await fetchUserProfile();
+      throw error;
+    }
   };
 
-  const updateNotifications = (prefs: Partial<NotificationPreferences>) => {
-    setSettings((prev) => ({
-      ...prev,
-      notifications: { ...prev.notifications, ...prefs },
-    }));
-  };
-
-  const updateSecurity = (securitySettings: Partial<SecuritySettings>) => {
+  const updateSecurity = async (securitySettings: Partial<SecuritySettings>) => {
+    // Update local state immediately for responsive UI
     setSettings((prev) => ({
       ...prev,
       security: { ...prev.security, ...securitySettings },
     }));
+    
+    // Sync with server if two_factor_enabled is being updated
+    if ('twoFactorEnabled' in securitySettings) {
+      try {
+        await authApi.updateTwoFactor(securitySettings.twoFactorEnabled!);
+        // Refresh user profile to ensure sync
+        await fetchUserProfile();
+      } catch (error) {
+        console.error('Failed to update two-factor setting:', error);
+        // Revert to previous state on error
+        await fetchUserProfile();
+        throw error;
+      }
+    }
   };
 
   const updateAppearance = (
@@ -184,7 +227,6 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
         settings,
         updateProfile,
         updateAvatar,
-        updateNotifications,
         updateSecurity,
         updateAppearance,
         resetSettings,

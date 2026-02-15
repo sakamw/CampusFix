@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { GraduationCap, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -12,6 +12,7 @@ import {
 } from "../components/ui/tabs";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
+import { getAuthRedirectPath, getRegisterRedirectPath } from "../utils/auth";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +20,7 @@ export default function Login() {
   const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { login, register } = useAuth();
 
@@ -48,12 +50,8 @@ export default function Login() {
         description: "Logged in successfully",
       });
 
-      const userData = result.user;
-      if (userData?.is_superuser || userData?.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      const redirectPath = getAuthRedirectPath(location, result.user);
+      navigate(redirectPath);
     } else {
       toast({
         title: "Error",
@@ -120,7 +118,9 @@ export default function Login() {
         title: "Account Created",
         description: "Your account has been created successfully",
       });
-      navigate("/dashboard");
+      
+      const redirectPath = getRegisterRedirectPath(location);
+      navigate(redirectPath);
     } else {
       toast({
         title: "Error",

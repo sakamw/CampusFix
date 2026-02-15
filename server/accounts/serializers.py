@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'student_id', 'phone', 'role', 'avatar', 'created_at', 'is_superuser', 'is_staff']
+        fields = ['id', 'email', 'first_name', 'last_name', 'student_id', 'phone', 'role', 'avatar', 'two_factor_enabled', 'created_at', 'is_superuser', 'is_staff']
         read_only_fields = ['id', 'email', 'role', 'created_at', 'is_superuser', 'is_staff']
 
 
@@ -72,3 +72,21 @@ class ResetPasswordSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['new_password_confirm']:
             raise serializers.ValidationError({"new_password": "Passwords do not match."})
         return attrs
+
+
+class AvatarUpdateSerializer(serializers.Serializer):
+    """Serializer for updating user avatar URL."""
+    
+    avatar = serializers.URLField(required=False, allow_null=True)
+
+
+class CloudinaryImageUploadSerializer(serializers.Serializer):
+    """Serializer for uploading images to Cloudinary."""
+    
+    image = serializers.ImageField(required=True)
+
+
+class TwoFactorUpdateSerializer(serializers.Serializer):
+    """Serializer for updating two-factor authentication settings."""
+    
+    two_factor_enabled = serializers.BooleanField(required=True)

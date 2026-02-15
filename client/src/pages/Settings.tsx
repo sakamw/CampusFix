@@ -1,7 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   User,
-  Bell,
   Shield,
   Eye,
   Palette,
@@ -38,6 +37,7 @@ import {
 import { useToast } from "../hooks/use-toast";
 import { useTheme } from "../contexts/ThemeContext";
 import { useUserSettings } from "../contexts/UserSettingsContext";
+import { TwoFactorSetup } from "../components/TwoFactorSetup";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -46,16 +46,22 @@ export default function Settings() {
     settings,
     updateProfile,
     updateAvatar,
-    updateNotifications,
     updateSecurity,
-    updateAppearance,
   } = useUserSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showTwoFactorSetup, setShowTwoFactorSetup] = useState(false);
 
   // Local state for form fields (to allow editing before saving)
   const [firstName, setFirstName] = useState(settings.profile.firstName);
   const [lastName, setLastName] = useState(settings.profile.lastName);
-  const [phone, setPhone] = useState(settings.profile.phone || "");
+  const [phone, setPhone] = useState("");
+
+  // Sync local state with settings when they change
+  useEffect(() => {
+    setFirstName(settings.profile.firstName);
+    setLastName(settings.profile.lastName);
+    setPhone(settings.profile.phone || "");
+  }, [settings.profile.firstName, settings.profile.lastName, settings.profile.phone]);
 
   // Security settings - local password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -65,7 +71,7 @@ export default function Settings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file size (2MB max)
@@ -88,39 +94,59 @@ export default function Settings() {
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateAvatar(reader.result as string);
+      try {
+        await updateAvatar(file);
         toast({
           title: "Photo updated",
           description: "Your profile photo has been changed successfully.",
         });
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload your photo. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const handleRemoveAvatar = () => {
-    updateAvatar(null);
-    toast({
-      title: "Photo removed",
-      description: "Your profile photo has been removed.",
-    });
+  const handleRemoveAvatar = async () => {
+    try {
+      await updateAvatar(null);
+      toast({
+        title: "Photo removed",
+        description: "Your profile photo has been removed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Removal failed",
+        description: "Failed to remove your photo. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSaveProfile = () => {
-    updateProfile({
-      firstName,
-      lastName,
-      phone,
-    });
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been saved successfully.",
-    });
+  const handleSaveProfile = async () => {
+    try {
+      await updateProfile({
+        firstName,
+        lastName,
+        phone,
+      });
+      toast({
+        title: "Profile updated",
+        description: "Your profile information has been saved successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "Failed to update your profile. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentPassword) {
       toast({
         title: "Error",
@@ -145,34 +171,62 @@ export default function Settings() {
       });
       return;
     }
-    toast({
-      title: "Password changed",
-      description: "Your password has been updated successfully.",
-    });
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+
+    try {
+      const { authApi } = await import("../lib/api");
+      await authApi.changePassword(currentPassword, newPassword, confirmPassword);
+      
+      toast({
+        title: "Password changed",
+        description: "Your password has been updated successfully.",
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      toast({
+        title: "Password change failed",
+        description: "Failed to change your password. Please check your current password and try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleToggleTwoFactor = (enabled: boolean) => {
-    updateSecurity({ twoFactorEnabled: enabled });
-    toast({
-      title: enabled ? "2FA Enabled" : "2FA Disabled",
-      description: enabled
-        ? "Two-factor authentication has been enabled for your account."
-        : "Two-factor authentication has been disabled.",
-    });
+  const handleToggleTwoFactor = async (enabled: boolean) => {
+    if (enabled) {
+      // Show 2FA setup modal when enabling
+      setShowTwoFactorSetup(true);
+    } else {
+      // Directly disable 2FA (with password confirmation in real implementation)
+      try {
+        await updateSecurity({ twoFactorEnabled: false });
+        toast({
+          title: "2FA Disabled",
+          description: "Two-factor authentication has been disabled.",
+        });
+      } catch (error) {
+        toast({
+          title: "2FA Update Failed",
+          description: "Failed to disable two-factor authentication. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
-  const handleNotificationChange = (key: string, value: boolean) => {
-    updateNotifications({ [key]: value });
+  const handleTwoFactorComplete = () => {
+    setShowTwoFactorSetup(false);
+    // Refresh user settings to get the updated 2FA status
+    window.location.reload(); // Simple refresh for now
   };
 
-  const handleSavePreferences = () => {
-    toast({
-      title: "Preferences saved",
-      description: "Your notification preferences have been updated.",
-    });
+  const handleTwoFactorCancel = () => {
+    setShowTwoFactorSetup(false);
+    // Revert the toggle state
+    const toggle = document.querySelector('input[id="two-factor"]') as HTMLInputElement;
+    if (toggle) {
+      toggle.checked = settings.security.twoFactorEnabled;
+    }
   };
 
   const handleThemeChange = (newTheme: string) => {
@@ -180,14 +234,6 @@ export default function Settings() {
     toast({
       title: "Theme updated",
       description: `Theme changed to ${newTheme}.`,
-    });
-  };
-
-  const handleLanguageChange = (newLanguage: string) => {
-    updateAppearance({ language: newLanguage });
-    toast({
-      title: "Language updated",
-      description: "Your language preference has been saved.",
     });
   };
 
@@ -223,17 +269,10 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-3">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Profile</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="notifications"
-            className="flex items-center gap-2"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Notifications</span>
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
@@ -367,139 +406,6 @@ export default function Settings() {
 
               <div className="flex justify-end">
                 <Button onClick={handleSaveProfile}>Save Changes</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Notifications Tab */}
-        <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>
-                Choose how and when you want to receive notifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="email-notifications">
-                      Email Notifications
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive notifications via email
-                    </p>
-                  </div>
-                  <Switch
-                    id="email-notifications"
-                    checked={settings.notifications.emailNotifications}
-                    onCheckedChange={(checked) =>
-                      handleNotificationChange("emailNotifications", checked)
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="push-notifications">
-                      Push Notifications
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive push notifications on your device
-                    </p>
-                  </div>
-                  <Switch
-                    id="push-notifications"
-                    checked={settings.notifications.pushNotifications}
-                    onCheckedChange={(checked) =>
-                      handleNotificationChange("pushNotifications", checked)
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="issue-updates">Issue Updates</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when your issues are updated
-                    </p>
-                  </div>
-                  <Switch
-                    id="issue-updates"
-                    checked={settings.notifications.issueUpdates}
-                    onCheckedChange={(checked) =>
-                      handleNotificationChange("issueUpdates", checked)
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="issue-comments">Issue Comments</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when someone comments on your issues
-                    </p>
-                  </div>
-                  <Switch
-                    id="issue-comments"
-                    checked={settings.notifications.issueComments}
-                    onCheckedChange={(checked) =>
-                      handleNotificationChange("issueComments", checked)
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="weekly-digest">Weekly Digest</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive a weekly summary of all activity
-                    </p>
-                  </div>
-                  <Switch
-                    id="weekly-digest"
-                    checked={settings.notifications.weeklyDigest}
-                    onCheckedChange={(checked) =>
-                      handleNotificationChange("weeklyDigest", checked)
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="marketing-emails">Marketing Emails</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive emails about new features and updates
-                    </p>
-                  </div>
-                  <Switch
-                    id="marketing-emails"
-                    checked={settings.notifications.marketingEmails}
-                    onCheckedChange={(checked) =>
-                      handleNotificationChange("marketingEmails", checked)
-                    }
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="flex justify-end">
-                <Button onClick={handleSavePreferences}>
-                  Save Preferences
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -671,30 +577,6 @@ export default function Settings() {
                     Choose your preferred color scheme
                   </p>
                 </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label htmlFor="language">Language</Label>
-                  <Select
-                    value={settings.appearance.language}
-                    onValueChange={handleLanguageChange}
-                  >
-                    <SelectTrigger className="input-focus">
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="fr">French</SelectItem>
-                      <SelectItem value="de">German</SelectItem>
-                      <SelectItem value="zh">Chinese</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Choose your preferred language
-                  </p>
-                </div>
               </div>
 
               <Separator />
@@ -706,6 +588,18 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 2FA Setup Modal */}
+      {showTwoFactorSetup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg shadow-lg max-w-md w-full mx-4">
+            <TwoFactorSetup
+              onComplete={handleTwoFactorComplete}
+              onCancel={handleTwoFactorCancel}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

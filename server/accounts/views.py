@@ -12,8 +12,12 @@ from .serializers import (
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
+    AvatarUpdateSerializer,
+    CloudinaryImageUploadSerializer,
+    TwoFactorUpdateSerializer,
 )
 from .models import PasswordResetToken
+from .cloudinary_utils import upload_image_to_cloudinary
 import secrets
 
 User = get_user_model()
@@ -203,3 +207,144 @@ class ResetPasswordView(APIView):
                 {'error': 'Invalid reset token'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class AvatarUpdateView(APIView):
+    """View for updating user avatar URL."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request):
+        serializer = AvatarUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        avatar_url = serializer.validated_data.get('avatar')
+        
+        # Update user avatar
+        user.avatar = avatar_url
+        user.save()
+        
+        return Response({
+            'message': 'Avatar updated successfully',
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
+
+
+class CloudinaryImageUploadView(APIView):
+    """View for uploading images to Cloudinary."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        serializer = CloudinaryImageUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        image_file = serializer.validated_data['image']
+        
+        try:
+            # Upload to Cloudinary
+            avatar_url = upload_image_to_cloudinary(image_file)
+            
+            # Update user's avatar
+            user = request.user
+            user.avatar = avatar_url
+            user.save()
+            
+            return Response({
+                'message': 'Image uploaded successfully',
+                'avatar_url': avatar_url,
+                'user': UserSerializer(user).data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TwoFactorUpdateView(APIView):
+    """View for updating two-factor authentication settings."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request):
+        serializer = TwoFactorUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        two_factor_enabled = serializer.validated_data['two_factor_enabled']
+        
+        # Update user's two-factor setting
+        user.two_factor_enabled = two_factor_enabled
+        user.save()
+        
+        return Response({
+            'message': f'Two-factor authentication {"enabled" if two_factor_enabled else "disabled"} successfully',
+            'two_factor_enabled': two_factor_enabled,
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
+
+
+class TwoFactorSetupView(APIView):
+    """View for setting up 2FA."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Generate 2FA secret and QR code for setup."""
+        from .two_factor_utils import generate_2fa_secret, generate_qr_code, generate_backup_codes
+        
+        user = request.user
+        if user.two_factor_enabled:
+            return Response({
+                'message': '2FA is already enabled',
+                'two_factor_enabled': True
+            }, status=status.HTTP_200_OK)
+        
+        # Generate new secret and QR code
+        secret = generate_2fa_secret()
+        qr_code = generate_qr_code(user.email, secret)
+        backup_codes = generate_backup_codes()
+        
+        # Temporarily store the secret (in production, use cache)
+        user.two_factor_secret = secret
+        user.save(update_fields=['two_factor_secret'])
+        
+        return Response({
+            'secret': secret,
+            'qr_code': qr_code,
+            'backup_codes': backup_codes,
+            'instructions': 'Scan the QR code with your authenticator app or enter the secret manually'
+        }, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+        """Verify and enable 2FA."""
+        from .two_factor_utils import verify_2fa_token
+        
+        token = request.data.get('token')
+        if not token or len(token) != 6:
+            return Response({
+                'error': 'Invalid verification code'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = request.user
+        if not user.two_factor_secret:
+            return Response({
+                'error': '2FA setup not initiated'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not verify_2fa_token(user.two_factor_secret, token):
+            return Response({
+                'error': 'Invalid verification code'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Enable 2FA
+        user.two_factor_enabled = True
+        user.save(update_fields=['two_factor_enabled'])
+        
+        return Response({
+            'message': '2FA enabled successfully',
+            'two_factor_enabled': True,
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
