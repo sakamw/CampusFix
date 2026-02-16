@@ -7,6 +7,7 @@ import {
   BarChart3,
   Users,
   X,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
@@ -21,6 +22,7 @@ const studentNavItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Report Issue", href: "/report", icon: PlusCircle },
   { title: "My Issues", href: "/issues", icon: FileText },
+  { title: "Issue Responses", href: "/responses", icon: MessageSquare },
   { title: "Public Posts", href: "/public-issues", icon: FileText },
   { title: "Settings", href: "/settings", icon: Settings },
 ];

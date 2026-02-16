@@ -288,18 +288,33 @@ export interface Issue {
   priority: "low" | "medium" | "high" | "critical";
   location: string;
   reporter: UserData;
-  assigned_to: UserData | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
   upvote_count: number;
   upvoted_by_user: boolean;
   visibility: "public" | "private";
+  // Admin work fields
+  admin_notes?: string;
+  resolution_summary?: string;
+  resolution_details?: string;
+  resolution_evidence?: string;
+  estimated_completion?: string;
+  actual_completion?: string;
+  work_hours?: number;
+  resolution_cost?: number;
+  // Progress tracking fields
+  progress_percentage?: number;
+  progress_status?: string;
+  progress_notes?: string;
+  progress_updated_at?: string;
 }
 
 export interface IssueDetail extends Issue {
   comments: Comment[];
   attachments: Attachment[];
+  evidence_files: ResolutionEvidence[];
+  progress_updates: ProgressUpdate[];
   comment_count: number;
 }
 
@@ -319,6 +334,45 @@ export interface Attachment {
   filename: string;
   uploaded_by: UserData;
   uploaded_at: string;
+}
+
+export interface ResolutionEvidence {
+  id: number;
+  issue: number;
+  admin: UserData;
+  file: string;
+  filename: string;
+  file_type: 'photo' | 'video' | 'document' | 'receipt' | 'report' | 'other';
+  description: string;
+  file_size: number;
+  uploaded_at: string;
+}
+
+export interface AdminWorkLog {
+  id: number;
+  issue: number;
+  admin: UserData;
+  work_type: 'assessment' | 'investigation' | 'repair' | 'maintenance' | 'coordination' | 'documentation' | 'follow_up' | 'other';
+  description: string;
+  hours_spent: number;
+  materials_used: string;
+  outcome: string;
+  next_steps: string;
+  created_at: string;
+}
+
+export interface ProgressUpdate {
+  id: number;
+  issue: number;
+  admin: UserData;
+  update_type: 'milestone' | 'delay' | 'issue' | 'completion' | 'status' | 'resource' | 'other';
+  progress_percentage: number;
+  title: string;
+  description: string;
+  next_steps: string;
+  estimated_completion?: string;
+  is_major_update: boolean;
+  created_at: string;
 }
 
 export interface Notification {

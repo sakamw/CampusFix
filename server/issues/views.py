@@ -7,7 +7,7 @@ from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Issue, Comment, Attachment, Upvote
+from .models import Issue, Comment, Attachment, Upvote, ResolutionEvidence, ProgressUpdate, AdminWorkLog
 from .serializers import (
     IssueListSerializer,
     IssueDetailSerializer,
@@ -25,20 +25,20 @@ class IssueViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'priority', 'category', 'reporter', 'assigned_to']
+    filterset_fields = ['status', 'priority', 'category', 'reporter']
     search_fields = ['title', 'description', 'location']
     ordering_fields = ['created_at', 'updated_at', 'upvote_count', 'priority']
     ordering = ['-created_at']
     
     def get_queryset(self):
-        queryset = Issue.objects.all().select_related('reporter', 'assigned_to').prefetch_related('upvotes', 'comments')
+        queryset = Issue.objects.all().select_related('reporter').prefetch_related(
+            'upvotes', 'comments', 'attachments', 'evidence_files', 'progress_updates', 'work_logs'
+        )
         
-        # Allow filtering by 'my-issues' or 'assigned-to-me'
-        filter_type = self.request.query_params.get('filter', None)
+        # Allow filtering by 'my-issues'
+        filter_type = getattr(self.request, 'query_params', {}).get('filter', None)
         if filter_type == 'my-issues':
             queryset = queryset.filter(reporter=self.request.user)
-        elif filter_type == 'assigned-to-me':
-            queryset = queryset.filter(assigned_to=self.request.user)
         
         return queryset
     
@@ -101,13 +101,11 @@ class IssueViewSet(viewsets.ModelViewSet):
             if serializer.is_valid():
                 serializer.save(issue=issue, user=request.user)
                 
-                # Create notification for issue reporter and assigned user
+                # Create notification for issue reporter
                 from notifications.models import Notification
                 recipients = set()
                 if issue.reporter != request.user:
                     recipients.add(issue.reporter)
-                if issue.assigned_to and issue.assigned_to != request.user:
-                    recipients.add(issue.assigned_to)
                 
                 for recipient in recipients:
                     Notification.objects.create(

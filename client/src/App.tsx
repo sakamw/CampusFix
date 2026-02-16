@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import MyIssues from "./pages/MyIssues";
+import IssueResponses from "./pages/IssueResponses";
 import ReportIssue from "./pages/ReportIssue";
 import IssueDetails from "./pages/IssueDetails";
 import EditIssue from "./pages/EditIssue";
@@ -44,6 +45,14 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/responses"
+                    element={
+                      <ProtectedRoute>
+                        <IssueResponses />
                       </ProtectedRoute>
                     }
                   />

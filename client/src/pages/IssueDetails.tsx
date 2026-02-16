@@ -8,6 +8,9 @@ import {
   ThumbsUp,
   MessageSquare,
   Send,
+  CheckCircle2,
+  Paperclip,
+  Download,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -29,6 +32,15 @@ const priorityConfig = {
   medium: { variant: "info" as const, label: "Medium Priority" },
   high: { variant: "warning" as const, label: "High Priority" },
   critical: { variant: "destructive" as const, label: "Critical" },
+};
+
+// Helper function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 };
 
 export default function IssueDetails() {
@@ -282,20 +294,91 @@ export default function IssueDetails() {
               </div>
               <Separator />
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Assigned To</span>
-                <span className="font-medium text-right text-xs">
-                  {issue.assigned_to
-                    ? `${issue.assigned_to.first_name} ${issue.assigned_to.last_name}`
-                    : "Unassigned"}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
                 <span className="text-muted-foreground">Upvotes</span>
                 <span className="font-medium">{issue.upvote_count}</span>
               </div>
             </div>
           </div>
+
+          {/* Resolution Information - Show if resolved */}
+          {(issue.status === 'resolved' || issue.status === 'closed') && (
+            <div className="rounded-xl border bg-card p-6 space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                Resolution Report
+              </h3>
+              
+              {issue.resolution_summary && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Summary:</p>
+                  <p className="text-sm">{issue.resolution_summary}</p>
+                </div>
+              )}
+              
+              {issue.resolution_details && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Details:</p>
+                  <p className="text-sm whitespace-pre-wrap">{issue.resolution_details}</p>
+                </div>
+              )}
+              
+              {issue.resolution_evidence && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Evidence:</p>
+                  <p className="text-sm whitespace-pre-wrap">{issue.resolution_evidence}</p>
+                </div>
+              )}
+              
+              {issue.actual_completion && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Completed:</span>
+                  <span className="font-medium">
+                    {new Date(issue.actual_completion).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+              
+              {issue.work_hours && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Work Hours:</span>
+                  <span className="font-medium">{issue.work_hours} hours</span>
+                </div>
+              )}
+              
+              {issue.evidence_files && issue.evidence_files.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Paperclip className="h-4 w-4" />
+                    Evidence Files ({issue.evidence_files.length})
+                  </p>
+                  <div className="space-y-2">
+                    {issue.evidence_files.map((evidence) => (
+                      <div key={evidence.id} className="flex items-center justify-between p-2 rounded border bg-muted/50">
+                        <div className="flex-1">
+                          <a 
+                            href={evidence.file} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium hover:text-primary hover:underline flex items-center gap-2"
+                          >
+                            <Download className="h-3 w-3" />
+                            {evidence.filename}
+                          </a>
+                          <p className="text-xs text-muted-foreground">
+                            {evidence.file_type} • {formatFileSize(evidence.file_size)} • 
+                            Uploaded by {evidence.admin.first_name} {evidence.admin.last_name}
+                          </p>
+                          {evidence.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{evidence.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Reporter Info */}
           <div className="rounded-xl border bg-card p-6 space-y-4">
