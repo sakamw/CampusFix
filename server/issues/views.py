@@ -99,19 +99,36 @@ class IssueViewSet(viewsets.ModelViewSet):
         elif request.method == 'POST':
             serializer = CommentSerializer(data=request.data, context={'request': request})
             if serializer.is_valid():
-                serializer.save(issue=issue, user=request.user)
+                serializer.save(issue=issue)
                 
-                # Create notification for issue reporter
+                # Create notifications for issue reporter and all admins
                 from notifications.models import Notification
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                
                 recipients = set()
+                
+                # Notify issue reporter if they didn't post the comment
                 if issue.reporter != request.user:
                     recipients.add(issue.reporter)
                 
+                # Notify all admin users (except the commenter if they're an admin)
+                admin_users = User.objects.filter(role='admin')
+                for admin in admin_users:
+                    if admin != request.user:
+                        recipients.add(admin)
+                
                 for recipient in recipients:
+                    # Customize message based on recipient type
+                    if recipient == issue.reporter:
+                        message = f'{request.user.first_name} {request.user.last_name} commented on your issue: {issue.title}'
+                    else:
+                        message = f'New comment from {request.user.first_name} {request.user.last_name} on issue: {issue.title}'
+                    
                     Notification.objects.create(
                         user=recipient,
                         title='New Comment',
-                        message=f'{request.user.first_name} {request.user.last_name} commented on: {issue.title}',
+                        message=message,
                         type='comment',
                         related_issue=issue
                     )
@@ -127,13 +144,41 @@ class IssueViewSet(viewsets.ModelViewSet):
         # If status changed, create notifications
         if old_status != instance.status:
             from notifications.models import Notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
             
-            # Notify reporter
+            recipients = set()
+            
+            # Notify reporter if they didn't make the change
             if instance.reporter != self.request.user:
+                recipients.add(instance.reporter)
+            
+            # Notify all admin users (except the changer if they're an admin)
+            admin_users = User.objects.filter(role='admin')
+            for admin in admin_users:
+                if admin != self.request.user:
+                    recipients.add(admin)
+            
+            for recipient in recipients:
+                # Customize message based on recipient type and who made the change
+                if recipient == instance.reporter:
+                    if self.request.user == instance.reporter:
+                        message = f'You changed your issue "{instance.title}" status to {instance.get_status_display()}'
+                    else:
+                        message = f'Your issue "{instance.title}" status was changed to {instance.get_status_display()} by {self.request.user.first_name} {self.request.user.last_name}'
+                    title = 'Issue Status Updated'
+                else:
+                    # Admin notification
+                    if self.request.user.role == 'admin':
+                        message = f'Admin {self.request.user.first_name} {self.request.user.last_name} changed issue "{instance.title}" status to {instance.get_status_display()}'
+                    else:
+                        message = f'User {self.request.user.first_name} {self.request.user.last_name} marked issue "{instance.title}" as {instance.get_status_display()}'
+                    title = 'Issue Status Changed'
+                
                 Notification.objects.create(
-                    user=instance.reporter,
-                    title='Issue Status Updated',
-                    message=f'Your issue "{instance.title}" status changed to {instance.get_status_display()}',
+                    user=recipient,
+                    title=title,
+                    message=message,
                     type='status_change',
                     related_issue=instance
                 )

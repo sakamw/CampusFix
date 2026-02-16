@@ -39,12 +39,16 @@ class AdminWorkLogSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    user_id = serializers.IntegerField(write_only=True, required=False)
     
     class Meta:
         model = Comment
-        fields = ['id', 'issue', 'user', 'user_id', 'content', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'issue', 'user', 'content', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'issue', 'created_at', 'updated_at']
+    
+    def create(self, validated_data):
+        # Set user from request context
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
 
 
 class AttachmentSerializer(serializers.ModelSerializer):

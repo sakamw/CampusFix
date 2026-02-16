@@ -11,12 +11,16 @@ import {
   User,
   Calendar,
   MapPin,
+  Send,
+  ThumbsUp,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Textarea } from "../components/ui/textarea";
+import { Alert, AlertDescription } from "../components/ui/alert";
 import { useToast } from "../hooks/use-toast";
 import { issuesApi, IssueDetail, AdminWorkLog, ResolutionEvidence, ProgressUpdate } from "../lib/api";
 
@@ -61,6 +65,9 @@ export default function IssueResponses() {
   const [loading, setLoading] = useState(true);
   const [selectedIssue, setSelectedIssue] = useState<IssueDetail | null>(null);
   const [filter, setFilter] = useState<'all' | 'open' | 'in-progress' | 'resolved' | 'closed'>('all');
+  const [chatOpen, setChatOpen] = useState<number | null>(null);
+  const [commentInputs, setCommentInputs] = useState<{ [key: number]: string }>({});
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     fetchUserIssues();
@@ -98,6 +105,64 @@ export default function IssueResponses() {
 
   const getAdminComments = (issue: IssueDetail) => {
     return (issue.comments || []).filter(comment => comment.user.role === 'admin');
+  };
+
+  const handleAddComment = async (issueId: number) => {
+    const comment = commentInputs[issueId] || '';
+    if (!comment.trim()) return;
+    
+    setSubmittingComment(true);
+    try {
+      const response = await issuesApi.addComment(issueId, comment.trim());
+      if (response.data) {
+        // Update the issue in the local state with the new comment
+        setIssues(prevIssues => 
+          prevIssues.map(issue => 
+            issue.id === issueId 
+              ? { ...issue, comments: [...(issue.comments || []), response.data] }
+              : issue
+          )
+        );
+        // Clear the comment input for this issue
+        setCommentInputs(prev => ({ ...prev, [issueId]: '' }));
+        toast({
+          title: "Success",
+          description: "Comment added successfully",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add comment",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleMarkResolved = async (issueId: number) => {
+    try {
+      const response = await issuesApi.updateIssue(issueId, { status: 'resolved' });
+      if (response.data) {
+        // Update the issue in the local state
+        setIssues(prevIssues => 
+          prevIssues.map(issue => 
+            issue.id === issueId ? { ...issue, ...response.data } : issue
+          )
+        );
+        toast({
+          title: "Success",
+          description: "Issue marked as resolved. Thank you for your feedback!",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update issue status",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -375,6 +440,111 @@ export default function IssueResponses() {
                   </div>
                 </CardContent>
               )}
+              
+              {/* Chat Interface */}
+              <CardContent className="border-t bg-muted/20">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      <p className="font-medium">Chat with Admin</p>
+                      <Badge variant="secondary" className="text-xs">
+                        {(issue.comments || []).length} messages
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setChatOpen(chatOpen === issue.id ? null : issue.id)}
+                    >
+                      {chatOpen === issue.id ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
+                  
+                  {chatOpen === issue.id && (
+                    <div className="space-y-4">
+                      {/* Comments Display */}
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
+                        {(issue.comments || []).length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No comments yet. Start the conversation!
+                          </p>
+                        ) : (
+                          (issue.comments || []).map((comment) => (
+                            <div key={comment.id} className="flex gap-3 p-3 bg-background rounded-lg border">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                  {comment.user.first_name?.[0] || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-medium">
+                                    {comment.user.first_name} {comment.user.last_name}
+                                  </p>
+                                  {comment.user.role === 'admin' && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Admin
+                                    </Badge>
+                                  )}
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(comment.created_at)}
+                                  </span>
+                                </div>
+                                <p className="text-sm">{comment.content}</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      
+                      {/* Add Comment Form */}
+                      <div className="space-y-3">
+                        <Textarea
+                          placeholder="Type your message here..."
+                          value={commentInputs[issue.id] || ''}
+                          onChange={(e) => setCommentInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
+                          className="min-h-[80px]"
+                          disabled={submittingComment}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleAddComment(issue.id)}
+                            disabled={!commentInputs[issue.id]?.trim() || submittingComment}
+                            size="sm"
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            {submittingComment ? 'Sending...' : 'Send'}
+                          </Button>
+                          
+                          {/* Mark as Resolved Button - only show if issue is not already resolved */}
+                          {issue.status !== 'resolved' && issue.status !== 'closed' && (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleMarkResolved(issue.id)}
+                              size="sm"
+                              className="ml-auto"
+                            >
+                              <ThumbsUp className="h-4 w-4 mr-2" />
+                              Mark as Resolved
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Success Message for Resolved Issues */}
+                      {(issue.status === 'resolved' || issue.status === 'closed') && (
+                        <Alert>
+                          <CheckCircle2 className="h-4 w-4" />
+                          <AlertDescription>
+                            This issue has been marked as {issue.status}. Thank you for your feedback!
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
             </Card>
           ))
         )}
