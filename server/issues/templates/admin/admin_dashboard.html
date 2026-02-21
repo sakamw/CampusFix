@@ -1,0 +1,89 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">Admin Dashboard</h1>
+            
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ total_issues }}</h5>
+                            <p class="card-text">Total Issues</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-warning">{{ open_issues }}</h5>
+                            <p class="card-text">Open Issues</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-info">{{ in_progress_issues }}</h5>
+                            <p class="card-text">In Progress</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-success">{{ resolved_issues }}</h5>
+                            <p class="card-text">Resolved Issues</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Work Logs -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Work Logs</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_work_logs %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Issue</th>
+                                        <th>Work Type</th>
+                                        <th>Hours</th>
+                                        <th>Admin</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for work_log in recent_work_logs %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'admin:issues_issue_change' work_log.issue.id %}">{{ work_log.issue.title }}</a>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-{{ work_log.work_type|lower }}">{{ work_log.get_work_type_display }}</span>
+                                        </td>
+                                        <td>{{ work_log.hours_spent }}</td>
+                                        <td>{{ work_log.admin.get_full_name }}</td>
+                                        <td>{{ work_log.created_at|date:"Y-m-d H:i" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No work logs yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

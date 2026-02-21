@@ -34,7 +34,12 @@ class AdminWorkLogSerializer(serializers.ModelSerializer):
             'id', 'issue', 'admin', 'work_type', 'hours_spent', 'description', 
             'materials_used', 'outcome', 'next_steps', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'admin']
+    
+    def create(self, validated_data):
+        # Set admin from request context
+        validated_data['admin'] = self.context['request'].user
+        return super().create(validated_data)
 
 
 class CommentSerializer(serializers.ModelSerializer):

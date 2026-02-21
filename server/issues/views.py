@@ -15,6 +15,7 @@ from .serializers import (
     CommentSerializer,
     AttachmentSerializer,
     UpvoteSerializer,
+    AdminWorkLogSerializer,
 )
 
 
@@ -187,6 +188,166 @@ class IssueViewSet(viewsets.ModelViewSet):
             if instance.status == 'resolved' and not instance.resolved_at:
                 instance.resolved_at = timezone.now()
                 instance.save()
+    
+    @action(detail=True, methods=['get'])
+    def timeline(self, request, pk=None):
+        """Get timeline events for an issue."""
+        issue = self.get_object()
+        events = []
+        
+        # Issue creation event
+        events.append({
+            'id': f'issue_{issue.id}',
+            'type': 'issue_created',
+            'title': 'Issue Created',
+            'description': f'Issue "{issue.title}" was reported in {issue.get_category_display()} category',
+            'timestamp': issue.created_at.isoformat(),
+            'user': {
+                'first_name': issue.reporter.first_name,
+                'last_name': issue.reporter.last_name,
+                'email': issue.reporter.email,
+            },
+            'metadata': {
+                'category': issue.get_category_display(),
+                'priority': issue.get_priority_display(),
+            }
+        })
+        
+        # Work logs
+        work_logs = issue.work_logs.all().order_by('created_at')
+        for log in work_logs:
+            # Handle case where admin might be None
+            admin_user = log.admin if log.admin else issue.reporter
+            
+            events.append({
+                'id': f'worklog_{log.id}',
+                'type': 'work_log',
+                'title': f'Work Logged: {log.get_work_type_display()}',
+                'description': log.description,
+                'timestamp': log.created_at.isoformat(),
+                'user': {
+                    'first_name': admin_user.first_name,
+                    'last_name': admin_user.last_name,
+                    'email': admin_user.email,
+                },
+                'metadata': {
+                    'work_type': log.get_work_type_display(),
+                    'hours_spent': float(log.hours_spent),
+                }
+            })
+        
+        # Progress updates
+        progress_updates = issue.progress_updates.all().order_by('created_at')
+        for update in progress_updates:
+            # Handle case where admin might be None
+            admin_user = update.admin if update.admin else issue.reporter
+            
+            events.append({
+                'id': f'progress_{update.id}',
+                'type': 'progress_update',
+                'title': update.title,
+                'description': update.description,
+                'timestamp': update.created_at.isoformat(),
+                'user': {
+                    'first_name': admin_user.first_name,
+                    'last_name': admin_user.last_name,
+                    'email': admin_user.email,
+                },
+                'metadata': {
+                    'progress_percentage': update.progress_percentage,
+                    'update_type': update.get_update_type_display(),
+                    'is_major_update': update.is_major_update,
+                }
+            })
+        
+       # For now, we'll show the current status if it's not the initial 'open' status
+        if issue.status != 'open':
+            events.append({
+                'id': f'status_{issue.id}',
+                'type': 'status_change',
+                'title': 'Status Changed',
+                'description': f'Issue status changed to {issue.get_status_display()}',
+                'timestamp': issue.updated_at.isoformat(),
+                'user': {
+                    'first_name': issue.reporter.first_name,
+                    'last_name': issue.reporter.last_name,
+                    'email': issue.reporter.email,
+                },
+                'metadata': {
+                    'new_status': issue.get_status_display(),
+                }
+            })
+        
+        # Resolution evidence uploads
+        evidence_files = issue.evidence_files.all().order_by('uploaded_at')
+        for evidence in evidence_files:
+            # Handle case where admin might be None
+            admin_user = evidence.admin if evidence.admin else issue.reporter
+            
+            events.append({
+                'id': f'evidence_{evidence.id}',
+                'type': 'evidence_uploaded',
+                'title': f'Evidence Uploaded: {evidence.get_file_type_display()}',
+                'description': evidence.description or f'File "{evidence.filename}" uploaded as evidence',
+                'timestamp': evidence.uploaded_at.isoformat(),
+                'user': {
+                    'first_name': admin_user.first_name,
+                    'last_name': admin_user.last_name,
+                    'email': admin_user.email,
+                },
+                'metadata': {
+                    'file_type': evidence.get_file_type_display(),
+                    'filename': evidence.filename,
+                    'file_size': evidence.file_size,
+                }
+            })
+        
+        # Issue resolution
+        if issue.status in ['resolved', 'closed'] and issue.resolved_at:
+            events.append({
+                'id': f'resolved_{issue.id}',
+                'type': 'issue_resolved',
+                'title': 'Issue Resolved',
+                'description': issue.resolution_summary or f'Issue marked as {issue.get_status_display()}',
+                'timestamp': issue.resolved_at.isoformat(),
+                'user': {
+                    'first_name': issue.reporter.first_name,
+                    'last_name': issue.reporter.last_name,
+                    'email': issue.reporter.email,
+                },
+                'metadata': {
+                    'final_status': issue.get_status_display(),
+                }
+            })
+        
+        # Sort all events by timestamp
+        events.sort(key=lambda x: x['timestamp'])
+        
+        return Response(events)
+    
+    @action(detail=True, methods=['get', 'post'])
+    def work_logs(self, request, pk=None):
+        """Get or add work logs for an issue."""
+        issue = self.get_object()
+        
+        if request.method == 'GET':
+            work_logs = issue.work_logs.all()
+            serializer = AdminWorkLogSerializer(work_logs, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            # Only admins can add work logs
+            if not request.user.is_staff:
+                return Response(
+                    {'error': 'Admin access required to add work logs'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            serializer = AdminWorkLogSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                serializer.save(issue=issue)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CommentViewSet(viewsets.ModelViewSet):

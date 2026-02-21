@@ -200,6 +200,15 @@ class AdminWorkLogAdmin(admin.ModelAdmin):
     search_fields = ['issue__title', 'description', 'outcome']
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
+    readonly_fields = ['created_at']
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'admin':
+            # Only show admin users in the admin dropdown
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            kwargs['queryset'] = User.objects.filter(role='admin') | User.objects.filter(is_superuser=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
     fieldsets = (
         ('Work Information', {
@@ -207,9 +216,6 @@ class AdminWorkLogAdmin(admin.ModelAdmin):
         }),
         ('Work Details', {
             'fields': ('description', 'materials_used', 'outcome', 'next_steps')
-        }),
-        ('Timestamp', {
-            'fields': ('created_at',)
         }),
     )
     
@@ -240,15 +246,14 @@ class CommentAdmin(admin.ModelAdmin):
     
     def issue_title(self, obj):
         """Show issue title with link"""
-        return f"<strong>{obj.issue.title}</strong><br><small>ID: {obj.issue.id}</small>"
+        return mark_safe(f"<strong>{obj.issue.title}</strong><br><small>ID: {obj.issue.id}</small>")
     issue_title.short_description = 'Issue'
-    issue_title.allow_tags = True
     
     def user_info(self, obj):
         """Show user information with role"""
         role_color = '#2196f3' if obj.user.role == 'admin' else '#ff9800'
         role_icon = '👨‍💼' if obj.user.role == 'admin' else '👤'
-        return f"""
+        return mark_safe(f"""
         <div>
             <strong>{obj.user.first_name} {obj.user.last_name}</strong><br>
             <small style='color: #666;'>{obj.user.email}</small><br>
@@ -256,9 +261,8 @@ class CommentAdmin(admin.ModelAdmin):
                 {role_icon} {obj.user.role.title()}
             </span>
         </div>
-        """
+        """)
     user_info.short_description = 'User'
-    user_info.allow_tags = True
     
     def content_preview(self, obj):
         """Show content preview"""
@@ -271,11 +275,10 @@ class CommentAdmin(admin.ModelAdmin):
     def user_role(self, obj):
         """Show user role with color"""
         if obj.user.role == 'admin':
-            return '<span style="background: #2196f3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold;">👨‍💼 Admin</span>'
+            return mark_safe('<span style="background: #2196f3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold;">👨‍💼 Admin</span>')
         else:
-            return '<span style="background: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold;">👤 User</span>'
+            return mark_safe('<span style="background: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold;">👤 User</span>')
     user_role.short_description = 'Role'
-    user_role.allow_tags = True
 
 
 @admin.register(Attachment)
@@ -323,10 +326,9 @@ class ResolutionEvidenceAdmin(admin.ModelAdmin):
     def filename_display(self, obj):
         """Display filename with link if file exists"""
         if obj.file and hasattr(obj.file, 'url'):
-            return f'<a href="{obj.file.url}" target="_blank">{obj.filename}</a>'
+            return mark_safe(f'<a href="{obj.file.url}" target="_blank">{obj.filename}</a>')
         return obj.filename or "No file uploaded"
     filename_display.short_description = 'Current File'
-    filename_display.allow_tags = True
     
     def file_preview(self, obj):
         """Display file preview based on file type"""
@@ -417,7 +419,6 @@ class ResolutionEvidenceAdmin(admin.ModelAdmin):
             """
     
     file_preview.short_description = 'File Preview'
-    file_preview.allow_tags = True
     
     def quick_preview(self, obj):
         """Show quick file icon in list view"""
@@ -480,6 +481,14 @@ class ProgressUpdateAdmin(admin.ModelAdmin):
     search_fields = ['title', 'description', 'issue__title']
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'admin':
+            # Only show admin users in the admin dropdown
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            kwargs['queryset'] = User.objects.filter(role='admin') | User.objects.filter(is_superuser=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
     fieldsets = (
         ('Update Information', {

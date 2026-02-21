@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Paperclip,
   Download,
+  Wrench,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -18,7 +19,9 @@ import { Textarea } from "../components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/avatar";
 import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
-import { issuesApi, IssueDetail } from "../lib/api";
+import { useAuth } from "../contexts/AuthContext";
+import { issuesApi, IssueDetail, TimelineEvent } from "../lib/api";
+import Timeline from "../components/Timeline";
 
 const statusConfig = {
   open: { variant: "info" as const, label: "Open" },
@@ -47,11 +50,16 @@ export default function IssueDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [issue, setIssue] = useState<IssueDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
   const [upvoting, setUpvoting] = useState(false);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(true);
+
+  const isAdmin = user?.role === 'admin' || user?.is_superuser;
 
   useEffect(() => {
     async function fetchIssue() {
@@ -62,6 +70,17 @@ export default function IssueDetails() {
       setLoading(false);
     }
     fetchIssue();
+  }, [id]);
+
+  useEffect(() => {
+    async function fetchTimeline() {
+      if (!id) return;
+      setTimelineLoading(true);
+      const res = await issuesApi.getTimeline(Number(id));
+      setTimelineEvents(res.data || []);
+      setTimelineLoading(false);
+    }
+    fetchTimeline();
   }, [id]);
 
   const status = issue
@@ -99,7 +118,7 @@ export default function IssueDetails() {
     } else {
       toast({
         title: "Error",
-        description: res.error || "Failed to post comment",
+        description: "Failed to post comment",
         variant: "destructive",
       });
     }
@@ -115,8 +134,7 @@ export default function IssueDetails() {
   };
 
   const currentUserEmail = issue?.reporter?.email || "";
-  const isReporter =
-    issue && issue.reporter && issue.reporter.email === currentUserEmail;
+  const isReporter = currentUserEmail && user?.email === currentUserEmail;
 
   if (loading) {
     return (
@@ -210,7 +228,19 @@ export default function IssueDetails() {
           </div>
 
           {/* Timeline */}
-          {/* You can implement timeline if your backend supports it, else remove this block */}
+          {timelineLoading ? (
+            <div className="rounded-xl border bg-card p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Timeline
+              </h2>
+              <div className="text-muted-foreground text-center py-8">
+                Loading timeline...
+              </div>
+            </div>
+          ) : (
+            <Timeline events={timelineEvents} />
+          )}
 
           {/* Comments */}
           <div className="rounded-xl border bg-card p-6">
@@ -366,7 +396,7 @@ export default function IssueDetails() {
                           </a>
                           <p className="text-xs text-muted-foreground">
                             {evidence.file_type} • {formatFileSize(evidence.file_size)} • 
-                            Uploaded by {evidence.admin.first_name} {evidence.admin.last_name}
+                            Uploaded by {evidence.admin ? `${evidence.admin.first_name} ${evidence.admin.last_name}` : 'Unknown'}
                           </p>
                           {evidence.description && (
                             <p className="text-xs text-muted-foreground mt-1">{evidence.description}</p>

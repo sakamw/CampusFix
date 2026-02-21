@@ -348,19 +348,6 @@ export interface ResolutionEvidence {
   uploaded_at: string;
 }
 
-export interface AdminWorkLog {
-  id: number;
-  issue: number;
-  admin: UserData;
-  work_type: 'assessment' | 'investigation' | 'repair' | 'maintenance' | 'coordination' | 'documentation' | 'follow_up' | 'other';
-  description: string;
-  hours_spent: number;
-  materials_used: string;
-  outcome: string;
-  next_steps: string;
-  created_at: string;
-}
-
 export interface ProgressUpdate {
   id: number;
   issue: number;
@@ -373,6 +360,34 @@ export interface ProgressUpdate {
   estimated_completion?: string;
   is_major_update: boolean;
   created_at: string;
+}
+
+export interface TimelineEvent {
+  id: string;
+  type: 'issue_created' | 'work_log' | 'progress_update' | 'status_change' | 'evidence_uploaded' | 'issue_resolved';
+  title: string;
+  description: string;
+  timestamp: string;
+  user: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  metadata?: {
+    work_type?: string;
+    progress_percentage?: number;
+    hours_spent?: number;
+    file_type?: string;
+    old_status?: string;
+    new_status?: string;
+    category?: string;
+    priority?: string;
+    update_type?: string;
+    is_major_update?: boolean;
+    filename?: string;
+    file_size?: number;
+    final_status?: string;
+  };
 }
 
 export interface Notification {
@@ -480,6 +495,10 @@ export const issuesApi = {
       method: "POST",
       body: JSON.stringify({ content }),
     });
+  },
+
+  getTimeline: async (issueId: number): Promise<ApiResponse<TimelineEvent[]>> => {
+    return apiFetch<TimelineEvent[]>(`/issues/${issueId}/timeline/`);
   },
 };
 

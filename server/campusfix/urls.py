@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/auth/', include('accounts.urls')),
     path('api/', include('issues.urls')),
     path('api/', include('notifications.urls')),
+    path('admin/', include('issues.admin_urls', namespace='issues')),
 ]
