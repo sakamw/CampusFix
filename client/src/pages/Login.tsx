@@ -118,7 +118,7 @@ export default function Login() {
         title: "Account Created",
         description: "Your account has been created successfully",
       });
-      
+
       const redirectPath = getRegisterRedirectPath(location);
       navigate(redirectPath);
     } else {

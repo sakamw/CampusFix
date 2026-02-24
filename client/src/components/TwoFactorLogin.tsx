@@ -2,7 +2,13 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 import { useToast } from "../hooks/use-toast";
 import { Shield, Loader2 } from "lucide-react";
 
@@ -12,14 +18,18 @@ interface TwoFactorLoginProps {
   onBack: () => void;
 }
 
-export function TwoFactorLogin({ email, onSuccess, onBack }: TwoFactorLoginProps) {
-  const [code, setCode] = useState('');
+export function TwoFactorLogin({
+  email,
+  onSuccess,
+  onBack,
+}: TwoFactorLoginProps) {
+  const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (code.length !== 6) {
       toast({
         title: "Invalid Code",
@@ -31,37 +41,43 @@ export function TwoFactorLogin({ email, onSuccess, onBack }: TwoFactorLoginProps
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/auth/2fa/verify/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email,
-          token: code,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Now complete the login with the 2FA verification
-        const loginResponse = await fetch('http://localhost:8000/api/auth/login/', {
-          method: 'POST',
+      const response = await fetch(
+        "http://localhost:8000/api/auth/2fa/verify/",
+        {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             email: email,
-            password: '', // Password was already verified in previous step
-            two_factor_verified: true,
+            token: code,
           }),
-        });
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Now complete the login with the 2FA verification
+        const loginResponse = await fetch(
+          "http://localhost:8000/api/auth/login/",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: email,
+              password: "", // Password was already verified in previous step
+              two_factor_verified: true,
+            }),
+          },
+        );
 
         if (loginResponse.ok) {
           const loginData = await loginResponse.json();
-          localStorage.setItem('access_token', loginData.tokens.access);
-          localStorage.setItem('refresh_token', loginData.tokens.refresh);
+          localStorage.setItem("access_token", loginData.tokens.access);
+          localStorage.setItem("refresh_token", loginData.tokens.refresh);
           onSuccess(loginData.user);
         }
       } else {
@@ -103,7 +119,9 @@ export function TwoFactorLogin({ email, onSuccess, onBack }: TwoFactorLoginProps
               type="text"
               placeholder="000000"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               className="text-center text-lg tracking-widest"
               maxLength={6}
               autoFocus
@@ -115,9 +133,9 @@ export function TwoFactorLogin({ email, onSuccess, onBack }: TwoFactorLoginProps
           </div>
 
           <div className="space-y-2">
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading || code.length !== 6}
             >
               {isLoading ? (
@@ -126,13 +144,13 @@ export function TwoFactorLogin({ email, onSuccess, onBack }: TwoFactorLoginProps
                   Verifying...
                 </>
               ) : (
-                'Verify Code'
+                "Verify Code"
               )}
             </Button>
-            
-            <Button 
-              type="button" 
-              variant="outline" 
+
+            <Button
+              type="button"
+              variant="outline"
               className="w-full"
               onClick={onBack}
             >

@@ -6,7 +6,10 @@ import {
   useEffect,
 } from "react";
 import { authApi } from "../lib/api";
-import { uploadImageToCloudinary, updateUserAvatarUrl } from "../lib/cloudinary";
+import {
+  uploadImageToCloudinary,
+  updateUserAvatarUrl,
+} from "../lib/cloudinary";
 
 interface UserProfile {
   firstName: string;
@@ -126,7 +129,7 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
       ...prev,
       profile: { ...prev.profile, ...profile },
     }));
-    
+
     // Sync with server
     try {
       await authApi.updateProfile({
@@ -134,11 +137,11 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
         last_name: profile.lastName,
         phone: profile.phone,
       });
-      
+
       // Refresh user profile to ensure sync
       await fetchUserProfile();
     } catch (error) {
-      console.error('Failed to update profile:', error);
+      console.error("Failed to update profile:", error);
       // Revert to previous state on error
       await fetchUserProfile();
       throw error;
@@ -148,20 +151,20 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
   const updateAvatar = async (avatar: string | null | File) => {
     try {
       let avatarUrl: string | null = null;
-      
+
       if (avatar instanceof File) {
         // Upload file to Cloudinary via backend
         avatarUrl = await uploadImageToCloudinary(avatar);
-      } else if (typeof avatar === 'string') {
+      } else if (typeof avatar === "string") {
         avatarUrl = avatar;
       }
-      
+
       // Update local state immediately for responsive UI
       setSettings((prev) => ({
         ...prev,
         profile: { ...prev.profile, avatar: avatarUrl },
       }));
-      
+
       // If it's a file upload, the backend already updated the avatar
       // If it's a URL update or removal, sync with server
       if (avatar instanceof File) {
@@ -178,28 +181,30 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
         await fetchUserProfile();
       }
     } catch (error) {
-      console.error('Failed to update avatar:', error);
+      console.error("Failed to update avatar:", error);
       // Revert to previous state on error
       await fetchUserProfile();
       throw error;
     }
   };
 
-  const updateSecurity = async (securitySettings: Partial<SecuritySettings>) => {
+  const updateSecurity = async (
+    securitySettings: Partial<SecuritySettings>,
+  ) => {
     // Update local state immediately for responsive UI
     setSettings((prev) => ({
       ...prev,
       security: { ...prev.security, ...securitySettings },
     }));
-    
+
     // Sync with server if two_factor_enabled is being updated
-    if ('twoFactorEnabled' in securitySettings) {
+    if ("twoFactorEnabled" in securitySettings) {
       try {
         await authApi.updateTwoFactor(securitySettings.twoFactorEnabled!);
         // Refresh user profile to ensure sync
         await fetchUserProfile();
       } catch (error) {
-        console.error('Failed to update two-factor setting:', error);
+        console.error("Failed to update two-factor setting:", error);
         // Revert to previous state on error
         await fetchUserProfile();
         throw error;

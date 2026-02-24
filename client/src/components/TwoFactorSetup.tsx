@@ -2,7 +2,13 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 import { useToast } from "../hooks/use-toast";
 import { Shield, QrCode, Key } from "lucide-react";
 
@@ -12,29 +18,32 @@ interface TwoFactorSetupProps {
 }
 
 export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
-  const [step, setStep] = useState<'setup' | 'verify'>('setup');
-  const [qrCode, setQrCode] = useState<string>('');
-  const [secret, setSecret] = useState<string>('');
+  const [step, setStep] = useState<"setup" | "verify">("setup");
+  const [qrCode, setQrCode] = useState<string>("");
+  const [secret, setSecret] = useState<string>("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationCode, setVerificationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleStartSetup = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/auth/2fa/setup/', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+      const response = await fetch(
+        "http://localhost:8000/api/auth/2fa/setup/",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
         },
-      });
-      
+      );
+
       if (response.ok) {
         const data = await response.json();
         setQrCode(data.qr_code);
         setSecret(data.secret);
         setBackupCodes(data.backup_codes);
-        setStep('verify');
+        setStep("verify");
       }
     } catch (error) {
       toast({
@@ -59,19 +68,23 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/auth/2fa/setup/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        "http://localhost:8000/api/auth/2fa/setup/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ token: verificationCode }),
         },
-        body: JSON.stringify({ token: verificationCode }),
-      });
+      );
 
       if (response.ok) {
         toast({
           title: "2FA Enabled",
-          description: "Two-factor authentication has been successfully enabled.",
+          description:
+            "Two-factor authentication has been successfully enabled.",
         });
         onComplete();
       } else {
@@ -93,7 +106,7 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
     }
   };
 
-  if (step === 'setup') {
+  if (step === "setup") {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
@@ -114,7 +127,7 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
               <li>• Use codes for future logins</li>
             </ul>
           </div>
-          
+
           <div className="space-y-2">
             <h4 className="font-medium">Recommended apps:</h4>
             <div className="text-sm text-muted-foreground">
@@ -126,7 +139,11 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
             <Button variant="outline" onClick={onCancel} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleStartSetup} disabled={isLoading} className="flex-1">
+            <Button
+              onClick={handleStartSetup}
+              disabled={isLoading}
+              className="flex-1"
+            >
               {isLoading ? "Generating..." : "Continue Setup"}
             </Button>
           </div>
@@ -149,9 +166,9 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
       <CardContent className="space-y-6">
         {qrCode && (
           <div className="text-center">
-            <img 
-              src={qrCode} 
-              alt="2FA QR Code" 
+            <img
+              src={qrCode}
+              alt="2FA QR Code"
               className="mx-auto border rounded-lg"
             />
             <p className="text-xs text-muted-foreground mt-2">
@@ -166,7 +183,9 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
             id="code"
             placeholder="000000"
             value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) =>
+              setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+            }
             className="text-center text-lg tracking-widest"
             maxLength={6}
           />
@@ -192,11 +211,14 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
             </Label>
             <div className="p-3 bg-muted rounded text-xs space-y-1">
               {backupCodes.map((code, index) => (
-                <div key={index} className="font-mono">{code}</div>
+                <div key={index} className="font-mono">
+                  {code}
+                </div>
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Save these codes in a safe place. You can use them to access your account if you lose your device.
+              Save these codes in a safe place. You can use them to access your
+              account if you lose your device.
             </p>
           </div>
         )}
@@ -205,9 +227,9 @@ export function TwoFactorSetup({ onComplete, onCancel }: TwoFactorSetupProps) {
           <Button variant="outline" onClick={onCancel} className="flex-1">
             Cancel
           </Button>
-          <Button 
-            onClick={handleVerifyCode} 
-            disabled={isLoading || verificationCode.length !== 6} 
+          <Button
+            onClick={handleVerifyCode}
+            disabled={isLoading || verificationCode.length !== 6}
             className="flex-1"
           >
             {isLoading ? "Verifying..." : "Enable 2FA"}

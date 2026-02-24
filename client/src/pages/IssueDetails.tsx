@@ -59,7 +59,7 @@ export default function IssueDetails() {
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
 
-  const isAdmin = user?.role === 'admin' || user?.is_superuser;
+  const isAdmin = user?.role === "admin" || user?.is_superuser;
 
   useEffect(() => {
     async function fetchIssue() {
@@ -331,34 +331,44 @@ export default function IssueDetails() {
           </div>
 
           {/* Resolution Information - Show if resolved */}
-          {(issue.status === 'resolved' || issue.status === 'closed') && (
+          {(issue.status === "resolved" || issue.status === "closed") && (
             <div className="rounded-xl border bg-card p-6 space-y-4">
               <h3 className="font-semibold flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
                 Resolution Report
               </h3>
-              
+
               {issue.resolution_summary && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Summary:</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Summary:
+                  </p>
                   <p className="text-sm">{issue.resolution_summary}</p>
                 </div>
               )}
-              
+
               {issue.resolution_details && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Details:</p>
-                  <p className="text-sm whitespace-pre-wrap">{issue.resolution_details}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Details:
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {issue.resolution_details}
+                  </p>
                 </div>
               )}
-              
+
               {issue.resolution_evidence && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Evidence:</p>
-                  <p className="text-sm whitespace-pre-wrap">{issue.resolution_evidence}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Evidence:
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {issue.resolution_evidence}
+                  </p>
                 </div>
               )}
-              
+
               {issue.actual_completion && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Completed:</span>
@@ -367,14 +377,14 @@ export default function IssueDetails() {
                   </span>
                 </div>
               )}
-              
+
               {issue.work_hours && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Work Hours:</span>
                   <span className="font-medium">{issue.work_hours} hours</span>
                 </div>
               )}
-              
+
               {issue.evidence_files && issue.evidence_files.length > 0 && (
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -383,11 +393,14 @@ export default function IssueDetails() {
                   </p>
                   <div className="space-y-2">
                     {issue.evidence_files.map((evidence) => (
-                      <div key={evidence.id} className="flex items-center justify-between p-2 rounded border bg-muted/50">
+                      <div
+                        key={evidence.id}
+                        className="flex items-center justify-between p-2 rounded border bg-muted/50"
+                      >
                         <div className="flex-1">
-                          <a 
-                            href={evidence.file} 
-                            target="_blank" 
+                          <a
+                            href={evidence.file}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm font-medium hover:text-primary hover:underline flex items-center gap-2"
                           >
@@ -395,11 +408,16 @@ export default function IssueDetails() {
                             {evidence.filename}
                           </a>
                           <p className="text-xs text-muted-foreground">
-                            {evidence.file_type} • {formatFileSize(evidence.file_size)} • 
-                            Uploaded by {evidence.admin ? `${evidence.admin.first_name} ${evidence.admin.last_name}` : 'Unknown'}
+                            {evidence.file_type} •{" "}
+                            {formatFileSize(evidence.file_size)} • Uploaded by{" "}
+                            {evidence.admin
+                              ? `${evidence.admin.first_name} ${evidence.admin.last_name}`
+                              : "Unknown"}
                           </p>
                           {evidence.description && (
-                            <p className="text-xs text-muted-foreground mt-1">{evidence.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {evidence.description}
+                            </p>
                           )}
                         </div>
                       </div>

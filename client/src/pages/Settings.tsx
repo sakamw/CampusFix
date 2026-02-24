@@ -1,13 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import {
-  User,
-  Shield,
-  Eye,
-  Palette,
-  Trash2,
-  Camera,
-  X,
-} from "lucide-react";
+import { User, Shield, Eye, Palette, Trash2, Camera, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -42,12 +34,8 @@ import { TwoFactorSetup } from "../components/TwoFactorSetup";
 export default function Settings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
-  const {
-    settings,
-    updateProfile,
-    updateAvatar,
-    updateSecurity,
-  } = useUserSettings();
+  const { settings, updateProfile, updateAvatar, updateSecurity } =
+    useUserSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showTwoFactorSetup, setShowTwoFactorSetup] = useState(false);
 
@@ -61,7 +49,11 @@ export default function Settings() {
     setFirstName(settings.profile.firstName);
     setLastName(settings.profile.lastName);
     setPhone(settings.profile.phone || "");
-  }, [settings.profile.firstName, settings.profile.lastName, settings.profile.phone]);
+  }, [
+    settings.profile.firstName,
+    settings.profile.lastName,
+    settings.profile.phone,
+  ]);
 
   // Security settings - local password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -174,8 +166,12 @@ export default function Settings() {
 
     try {
       const { authApi } = await import("../lib/api");
-      await authApi.changePassword(currentPassword, newPassword, confirmPassword);
-      
+      await authApi.changePassword(
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      );
+
       toast({
         title: "Password changed",
         description: "Your password has been updated successfully.",
@@ -186,7 +182,8 @@ export default function Settings() {
     } catch (error) {
       toast({
         title: "Password change failed",
-        description: "Failed to change your password. Please check your current password and try again.",
+        description:
+          "Failed to change your password. Please check your current password and try again.",
         variant: "destructive",
       });
     }
@@ -207,7 +204,8 @@ export default function Settings() {
       } catch (error) {
         toast({
           title: "2FA Update Failed",
-          description: "Failed to disable two-factor authentication. Please try again.",
+          description:
+            "Failed to disable two-factor authentication. Please try again.",
           variant: "destructive",
         });
       }
@@ -223,7 +221,9 @@ export default function Settings() {
   const handleTwoFactorCancel = () => {
     setShowTwoFactorSetup(false);
     // Revert the toggle state
-    const toggle = document.querySelector('input[id="two-factor"]') as HTMLInputElement;
+    const toggle = document.querySelector(
+      'input[id="two-factor"]',
+    ) as HTMLInputElement;
     if (toggle) {
       toggle.checked = settings.security.twoFactorEnabled;
     }

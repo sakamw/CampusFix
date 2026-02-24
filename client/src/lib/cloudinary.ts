@@ -2,13 +2,16 @@ export async function uploadImageToCloudinary(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("image", file);
 
-  const response = await fetch('http://localhost:8000/api/auth/upload-avatar/', {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
+  const response = await fetch(
+    "http://localhost:8000/api/auth/upload-avatar/",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+      body: formData,
     },
-    body: formData,
-  });
+  );
 
   if (!response.ok) {
     throw new Error("Failed to upload image to Cloudinary");
@@ -31,16 +34,19 @@ interface User {
 }
 
 export async function updateUserAvatarUrl(avatarUrl: string): Promise<User> {
-  const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/auth/avatar-url`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
+  const response = await fetch(
+    `${process.env.REACT_APP_API_URL || "http://localhost:8000/api"}/auth/avatar-url`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+      body: JSON.stringify({
+        avatar: avatarUrl,
+      }),
     },
-    body: JSON.stringify({
-      avatar: avatarUrl,
-    }),
-  });
+  );
 
   if (!response.ok) {
     throw new Error("Failed to update avatar URL");

@@ -342,7 +342,7 @@ export interface ResolutionEvidence {
   admin: UserData;
   file: string;
   filename: string;
-  file_type: 'photo' | 'video' | 'document' | 'receipt' | 'report' | 'other';
+  file_type: "photo" | "video" | "document" | "receipt" | "report" | "other";
   description: string;
   file_size: number;
   uploaded_at: string;
@@ -352,7 +352,14 @@ export interface ProgressUpdate {
   id: number;
   issue: number;
   admin: UserData;
-  update_type: 'milestone' | 'delay' | 'issue' | 'completion' | 'status' | 'resource' | 'other';
+  update_type:
+    | "milestone"
+    | "delay"
+    | "issue"
+    | "completion"
+    | "status"
+    | "resource"
+    | "other";
   progress_percentage: number;
   title: string;
   description: string;
@@ -364,7 +371,13 @@ export interface ProgressUpdate {
 
 export interface TimelineEvent {
   id: string;
-  type: 'issue_created' | 'work_log' | 'progress_update' | 'status_change' | 'evidence_uploaded' | 'issue_resolved';
+  type:
+    | "issue_created"
+    | "work_log"
+    | "progress_update"
+    | "status_change"
+    | "evidence_uploaded"
+    | "issue_resolved";
   title: string;
   description: string;
   timestamp: string;
@@ -497,7 +510,9 @@ export const issuesApi = {
     });
   },
 
-  getTimeline: async (issueId: number): Promise<ApiResponse<TimelineEvent[]>> => {
+  getTimeline: async (
+    issueId: number,
+  ): Promise<ApiResponse<TimelineEvent[]>> => {
     return apiFetch<TimelineEvent[]>(`/issues/${issueId}/timeline/`);
   },
 };
