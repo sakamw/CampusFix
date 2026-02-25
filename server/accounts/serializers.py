@@ -1,6 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from security.validators import (
+    secure_email_validator, 
+    secure_phone_validator,
+    NoMaliciousContentValidator,
+    sanitize_input
+)
 
 User = get_user_model()
 
@@ -19,14 +25,25 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True, required=True)
+    email = serializers.EmailField(required=True, validators=[secure_email_validator])
+    first_name = serializers.CharField(required=True, validators=[NoMaliciousContentValidator()])
+    last_name = serializers.CharField(required=True, validators=[NoMaliciousContentValidator()])
+    student_id = serializers.CharField(required=False, allow_blank=True, validators=[NoMaliciousContentValidator()])
+    phone = serializers.CharField(required=False, allow_blank=True, validators=[secure_phone_validator])
     
     class Meta:
         model = User
-        fields = ['email', 'first_name', 'last_name', 'student_id', 'password', 'password_confirm']
+        fields = ['email', 'first_name', 'last_name', 'student_id', 'phone', 'password', 'password_confirm']
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password": "Passwords do not match."})
+        
+        # Sanitize text inputs
+        for field in ['first_name', 'last_name', 'student_id']:
+            if field in attrs and attrs[field]:
+                attrs[field] = sanitize_input(attrs[field])
+        
         return attrs
     
     def create(self, validated_data):

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from security.validators import NoMaliciousContentValidator, secure_location_validator, validate_file_upload
 
 
 class Issue(models.Model):
@@ -34,12 +35,12 @@ class Issue(models.Model):
         ('private', 'Private'),
     ]
 
-    title = models.CharField(max_length=255)
-    description = models.TextField()
+    title = models.CharField(max_length=255, validators=[NoMaliciousContentValidator()])
+    description = models.TextField(validators=[NoMaliciousContentValidator()])
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
-    location = models.CharField(max_length=255)
+    location = models.CharField(max_length=255, validators=[secure_location_validator])
     visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, default='public')
     
     reporter = models.ForeignKey(
@@ -85,7 +86,7 @@ class Issue(models.Model):
 class Comment(models.Model):
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    content = models.TextField()
+    content = models.TextField(validators=[NoMaliciousContentValidator()])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -98,13 +99,15 @@ class Comment(models.Model):
 
 class Attachment(models.Model):
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='attachments')
-    file = models.FileField(upload_to='issue_attachments/%Y/%m/%d/')
-    filename = models.CharField(max_length=255)
+    file = models.FileField(upload_to='issue_attachments/%Y/%m/%d/', validators=[validate_file_upload])
+    filename = models.CharField(max_length=255, validators=[NoMaliciousContentValidator()])
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
-    def __str__(self):
-        return f"{self.filename} - {self.issue.title}"
+    def clean(self):
+        super().clean()
+        if self.file:
+            validate_file_upload(self.file)
 
 
 class Upvote(models.Model):

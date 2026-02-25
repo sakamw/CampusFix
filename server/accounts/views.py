@@ -18,6 +18,7 @@ from .serializers import (
 )
 from .models import PasswordResetToken
 from .cloudinary_utils import upload_image_to_cloudinary
+from security.decorators import auth_rate_limit, user_rate_limit
 import secrets
 
 User = get_user_model()
@@ -30,6 +31,8 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     serializer_class = RegisterSerializer
     
+    # Temporarily disable rate limiting until Redis is confirmed working
+    # @auth_rate_limit(rate='3/m', block_time=900)  # 3 registrations per minute
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -53,6 +56,8 @@ class LoginView(APIView):
     
     permission_classes = [AllowAny]
     
+    # Temporarily disable rate limiting until Redis is confirmed working
+    # @auth_rate_limit(rate='5/m', block_time=900)  # 5 login attempts per minute
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

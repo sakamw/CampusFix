@@ -31,7 +31,7 @@ export function getAuthRedirectPath(
 }
 
 /**
- * Get redirect path for registration (doesn't have user data yet)
+ * Get redirect path for registration
  * @param location - React Router location object containing state
  * @returns The path to redirect to (including search params if any)
  */
