@@ -37,7 +37,9 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({"password": "Passwords do not match."})
+            raise serializers.ValidationError({
+                "password": "The passwords you entered do not match. Please make sure both passwords are identical."
+            })
         
         # Sanitize text inputs
         for field in ['first_name', 'last_name', 'student_id']:
@@ -68,7 +70,9 @@ class ChangePasswordSerializer(serializers.Serializer):
     
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError({"new_password": "Passwords do not match."})
+            raise serializers.ValidationError({
+                "new_password": "The new passwords you entered do not match. Please make sure both passwords are identical."
+            })
         return attrs
 
 
@@ -87,7 +91,9 @@ class ResetPasswordSerializer(serializers.Serializer):
     
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError({"new_password": "Passwords do not match."})
+            raise serializers.ValidationError({
+                "new_password": "The new passwords you entered do not match. Please make sure both passwords are identical."
+            })
         return attrs
 
 

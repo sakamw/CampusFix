@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
-    # 'django_ratelimit',  # Temporarily disabled until Redis is confirmed working
+    'channels',
+    'django_ratelimit',  # Re-enabled with Redis backend
     # Local apps
     'accounts',
     'issues',
@@ -200,20 +201,20 @@ LOGGING = {
     },
 }
 
-# Rate Limiting Settings (Temporarily disabled)
-# RATELIMIT_ENABLE = False
-# RATELIMIT_USE_CACHE = 'default'
+# Rate Limiting Settings
+RATELIMIT_ENABLE = True
+RATELIMIT_USE_CACHE = 'default'
 
-# Cache configuration for rate limiting (Temporarily disabled)
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-#         'LOCATION': 'redis://127.0.0.1:6379/1',
-#         'OPTIONS': {
-#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-#         }
-#     }
-# }
+# Rate limiting configurations
+RATELIMIT_VIEW = 'rest_framework.views.exception_handler'
+
+# Cache configuration for rate limiting
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+    }
+}
 
 # File Upload Security
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
@@ -227,3 +228,16 @@ SESSION_COOKIE_SAMESITE = 'Strict'
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Strict'
+
+# Channels Configuration
+ASGI_APPLICATION = 'campusfix.asgi.application'
+
+# Channel Layer Configuration (using Redis)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}

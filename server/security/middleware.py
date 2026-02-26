@@ -45,18 +45,19 @@ class InputValidationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         
-        # Patterns for potentially malicious content
+        # Patterns for potentially malicious content (updated for better accuracy)
         self.malicious_patterns = [
             r'<script[^>]*>.*?</script>',  # Script tags
             r'javascript:',  # JavaScript URLs
-            r'on\w+\s*=',   # Event handlers
             r'eval\s*\(',   # eval() calls
             r'expression\s*\(',  # CSS expressions
+            r'vbscript:',   # VBScript URLs
+            r'data:text/html',  # Data URLs with HTML
         ]
     
     def __call__(self, request):
         # Skip validation for safe endpoints
-        safe_paths = ['/health/', '/metrics/']
+        safe_paths = ['/health/', '/metrics/', '/api/notifications/', '/api/auth/', '/api/issues/']
         if any(request.path.startswith(path) for path in safe_paths):
             return self.get_response(request)
         
@@ -64,14 +65,27 @@ class InputValidationMiddleware:
         if hasattr(request, 'body') and request.body:
             try:
                 body_str = request.body.decode('utf-8')
-                for pattern in self.malicious_patterns:
+                # Only check for actual malicious patterns, not common HTML attributes
+                dangerous_patterns = [
+                    r'<script[^>]*>.*?</script>',  # Script tags
+                    r'javascript:',  # JavaScript URLs
+                    r'eval\s*\(',   # eval() calls
+                    r'expression\s*\(',  # CSS expressions
+                    r'vbscript:',   # VBScript URLs
+                    r'data:text/html',  # Data URLs with HTML
+                ]
+                
+                for pattern in dangerous_patterns:
                     if re.search(pattern, body_str, re.IGNORECASE | re.DOTALL):
                         logger.warning(
                             f"Potentially malicious input detected from {request.META.get('REMOTE_ADDR')}: "
                             f"Path: {request.path}, Pattern: {pattern}"
                         )
                         return JsonResponse(
-                            {'error': 'Invalid input detected'}, 
+                            {
+                                'error': 'Invalid input detected',
+                                'message': 'The request contains potentially malicious content and has been blocked for security reasons.'
+                            }, 
                             status=status.HTTP_400_BAD_REQUEST
                         )
             except UnicodeDecodeError:

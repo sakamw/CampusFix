@@ -36,7 +36,10 @@ def rate_limit(key_func, rate='5/m', block_time=300):
             block_key = f"{cache_key}:blocked"
             if cache.get(block_key):
                 return JsonResponse(
-                    {'error': 'Rate limit exceeded. Try again later.'},
+                    {
+                        'error': 'Too many requests',
+                        'message': 'You have made too many requests. Please wait a while before trying again.'
+                    },
                     status=status.HTTP_429_TOO_MANY_REQUESTS
                 )
             
@@ -44,14 +47,17 @@ def rate_limit(key_func, rate='5/m', block_time=300):
             request_count = cache.get(cache_key, 0)
             
             if request_count >= limit:
-                # Block the user
+                # Block user
                 cache.set(block_key, True, block_time)
                 logger.warning(
                     f"Rate limit exceeded for {key_func(request)} on {view_func.__name__}. "
                     f"Blocked for {block_time} seconds."
                 )
                 return JsonResponse(
-                    {'error': 'Rate limit exceeded. Try again later.'},
+                    {
+                        'error': 'Too many requests',
+                        'message': 'You have reached the maximum number of requests allowed. Please wait before trying again.'
+                    },
                     status=status.HTTP_429_TOO_MANY_REQUESTS
                 )
             
@@ -66,11 +72,20 @@ def rate_limit(key_func, rate='5/m', block_time=300):
 
 def ip_rate_limit(rate='100/m', block_time=900):
     """Rate limit by IP address."""
-    return rate_limit(
-        key_func=lambda request: request.META.get('REMOTE_ADDR', 'unknown'),
-        rate=rate,
-        block_time=block_time
-    )
+    def key_func(request):
+        # Get client IP from various possible locations
+        ip = None
+        if hasattr(request, 'META'):
+            ip = request.META.get('REMOTE_ADDR')
+            if not ip:
+                ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            if not ip:
+                ip = request.META.get('HTTP_X_REAL_IP')
+        if not ip:
+            ip = 'unknown'
+        return ip
+    
+    return rate_limit(key_func=key_func, rate=rate, block_time=block_time)
 
 
 def user_rate_limit(rate='50/m', block_time=600):
@@ -78,18 +93,38 @@ def user_rate_limit(rate='50/m', block_time=600):
     def key_func(request):
         if hasattr(request, 'user') and request.user.is_authenticated:
             return f"user:{request.user.id}"
-        return f"anon:{request.META.get('REMOTE_ADDR', 'unknown')}"
+        
+        # Get client IP for anonymous users
+        ip = None
+        if hasattr(request, 'META'):
+            ip = request.META.get('REMOTE_ADDR')
+            if not ip:
+                ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            if not ip:
+                ip = request.META.get('HTTP_X_REAL_IP')
+        if not ip:
+            ip = 'unknown'
+        return f"anon:{ip}"
     
     return rate_limit(key_func=key_func, rate=rate, block_time=block_time)
 
 
 def auth_rate_limit(rate='5/m', block_time=900):
     """Stricter rate limit for authentication endpoints."""
-    return rate_limit(
-        key_func=lambda request: f"auth:{request.META.get('REMOTE_ADDR', 'unknown')}",
-        rate=rate,
-        block_time=block_time
-    )
+    def key_func(request):
+        # Get client IP from various possible locations
+        ip = None
+        if hasattr(request, 'META'):
+            ip = request.META.get('REMOTE_ADDR')
+            if not ip:
+                ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            if not ip:
+                ip = request.META.get('HTTP_X_REAL_IP')
+        if not ip:
+            ip = 'unknown'
+        return f"auth:{ip}"
+    
+    return rate_limit(key_func=key_func, rate=rate, block_time=block_time)
 
 
 def sensitive_operation_rate_limit(rate='10/h', block_time=3600):
@@ -97,6 +132,17 @@ def sensitive_operation_rate_limit(rate='10/h', block_time=3600):
     def key_func(request):
         if hasattr(request, 'user') and request.user.is_authenticated:
             return f"sensitive:{request.user.id}"
-        return f"sensitive:anon:{request.META.get('REMOTE_ADDR', 'unknown')}"
+        
+        # Get client IP for anonymous users
+        ip = None
+        if hasattr(request, 'META'):
+            ip = request.META.get('REMOTE_ADDR')
+            if not ip:
+                ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            if not ip:
+                ip = request.META.get('HTTP_X_REAL_IP')
+        if not ip:
+            ip = 'unknown'
+        return f"sensitive:anon:{ip}"
     
     return rate_limit(key_func=key_func, rate=rate, block_time=block_time)

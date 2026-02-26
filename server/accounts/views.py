@@ -31,8 +31,7 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     serializer_class = RegisterSerializer
     
-    # Temporarily disable rate limiting until Redis is confirmed working
-    # @auth_rate_limit(rate='3/m', block_time=900)  # 3 registrations per minute
+    @auth_rate_limit(rate='3/m', block_time=900)  # 3 registrations per minute
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -47,7 +46,8 @@ class RegisterView(generics.CreateAPIView):
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             },
-            'message': 'Registration successful'
+            'message': 'Account created successfully! Welcome to CampusFix.',
+            'success': True
         }, status=status.HTTP_201_CREATED)
 
 
@@ -56,8 +56,7 @@ class LoginView(APIView):
     
     permission_classes = [AllowAny]
     
-    # Temporarily disable rate limiting until Redis is confirmed working
-    # @auth_rate_limit(rate='5/m', block_time=900)  # 5 login attempts per minute
+    @auth_rate_limit(rate='5/m', block_time=900)  # 5 login attempts per minute
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -69,13 +68,19 @@ class LoginView(APIView):
         
         if user is None:
             return Response(
-                {'error': 'Invalid email or password'},
+                {
+                    'error': 'Invalid login credentials',
+                    'message': 'The email address or password you entered is incorrect. Please check your credentials and try again.'
+                },
                 status=status.HTTP_401_UNAUTHORIZED
             )
         
         if not user.is_active:
             return Response(
-                {'error': 'Account is disabled'},
+                {
+                    'error': 'Account deactivated',
+                    'message': 'Your account has been deactivated. Please contact support for assistance.'
+                },
                 status=status.HTTP_401_UNAUTHORIZED
             )
         
@@ -88,7 +93,8 @@ class LoginView(APIView):
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             },
-            'message': 'Login successful'
+            'message': 'Welcome back! You have successfully logged in.',
+            'success': True
         })
 
 
@@ -103,9 +109,15 @@ class LogoutView(APIView):
             if refresh_token:
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-            return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+            return Response({
+                'message': 'You have been successfully logged out.',
+                'success': True
+            }, status=status.HTTP_200_OK)
         except Exception:
-            return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+            return Response({
+                'message': 'You have been successfully logged out.',
+                'success': True
+            }, status=status.HTTP_200_OK)
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
@@ -123,6 +135,7 @@ class ChangePasswordView(APIView):
     
     permission_classes = [IsAuthenticated]
     
+    @user_rate_limit(rate='10/h', block_time=1800)  # 10 password changes per hour
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -131,14 +144,20 @@ class ChangePasswordView(APIView):
         
         if not user.check_password(serializer.validated_data['old_password']):
             return Response(
-                {'error': 'Current password is incorrect'},
+                {
+                    'error': 'Invalid current password',
+                    'message': 'The current password you entered is incorrect. Please verify your password and try again.'
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         user.set_password(serializer.validated_data['new_password'])
         user.save()
         
-        return Response({'message': 'Password changed successfully'})
+        return Response({
+            'message': 'Your password has been successfully changed.',
+            'success': True
+        })
 
 
 class ForgotPasswordView(APIView):
@@ -146,6 +165,7 @@ class ForgotPasswordView(APIView):
     
     permission_classes = [AllowAny]
     
+    @auth_rate_limit(rate='3/h', block_time=3600)  # 3 password reset requests per hour per IP
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -165,14 +185,16 @@ class ForgotPasswordView(APIView):
             #TODO: In production, send email with reset link
             # For now, return success message
             return Response({
-                'message': 'If an account with this email exists, a password reset link has been sent.',
+                'message': 'If an account with this email exists, a password reset link has been sent to your email address.',
+                'success': True,
                 # Include token in dev mode for testing - remove in production!
                 'reset_token': token,
             })
         except User.DoesNotExist:
             # Return same message to prevent email enumeration
             return Response({
-                'message': 'If an account with this email exists, a password reset link has been sent.'
+                'message': 'If an account with this email exists, a password reset link has been sent to your email address.',
+                'success': True
             })
 
 
@@ -192,7 +214,10 @@ class ResetPasswordView(APIView):
             
             if not reset_token.is_valid():
                 return Response(
-                    {'error': 'This reset link has expired or already been used'},
+                    {
+                        'error': 'Invalid or expired reset link',
+                        'message': 'This password reset link has expired or has already been used. Please request a new password reset.'
+                    },
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
@@ -205,11 +230,17 @@ class ResetPasswordView(APIView):
             reset_token.used = True
             reset_token.save()
             
-            return Response({'message': 'Password has been reset successfully'})
+            return Response({
+                'message': 'Your password has been successfully reset. You can now log in with your new password.',
+                'success': True
+            })
             
         except PasswordResetToken.DoesNotExist:
             return Response(
-                {'error': 'Invalid reset token'},
+                {
+                    'error': 'Invalid reset token',
+                    'message': 'This password reset link is invalid or has expired. Please request a new password reset.'
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 

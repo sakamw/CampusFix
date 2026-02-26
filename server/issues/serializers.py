@@ -50,6 +50,13 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ['id', 'issue', 'user', 'content', 'created_at', 'updated_at']
         read_only_fields = ['id', 'user', 'issue', 'created_at', 'updated_at']
     
+    def validate_content(self, value):
+        if not value or len(value.strip()) < 1:
+            raise serializers.ValidationError("Comment cannot be empty.")
+        if len(value.strip()) > 2000:
+            raise serializers.ValidationError("Comment cannot exceed 2000 characters.")
+        return value
+    
     def create(self, validated_data):
         # Set user from request context
         validated_data['user'] = self.context['request'].user
@@ -137,6 +144,21 @@ class IssueCreateSerializer(serializers.ModelSerializer):
             'estimated_completion', 'actual_completion', 'work_hours', 'resolution_cost'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'progress_updated_at']
+    
+    def validate_title(self, value):
+        if not value or len(value.strip()) < 3:
+            raise serializers.ValidationError("Title must be at least 3 characters long.")
+        return value
+    
+    def validate_description(self, value):
+        if not value or len(value.strip()) < 10:
+            raise serializers.ValidationError("Description must be at least 10 characters long.")
+        return value
+    
+    def validate_location(self, value):
+        if not value or len(value.strip()) < 3:
+            raise serializers.ValidationError("Location must be at least 3 characters long.")
+        return value
     
     def create(self, validated_data):
         # Set reporter from request user if not provided

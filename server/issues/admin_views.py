@@ -7,8 +7,12 @@ from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.db.models import Sum
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from .models import Issue, AdminWorkLog, ProgressUpdate
 from .forms import AdminWorkLogForm, ProgressUpdateForm
+from .analytics import AnalyticsService
 
 
 @login_required
@@ -23,6 +27,57 @@ def admin_dashboard(request):
         'recent_work_logs': AdminWorkLog.objects.select_related('issue', 'admin').order_by('-created_at')[:10],
     }
     return render(request, 'admin/admin_dashboard.html', context)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_dashboard_api(request):
+    """API endpoint for real-time admin dashboard data"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=403)
+    
+    analytics = AnalyticsService()
+    
+    return Response({
+        'overview': analytics.get_dashboard_overview(),
+        'resolution_times': analytics.get_resolution_time_analytics(),
+        'campus_hotspots': analytics.get_campus_hotspot_analysis(),
+        'performance_metrics': analytics.get_performance_metrics(),
+        'time_series': analytics.get_time_series_data(),
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def resolution_analytics(request):
+    """API endpoint for resolution time analytics"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=403)
+    
+    analytics = AnalyticsService()
+    return Response(analytics.get_resolution_time_analytics())
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def campus_hotspots(request):
+    """API endpoint for campus hotspot analysis"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=403)
+    
+    analytics = AnalyticsService()
+    return Response(analytics.get_campus_hotspot_analysis())
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def performance_metrics(request):
+    """API endpoint for performance metrics"""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=403)
+    
+    analytics = AnalyticsService()
+    return Response(analytics.get_performance_metrics())
 
 
 @login_required

@@ -51,6 +51,19 @@ class IssueViewSet(viewsets.ModelViewSet):
         return IssueListSerializer
     
     def perform_create(self, serializer):
+        # Apply rate limiting for issue creation
+        from django.core.cache import cache
+        
+        rate_limit_key = f'issue_rate_limit:{self.request.user.id}'
+        request_count = cache.get(rate_limit_key, 0)
+        
+        if request_count >= 10:  # 10 issues per hour
+            from rest_framework.exceptions import Throttled
+            raise Throttled(detail="You have reached the maximum number of issues you can create per hour. Please wait before creating a new issue.")
+        
+        # Increment counter
+        cache.set(rate_limit_key, request_count + 1, 3600)  # 1 hour expiry
+        
         serializer.save(reporter=self.request.user)
     
     @action(detail=True, methods=['post'])
@@ -98,6 +111,26 @@ class IssueViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         
         elif request.method == 'POST':
+            # Apply rate limiting for POST requests
+            from django.core.cache import cache
+            from django.http import HttpResponse
+            
+            # Simple rate limiting check
+            rate_limit_key = f'comment_rate_limit:{request.user.id}'
+            request_count = cache.get(rate_limit_key, 0)
+            
+            if request_count >= 30:  # 30 comments per hour
+                return Response(
+                    {
+                        'error': 'Rate limit exceeded',
+                        'message': 'You have reached the maximum number of comments per hour. Please wait before posting again.'
+                    },
+                    status=429
+                )
+            
+            # Increment counter
+            cache.set(rate_limit_key, request_count + 1, 3600)  # 1 hour expiry
+            
             serializer = CommentSerializer(data=request.data, context={'request': request})
             if serializer.is_valid():
                 serializer.save(issue=issue)

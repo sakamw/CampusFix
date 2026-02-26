@@ -30,8 +30,11 @@ class NoMaliciousContentValidator:
                 )
     
     def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
-        return name, path, args, kwargs
+        return (
+            'security.validators.NoMaliciousContentValidator',
+            [],
+            {}
+        )
 
 
 class SQLInjectionValidator:
@@ -58,8 +61,11 @@ class SQLInjectionValidator:
                 )
     
     def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
-        return name, path, args, kwargs
+        return (
+            'security.validators.SQLInjectionValidator',
+            [],
+            {}
+        )
 
 
 class XSSValidator:
@@ -91,8 +97,11 @@ class XSSValidator:
                 )
     
     def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
-        return name, path, args, kwargs
+        return (
+            'security.validators.XSSValidator',
+            [],
+            {}
+        )
 
 
 # Regex validators for common fields
