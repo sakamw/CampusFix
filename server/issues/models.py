@@ -48,6 +48,10 @@ class Issue(models.Model):
         on_delete=models.CASCADE,
         related_name='reported_issues'
     )
+    is_anonymous = models.BooleanField(
+        default=False,
+        help_text="If true, reporter identity is hidden from non-superusers."
+    )
     
     # Admin work fields
     admin_notes = models.TextField(blank=True, help_text="Admin's internal notes about the issue")

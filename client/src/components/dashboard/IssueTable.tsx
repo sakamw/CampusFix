@@ -68,6 +68,7 @@ export function IssueTable({ issues, showActions = true }: IssueTableProps) {
             <TableHead className="table-header">Status</TableHead>
             <TableHead className="table-header">Priority</TableHead>
             <TableHead className="table-header">Location</TableHead>
+            <TableHead className="table-header">Upvotes</TableHead>
             <TableHead className="table-header">Date</TableHead>
             {showActions && (
               <TableHead className="table-header text-right">Actions</TableHead>
@@ -101,6 +102,9 @@ export function IssueTable({ issues, showActions = true }: IssueTableProps) {
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {issue.location}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {issue.upvote_count}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {formatDate(issue.created_at)}

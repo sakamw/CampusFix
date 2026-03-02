@@ -8,15 +8,7 @@ from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import (
-    Issue,
-    Comment,
-    Attachment,
-    Upvote,
-    ResolutionEvidence,
-    ProgressUpdate,
-    AdminWorkLog,
-)
+from .models import Issue, Comment, Attachment, Upvote, ResolutionEvidence, ProgressUpdate, AdminWorkLog
 from .serializers import (
     IssueListSerializer,
     IssueDetailSerializer,
@@ -108,6 +100,58 @@ class IssueViewSet(viewsets.ModelViewSet):
                 )
             
             return Response({'message': 'Upvoted successfully', 'upvoted': True, 'upvote_count': issue.upvote_count})
+    
+    @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser])
+    def attachments(self, request, pk=None):
+        """Upload one or more attachments for an issue.
+        
+        Constraints:
+        - Maximum 5 attachments per issue
+        - Each file is validated by validate_file_upload (size/type)
+        """
+        issue = self.get_object()
+        files = request.FILES.getlist('files')
+        
+        if not files:
+            return Response(
+                {'error': 'No files were uploaded. Use the "files" field in multipart form data.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        max_attachments = 5
+        existing_count = issue.attachments.count()
+        if existing_count + len(files) > max_attachments:
+            return Response(
+                {
+                    'error': 'Attachment limit exceeded.',
+                    'detail': f'Each issue can have at most {max_attachments} attachments. '
+                              f'This issue already has {existing_count} attachment(s).',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Build payload for serializer
+        payload = [
+            {
+                'issue': issue.id,
+                'file': uploaded_file,
+                'filename': uploaded_file.name,
+            }
+            for uploaded_file in files
+        ]
+        
+        serializer = AttachmentSerializer(
+            data=payload,
+            many=True,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        attachments = serializer.save(uploaded_by=request.user)
+        
+        return Response(
+            AttachmentSerializer(attachments, many=True, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
     
     @action(detail=True, methods=['get', 'post'])
     def comments(self, request, pk=None):

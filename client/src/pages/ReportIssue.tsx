@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { Switch } from "../components/ui/switch";
 import { useToast } from "../hooks/use-toast";
 import { issuesApi } from "../lib/api";
 
@@ -58,6 +59,7 @@ const priorityOptions = [
 
 export default function ReportIssue() {
   const [images, setImages] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -67,6 +69,7 @@ export default function ReportIssue() {
     priority: "",
     location: "",
     visibility: "public",
+    reportAnonymously: false,
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -92,12 +95,15 @@ export default function ReportIssue() {
 
   const handleFiles = (files: File[]) => {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    const newImages = imageFiles.map((file) => URL.createObjectURL(file));
+    const limitedFiles = imageFiles.slice(0, 5 - images.length);
+    const newImages = limitedFiles.map((file) => URL.createObjectURL(file));
     setImages((prev) => [...prev, ...newImages].slice(0, 5));
+    setFiles((prev) => [...prev, ...limitedFiles].slice(0, 5));
   };
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,15 +134,31 @@ export default function ReportIssue() {
         priority: formData.priority,
         location: formData.location,
         visibility: formData.visibility as "public" | "private",
+        report_anonymously: formData.reportAnonymously,
       });
 
       if (result.error) {
         throw new Error(result.error);
       }
 
+      const createdId = result.data?.id;
+
+      // Upload attachments if any
+      if (createdId && files.length > 0) {
+        const uploadResult = await issuesApi.uploadAttachments(createdId, files);
+        if (uploadResult.error) {
+          toast({
+            title: "Issue Submitted (Attachments Failed)",
+            description:
+              "Your issue was created, but we could not upload some attachments. You can try again later.",
+            variant: "destructive",
+          });
+        }
+      }
+
       toast({
         title: "Issue Reported Successfully",
-        description: `Your issue has been submitted and assigned ID #${result.data?.id}`,
+        description: `Your issue has been submitted and assigned ID #${createdId}`,
       });
 
       navigate("/dashboard");
@@ -273,6 +295,26 @@ export default function ReportIssue() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Report Anonymously</p>
+                <p className="text-xs text-muted-foreground max-w-md">
+                  When enabled, your identity will be hidden from other users and
+                  staff. Super admins can still see who reported the issue for
+                  security and follow-up.
+                </p>
+              </div>
+              <Switch
+                checked={formData.reportAnonymously}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    reportAnonymously: !!checked,
+                  }))
+                }
+              />
             </div>
           </div>
         </div>

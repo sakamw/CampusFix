@@ -294,6 +294,7 @@ export interface Issue {
   upvote_count: number;
   upvoted_by_user: boolean;
   visibility: "public" | "private";
+  is_anonymous?: boolean;
   // Admin work fields
   admin_notes?: string;
   resolution_summary?: string;
@@ -463,6 +464,7 @@ export const issuesApi = {
     priority: string;
     location: string;
     visibility?: "public" | "private";
+    report_anonymously?: boolean;
   }): Promise<ApiResponse<Issue>> => {
     return apiFetch<Issue>("/issues/", {
       method: "POST",
@@ -494,6 +496,40 @@ export const issuesApi = {
     return apiFetch(`/issues/${id}/upvote/`, {
       method: "POST",
     });
+  },
+
+  uploadAttachments: async (
+    id: number,
+    files: File[],
+  ): Promise<ApiResponse<Attachment[]>> => {
+    if (!files.length) return { data: [] };
+
+    const url = `${API_BASE_URL}/issues/${id}/attachments/`;
+    const token = getAccessToken();
+
+    const formData = new FormData();
+    files.forEach((file) => formData.append("files", file));
+
+    const headers: HeadersInit = {};
+    if (token) {
+      (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+        headers,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return { error: parseApiError(data) };
+      }
+      return { data };
+    } catch {
+      return { error: "Failed to upload attachments. Please try again." };
+    }
   },
 
   getComments: async (issueId: number): Promise<ApiResponse<Comment[]>> => {

@@ -147,7 +147,12 @@ def validate_file_upload(file):
         raise ValidationError(_('File size cannot exceed 10MB.'))
     
     # Check file extension
-    allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.txt']
+    # Allow common image, document, and safe video formats
+    allowed_extensions = [
+        '.jpg', '.jpeg', '.png', '.gif',
+        '.pdf', '.doc', '.docx', '.txt',
+        '.mp4', '.mov', '.avi', '.mkv', '.webm',
+    ]
     file_extension = file.name.lower().split('.')[-1]
     if f'.{file_extension}' not in allowed_extensions:
         raise ValidationError(_('File type not allowed.'))

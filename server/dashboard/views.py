@@ -93,6 +93,7 @@ def issue_list(request):
     date_from = request.GET.get("date_from")
     date_to = request.GET.get("date_to")
     search = request.GET.get("q")
+    sort = request.GET.get("sort") or ""
 
     if status:
         issues_qs = issues_qs.filter(status=status)
@@ -112,6 +113,12 @@ def issue_list(request):
             | Q(reporter__last_name__icontains=search)
             | Q(reporter__email__icontains=search)
         )
+
+    # Sorting: default by newest, optional sort by most upvotes
+    if sort == "most_upvotes":
+        issues_qs = issues_qs.order_by("-upvote_count", "-created_at")
+    else:
+        issues_qs = issues_qs.order_by("-created_at")
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -133,7 +140,7 @@ def issue_list(request):
 
         return redirect("dashboard:issues_list")
 
-    paginator = Paginator(issues_qs.order_by("-created_at"), 20)
+    paginator = Paginator(issues_qs, 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -146,6 +153,7 @@ def issue_list(request):
         "date_from": date_from or "",
         "date_to": date_to or "",
         "search_query": search or "",
+        "sort": sort,
         "status_choices": Issue.STATUS_CHOICES,
         "category_choices": Issue.CATEGORY_CHOICES,
         "priority_choices": Issue.PRIORITY_CHOICES,

@@ -134,7 +134,11 @@ export default function IssueDetails() {
   };
 
   const currentUserEmail = issue?.reporter?.email || "";
-  const isReporter = currentUserEmail && user?.email === currentUserEmail;
+  const isReporter = !!(
+    currentUserEmail &&
+    user?.email &&
+    currentUserEmail === user.email
+  );
 
   if (loading) {
     return (
@@ -211,7 +215,12 @@ export default function IssueDetails() {
           </div>
           <div className="flex items-center gap-1">
             <User className="h-4 w-4" />
-            Reported by {issue.reporter.first_name} {issue.reporter.last_name}
+            {issue.is_anonymous ? "Reported by Anonymous User" : (
+              <>
+                Reported by {issue.reporter.first_name}{" "}
+                {issue.reporter.last_name}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -226,6 +235,67 @@ export default function IssueDetails() {
               {issue.description}
             </p>
           </div>
+
+          {/* Reporter Attachments */}
+          {issue.attachments && issue.attachments.length > 0 && (
+            <div className="rounded-xl border bg-card p-6 space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Paperclip className="h-5 w-5 text-primary" />
+                Attachments ({issue.attachments.length})
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Images and files uploaded when this issue was reported.
+              </p>
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+                {issue.attachments.map((attachment) => {
+                  const url = attachment.file;
+                  const lower = url.toLowerCase();
+                  const isImage = /\.(jpg|jpeg|png|gif)$/.test(lower);
+                  const isVideo = /\.(mp4|webm|mov|avi|mkv)$/.test(lower);
+
+                  return (
+                    <div
+                      key={attachment.id}
+                      className="group relative rounded-lg border bg-muted/40 overflow-hidden"
+                    >
+                      {isImage && (
+                        <a href={url} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={url}
+                            alt={attachment.filename}
+                            className="h-32 w-full object-cover"
+                          />
+                        </a>
+                      )}
+                      {isVideo && (
+                        <video
+                          controls
+                          className="h-32 w-full object-cover bg-black"
+                        >
+                          <source src={url} />
+                        </video>
+                      )}
+                      {!isImage && !isVideo && (
+                        <div className="p-3 text-xs">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-primary hover:underline"
+                          >
+                            <Download className="h-3 w-3" />
+                            <span className="truncate">
+                              {attachment.filename}
+                            </span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Timeline */}
           {timelineLoading ? (
@@ -433,7 +503,9 @@ export default function IssueDetails() {
             <h3 className="font-semibold">Reporter</h3>
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                {issue.reporter.avatar ? (
+                {issue.is_anonymous ? (
+                  <AvatarFallback>AN</AvatarFallback>
+                ) : issue.reporter.avatar ? (
                   <AvatarImage src={issue.reporter.avatar} alt="Profile" />
                 ) : (
                   <AvatarFallback>
@@ -444,11 +516,15 @@ export default function IssueDetails() {
               </Avatar>
               <div>
                 <p className="font-medium">
-                  {issue.reporter.first_name} {issue.reporter.last_name}
+                  {issue.is_anonymous
+                    ? "Anonymous User"
+                    : `${issue.reporter.first_name} ${issue.reporter.last_name}`}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {issue.reporter.student_id}
-                </p>
+                {!issue.is_anonymous && (
+                  <p className="text-sm text-muted-foreground">
+                    {issue.reporter.student_id}
+                  </p>
+                )}
               </div>
             </div>
           </div>

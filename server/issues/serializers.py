@@ -76,6 +76,7 @@ class AttachmentSerializer(serializers.ModelSerializer):
 class IssueListSerializer(serializers.ModelSerializer):
     reporter = UserSerializer(read_only=True)
     upvoted_by_user = serializers.SerializerMethodField()
+    is_anonymous = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Issue
@@ -83,6 +84,7 @@ class IssueListSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'category', 'status', 'priority', 
             'location', 'reporter', 'created_at', 'updated_at', 
             'resolved_at', 'upvote_count', 'upvoted_by_user', 'visibility',
+            'is_anonymous',
             'progress_percentage', 'progress_status', 'progress_updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
@@ -96,6 +98,29 @@ class IssueListSerializer(serializers.ModelSerializer):
             return obj.upvotes.filter(user=request.user).exists()
         return False
 
+    def to_representation(self, instance):
+        """
+        Hide reporter details for anonymous issues for non-superusers.
+        """
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if instance.is_anonymous and (not request or not request.user.is_superuser):
+            data["reporter"] = {
+                "id": None,
+                "email": None,
+                "first_name": "Anonymous",
+                "last_name": "User",
+                "student_id": None,
+                "phone": None,
+                "role": None,
+                "avatar": None,
+                "two_factor_enabled": False,
+                "created_at": None,
+                "is_superuser": False,
+                "is_staff": False,
+            }
+        return data
+
 
 class IssueDetailSerializer(serializers.ModelSerializer):
     reporter = UserSerializer(read_only=True)
@@ -106,6 +131,7 @@ class IssueDetailSerializer(serializers.ModelSerializer):
     work_logs = AdminWorkLogSerializer(many=True, read_only=True)
     upvoted_by_user = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
+    is_anonymous = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Issue
@@ -117,7 +143,7 @@ class IssueDetailSerializer(serializers.ModelSerializer):
             'comment_count', 'visibility', 'progress_percentage', 'progress_status', 
             'progress_notes', 'progress_updated_at', 'admin_notes', 'resolution_summary', 
             'resolution_details', 'estimated_completion', 'actual_completion', 
-            'work_hours', 'resolution_cost'
+            'work_hours', 'resolution_cost', 'is_anonymous'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
     
@@ -130,15 +156,39 @@ class IssueDetailSerializer(serializers.ModelSerializer):
     def get_comment_count(self, obj):
         return obj.comments.count()
 
+    def to_representation(self, instance):
+        """
+        Hide reporter details for anonymous issues for non-superusers.
+        """
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if instance.is_anonymous and (not request or not request.user.is_superuser):
+            data["reporter"] = {
+                "id": None,
+                "email": None,
+                "first_name": "Anonymous",
+                "last_name": "User",
+                "student_id": None,
+                "phone": None,
+                "role": None,
+                "avatar": None,
+                "two_factor_enabled": False,
+                "created_at": None,
+                "is_superuser": False,
+                "is_staff": False,
+            }
+        return data
+
 
 class IssueCreateSerializer(serializers.ModelSerializer):
     reporter_id = serializers.IntegerField(write_only=True, required=False)
+    report_anonymously = serializers.BooleanField(write_only=True, required=False, default=False)
     
     class Meta:
         model = Issue
         fields = [
             'id', 'title', 'description', 'category', 'status', 'priority', 
-            'location', 'visibility', 'reporter_id', 
+            'location', 'visibility', 'reporter_id', 'report_anonymously',
             'created_at', 'updated_at', 'progress_percentage', 'progress_status', 
             'progress_notes', 'admin_notes', 'resolution_summary', 'resolution_details', 
             'estimated_completion', 'actual_completion', 'work_hours', 'resolution_cost'
@@ -161,13 +211,18 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
+        # Handle anonymous reporting flag
+        report_anonymously = validated_data.pop('report_anonymously', False)
+
         # Set reporter from request user if not provided
         if 'reporter_id' not in validated_data:
             validated_data['reporter'] = self.context['request'].user
         else:
             reporter_id = validated_data.pop('reporter_id')
             validated_data['reporter_id'] = reporter_id
-        
+
+        validated_data['is_anonymous'] = bool(report_anonymously)
+
         return super().create(validated_data)
 
 

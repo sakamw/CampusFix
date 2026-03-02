@@ -15,20 +15,60 @@
             <p><strong>Category:</strong> {{ issue.get_category_display }}</p>
             <p><strong>Location:</strong> {{ issue.location }}</p>
             <p><strong>Reported by:</strong>
-                {% if issue.reporter.first_name %}
-                    {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
+                {% if issue.is_anonymous and not request.user.is_superuser %}
+                    Anonymous User
                 {% else %}
-                    {{ issue.reporter.email }}
+                    {% if issue.reporter.first_name %}
+                        {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
+                    {% else %}
+                        {{ issue.reporter.email }}
+                    {% endif %}
                 {% endif %}
             </p>
             <p><strong>Submitted:</strong> {{ issue.created_at|date:"Y-m-d H:i" }}</p>
             <p><strong>Last updated:</strong> {{ issue.updated_at|date:"Y-m-d H:i" }}</p>
             <p><strong>Status:</strong> {{ issue.get_status_display }}</p>
             <p><strong>Priority:</strong> {{ issue.get_priority_display }}</p>
+            <p>
+                <strong>Upvotes:</strong>
+                {{ issue.upvote_count|default:0 }}
+                {% if issue.upvote_count|default:0 >= 10 %}
+                    <span class="badge badge-red" style="margin-left:0.35rem;">High Demand</span>
+                {% endif %}
+            </p>
         </div>
         <div class="mt-md">
             <p style="font-size:0.85rem;"><strong>Description</strong></p>
             <p style="font-size:0.85rem;margin-top:0.25rem;white-space:pre-wrap;">{{ issue.description }}</p>
+        </div>
+        <div class="mt-md">
+            <p style="font-size:0.85rem;"><strong>Attachments</strong></p>
+            {% if issue.attachments.all %}
+                <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;">
+                    {% for attachment in issue.attachments.all %}
+                        <div style="width:90px;">
+                            {% with attachment.file.url|lower as file_url %}
+                                {% if ".jpg" in file_url or ".jpeg" in file_url or ".png" in file_url or ".gif" in file_url %}
+                                    <a href="{{ attachment.file.url }}" target="_blank" style="text-decoration:none;">
+                                        <img src="{{ attachment.file.url }}" alt="{{ attachment.filename }}"
+                                             style="width:100%;height:70px;object-fit:cover;border-radius:0.5rem;border:1px solid #e5e7eb;">
+                                    </a>
+                                {% elif ".mp4" in file_url or ".webm" in file_url or ".mov" in file_url or ".avi" in file_url or ".mkv" in file_url %}
+                                    <video controls style="width:100%;height:70px;border-radius:0.5rem;border:1px solid #e5e7eb;object-fit:cover;">
+                                        <source src="{{ attachment.file.url }}">
+                                    </video>
+                                {% else %}
+                                    <a href="{{ attachment.file.url }}" target="_blank" style="font-size:0.8rem;color:#2563eb;word-break:break-all;">
+                                        {{ attachment.filename }}
+                                    </a>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted" style="font-size:0.8rem;margin-top:0.25rem;">No attachments for this issue.</p>
+            {% endif %}
         </div>
     </div>
 
