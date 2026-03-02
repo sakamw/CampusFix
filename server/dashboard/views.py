@@ -6,7 +6,7 @@ from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from accounts.decorators import admin_required
+from accounts.decorators import admin_required, superuser_required
 from accounts.models import User
 from issues.models import Issue
 
@@ -180,7 +180,7 @@ def issue_detail(request, pk):
     return render(request, "dashboard/issue_detail.html", context)
 
 
-@admin_required
+@superuser_required
 def user_management(request):
     """User management page for viewing and updating roles."""
     search = request.GET.get("q", "")
@@ -227,7 +227,7 @@ def user_management(request):
     return render(request, "dashboard/users.html", context)
 
 
-@admin_required
+@superuser_required
 def staff_overview(request):
     """Read-only overview of staff and their open issue workload."""
     staff_users = User.objects.filter(

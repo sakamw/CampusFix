@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
@@ -7,7 +8,15 @@ from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Issue, Comment, Attachment, Upvote, ResolutionEvidence, ProgressUpdate, AdminWorkLog
+from .models import (
+    Issue,
+    Comment,
+    Attachment,
+    Upvote,
+    ResolutionEvidence,
+    ProgressUpdate,
+    AdminWorkLog,
+)
 from .serializers import (
     IssueListSerializer,
     IssueDetailSerializer,

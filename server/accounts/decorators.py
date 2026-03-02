@@ -89,3 +89,24 @@ def staff_required(view_func):
 
     return _wrapped_view
 
+
+def superuser_required(view_func):
+    """
+    Restrict access to Django superusers only.
+    Useful for sensitive management views like user and staff administration.
+    """
+
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        user = request.user
+
+        if not user.is_authenticated:
+            return _redirect_to_login(request, "Please log in to access this page.")
+
+        if not user.is_superuser:
+            return _redirect_to_login(request, "You do not have permission to manage users and staff.")
+
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view
+

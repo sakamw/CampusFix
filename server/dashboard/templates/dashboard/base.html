@@ -554,14 +554,16 @@
                     <span class="icon">📋</span>
                     <span>Issues</span>
                 </a>
-                <a href="{% url 'dashboard:users' %}" class="nav-item {% if active_page == 'users' %}active{% endif %}">
-                    <span class="icon">👥</span>
-                    <span>Users</span>
-                </a>
-                <a href="{% url 'dashboard:staff' %}" class="nav-item {% if active_page == 'staff' %}active{% endif %}">
-                    <span class="icon">🛠️</span>
-                    <span>Staff</span>
-                </a>
+                {% if request.user.is_superuser %}
+                    <a href="{% url 'dashboard:users' %}" class="nav-item {% if active_page == 'users' %}active{% endif %}">
+                        <span class="icon">👥</span>
+                        <span>Users</span>
+                    </a>
+                    <a href="{% url 'dashboard:staff' %}" class="nav-item {% if active_page == 'staff' %}active{% endif %}">
+                        <span class="icon">🛠️</span>
+                        <span>Staff</span>
+                    </a>
+                {% endif %}
             </div>
             <div class="nav-section">
                 <div class="nav-section-label">Insights</div>
