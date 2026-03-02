@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'accounts',
     'issues',
     'notifications',
+    'dashboard',
     'django.contrib.admin',
 ]
 

@@ -1,0 +1,84 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">Issue #{{ issue.id }}</div>
+    <div class="page-subtitle">{{ issue.title }}</div>
+</div>
+
+<a href="{% url 'dashboard:issues_list' %}" style="font-size:0.8rem;color:#2563eb;">← Back to issues</a>
+
+<div class="mt-md" style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;align-items:flex-start;">
+    <div class="card">
+        <div class="card-title">Details</div>
+        <div style="font-size:0.85rem;margin-top:0.5rem;line-height:1.4;">
+            <p><strong>Category:</strong> {{ issue.get_category_display }}</p>
+            <p><strong>Location:</strong> {{ issue.location }}</p>
+            <p><strong>Reported by:</strong>
+                {% if issue.reporter.first_name %}
+                    {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
+                {% else %}
+                    {{ issue.reporter.email }}
+                {% endif %}
+            </p>
+            <p><strong>Submitted:</strong> {{ issue.created_at|date:"Y-m-d H:i" }}</p>
+            <p><strong>Last updated:</strong> {{ issue.updated_at|date:"Y-m-d H:i" }}</p>
+            <p><strong>Status:</strong> {{ issue.get_status_display }}</p>
+            <p><strong>Priority:</strong> {{ issue.get_priority_display }}</p>
+        </div>
+        <div class="mt-md">
+            <p style="font-size:0.85rem;"><strong>Description</strong></p>
+            <p style="font-size:0.85rem;margin-top:0.25rem;white-space:pre-wrap;">{{ issue.description }}</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Admin Controls</div>
+        <form method="post" style="margin-top:0.5rem;font-size:0.85rem;">
+            {% csrf_token %}
+            <label for="status"><strong>Status</strong></label>
+            <select name="status" id="status" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.75rem;border-radius:0.5rem;border:1px solid #d1d5db;padding:0.4rem 0.6rem;font-size:0.85rem;">
+                {% for value,label in status_choices %}
+                    <option value="{{ value }}" {% if issue.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" style="width:100%;border-radius:0.5rem;border:1px solid #2563eb;background-color:#2563eb;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;">
+                Save Changes
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="mt-lg card">
+    <div class="card-title">Activity & Comments</div>
+    <p class="card-muted" style="margin-top:0.25rem;">
+        Read-only thread for now. Comment management will be added in a later phase.
+    </p>
+    <div style="margin-top:0.75rem;font-size:0.85rem;">
+        {% if issue.comments.all %}
+            <ul style="list-style:none;padding-left:0;">
+                {% for comment in issue.comments.all %}
+                    <li style="border-top:1px solid #e5e7eb;padding:0.6rem 0;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <strong>
+                                {% if comment.user.first_name %}
+                                    {{ comment.user.first_name }} {{ comment.user.last_name }}
+                                {% else %}
+                                    {{ comment.user.email }}
+                                {% endif %}
+                            </strong>
+                            <span class="text-muted">{{ comment.created_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                        <p style="margin-top:0.25rem;white-space:pre-wrap;">{{ comment.content }}</p>
+                    </li>
+                {% empty %}
+                    <li class="text-muted">No comments yet.</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted">No comments yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
