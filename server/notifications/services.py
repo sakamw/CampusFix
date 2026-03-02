@@ -89,10 +89,10 @@ class NotificationService:
     @staticmethod
     def notify_issue_comment(issue, comment_author, comment_content):
         """Notify relevant users about a new comment."""
-        # Notify issue author (if not the commenter)
-        if issue.author != comment_author:
+        # Notify issue reporter (if not the commenter)
+        if issue.reporter != comment_author:
             NotificationService.create_notification(
-                user=issue.author,
+                user=issue.reporter,
                 title=f"New comment on: {issue.title}",
                 message=f"{comment_author.get_full_name() or comment_author.email} commented: {comment_content[:100]}...",
                 notification_type='comment',
@@ -100,7 +100,7 @@ class NotificationService:
             )
         
         # Notify assigned staff (if not the commenter)
-        if issue.assigned_to and issue.assigned_to != comment_author and issue.assigned_to.is_staff:
+        if hasattr(issue, 'assigned_to') and issue.assigned_to and issue.assigned_to != comment_author and issue.assigned_to.is_staff:
             NotificationService.create_notification(
                 user=issue.assigned_to,
                 title=f"New comment on assigned issue: {issue.title}",
@@ -112,10 +112,10 @@ class NotificationService:
     @staticmethod
     def notify_issue_status_change(issue, old_status, new_status, changed_by):
         """Notify about issue status change."""
-        # Notify issue author (if not the changer)
-        if issue.author != changed_by:
+        # Notify issue reporter (if not the changer)
+        if issue.reporter != changed_by:
             NotificationService.create_notification(
-                user=issue.author,
+                user=issue.reporter,
                 title=f"Status updated on: {issue.title}",
                 message=f"Status changed from {old_status} to {new_status} by {changed_by.get_full_name() or changed_by.email}",
                 notification_type='status_change',
@@ -123,7 +123,7 @@ class NotificationService:
             )
         
         # Notify assigned staff (if not the changer)
-        if issue.assigned_to and issue.assigned_to != changed_by:
+        if hasattr(issue, 'assigned_to') and issue.assigned_to and issue.assigned_to != changed_by:
             NotificationService.create_notification(
                 user=issue.assigned_to,
                 title=f"Status updated on assigned issue: {issue.title}",
@@ -147,10 +147,10 @@ class NotificationService:
     @staticmethod
     def notify_issue_upvote(issue, upvoter):
         """Notify about issue upvote."""
-        # Notify issue author (if not the upvoter)
-        if issue.author != upvoter:
+        # Notify issue reporter (if not the upvoter)
+        if issue.reporter != upvoter:
             NotificationService.create_notification(
-                user=issue.author,
+                user=issue.reporter,
                 title=f"Your issue received an upvote: {issue.title}",
                 message=f"{upvoter.get_full_name() or upvoter.email} upvoted your issue",
                 notification_type='upvote',
@@ -160,10 +160,10 @@ class NotificationService:
     @staticmethod
     def notify_issue_resolution(issue, resolved_by):
         """Notify about issue resolution."""
-        # Notify issue author (if not the resolver)
-        if issue.author != resolved_by:
+        # Notify issue reporter (if not the resolver)
+        if issue.reporter != resolved_by:
             NotificationService.create_notification(
-                user=issue.author,
+                user=issue.reporter,
                 title=f"Your issue has been resolved: {issue.title}",
                 message=f"This issue was resolved by {resolved_by.get_full_name() or resolved_by.email}",
                 notification_type='resolution',
@@ -174,7 +174,7 @@ class NotificationService:
         participants = User.objects.filter(
             comment__issue=issue
         ).distinct().exclude(
-            id__in=[issue.author.id, resolved_by.id]
+            id__in=[issue.reporter.id, resolved_by.id]
         )
         
         for participant in participants:
@@ -216,7 +216,7 @@ class AdminDashboardService:
             {
                 'issue_id': issue.id,
                 'title': issue.title,
-                'author': issue.author.email,
+                'reporter': issue.reporter.email,
                 'priority': issue.priority,
                 'category': issue.category
             }
