@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,7 +44,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'channels',
-    'django_ratelimit',  # Re-enabled with Redis backend
     # Local apps
     'accounts',
     'issues',
@@ -56,6 +56,7 @@ MIDDLEWARE = [
     'security.middleware.SecurityHeadersMiddleware',
     'security.middleware.InputValidationMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'security.middleware.PathBasedSessionMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -202,20 +203,23 @@ LOGGING = {
     },
 }
 
-# Rate Limiting Settings
-RATELIMIT_ENABLE = True
-RATELIMIT_USE_CACHE = 'default'
+USE_REDIS = os.environ.get("CAMPUSFIX_USE_REDIS", "0") == "1"
 
-# Rate limiting configurations
-RATELIMIT_VIEW = 'rest_framework.views.exception_handler'
-
-# Cache configuration for rate limiting
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
+# Cache configuration (rate limiting uses the default cache)
+if USE_REDIS:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.environ.get("CAMPUSFIX_REDIS_CACHE_URL", "redis://127.0.0.1:6379/1"),
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "campusfix-local-cache",
+        }
+    }
 
 # File Upload Security
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
@@ -230,15 +234,33 @@ CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Strict'
 
+# Separate session cookies for admin and dashboard to prevent auth bleed.
+ADMIN_SESSION_COOKIE_NAME = "admin_sessionid"
+DASHBOARD_SESSION_COOKIE_NAME = "dashboard_sessionid"
+
+# Separate CSRF cookies too (prevents CSRF rotation in one area breaking POSTs in the other tab).
+ADMIN_CSRF_COOKIE_NAME = "admin_csrftoken"
+DASHBOARD_CSRF_COOKIE_NAME = "dashboard_csrftoken"
+
 # Channels Configuration
 ASGI_APPLICATION = 'campusfix.asgi.application'
 
-# Channel Layer Configuration (using Redis)
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+# Channel Layer Configuration (Redis when enabled; in-memory by default)
+if USE_REDIS:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [(
+                    os.environ.get("CAMPUSFIX_REDIS_CHANNEL_HOST", "127.0.0.1"),
+                    int(os.environ.get("CAMPUSFIX_REDIS_CHANNEL_PORT", "6379")),
+                )],
+            },
         },
-    },
-}
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }

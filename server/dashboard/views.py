@@ -1,6 +1,8 @@
 from datetime import timedelta
 
 from django.contrib import messages
+from django.contrib.auth import login as auth_login, logout as auth_logout
+from django.contrib.auth.forms import AuthenticationForm
 from django.core.paginator import Paginator
 from django.db.models import (
     Avg,
@@ -16,12 +18,51 @@ from django.db.models import (
 )
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
 from accounts.decorators import admin_required, superuser_required
 from accounts.models import User
 from issues.models import Issue, IssueProgressLog
 from notifications.models import Notification
 from notifications.services import NotificationService
+
+
+@require_http_methods(["GET", "POST"])
+def dashboard_login(request):
+    """
+    Separate login for /dashboard/* so it doesn't share auth with /admin/*.
+    Only staff/admin/superusers are allowed to sign in here.
+    """
+    user = getattr(request, "user", None)
+    if user and user.is_authenticated:
+        if user.is_superuser or user.is_staff or getattr(user, "role", None) in {"admin", "staff"}:
+            return redirect("dashboard:home")
+        auth_logout(request)
+
+    form = AuthenticationForm(request, data=request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        authed_user = form.get_user()
+        if not (
+            authed_user.is_superuser
+            or authed_user.is_staff
+            or getattr(authed_user, "role", None) in {"admin", "staff"}
+        ):
+            messages.error(
+                request,
+                "This account does not have access to the dashboard. Use an admin/staff account.",
+            )
+        else:
+            auth_login(request, authed_user)
+            next_url = (request.GET.get("next") or "").strip()
+            return redirect(next_url or "dashboard:home")
+
+    return render(request, "dashboard/login.html", {"form": form})
+
+
+@require_http_methods(["GET", "POST"])
+def dashboard_logout(request):
+    auth_logout(request)
+    return redirect("dashboard:login")
 
 
 def _get_active_context(request, active_page):

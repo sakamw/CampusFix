@@ -1,4 +1,5 @@
 import logging
+
 from django.utils import timezone
 from django.conf import settings
 from django.http import JsonResponse
@@ -146,3 +147,95 @@ class AuditLoggingMiddleware:
             any(request.path.startswith(path) for path in security_paths) or
             request.method in security_methods
         )
+
+
+class PathBasedSessionMiddleware:
+    """
+    Isolate sessions between /admin/ and /dashboard/ by rewriting the session cookie.
+
+    We keep Django's built-in `django.contrib.sessions.middleware.SessionMiddleware`
+    enabled (required by Django admin), but we:
+    - ensure /admin/* only uses ADMIN_SESSION_COOKIE_NAME
+    - ensure /dashboard/* only uses DASHBOARD_SESSION_COOKIE_NAME
+    - rename any `Set-Cookie` for SESSION_COOKIE_NAME to the path-specific cookie
+      and scope it to the matching path.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def _cookie_name_for_request(self, request):
+        path = request.path or "/"
+        if path.startswith("/admin/"):
+            return getattr(settings, "ADMIN_SESSION_COOKIE_NAME", "admin_sessionid")
+        if path.startswith("/dashboard/"):
+            return getattr(settings, "DASHBOARD_SESSION_COOKIE_NAME", "dashboard_sessionid")
+        return settings.SESSION_COOKIE_NAME
+
+    def _csrf_cookie_name_for_request(self, request):
+        path = request.path or "/"
+        if path.startswith("/admin/"):
+            return getattr(settings, "ADMIN_CSRF_COOKIE_NAME", "admin_csrftoken")
+        if path.startswith("/dashboard/"):
+            return getattr(settings, "DASHBOARD_CSRF_COOKIE_NAME", "dashboard_csrftoken")
+        return settings.CSRF_COOKIE_NAME
+
+    def __call__(self, request):
+        desired_cookie = self._cookie_name_for_request(request)
+        request._session_cookie_name = desired_cookie  # used later for response rewriting
+        desired_csrf_cookie = self._csrf_cookie_name_for_request(request)
+        request._csrf_cookie_name = desired_csrf_cookie
+
+        # Ensure /admin and /dashboard NEVER fall back to the default session cookie.
+        if (request.path or "").startswith(("/admin/", "/dashboard/")):
+            request.COOKIES = dict(request.COOKIES)
+            if settings.SESSION_COOKIE_NAME in request.COOKIES:
+                del request.COOKIES[settings.SESSION_COOKIE_NAME]
+
+            if desired_cookie in request.COOKIES:
+                # Present the desired cookie under Django's default name so
+                # SessionMiddleware will load it.
+                request.COOKIES[settings.SESSION_COOKIE_NAME] = request.COOKIES[desired_cookie]
+
+            # Do the same trick for CSRF so /admin and /dashboard each have their own CSRF secret.
+            if settings.CSRF_COOKIE_NAME in request.COOKIES:
+                del request.COOKIES[settings.CSRF_COOKIE_NAME]
+            if desired_csrf_cookie in request.COOKIES:
+                request.COOKIES[settings.CSRF_COOKIE_NAME] = request.COOKIES[desired_csrf_cookie]
+
+        response = self.get_response(request)
+
+        # Rename any Set-Cookie made by SessionMiddleware from the default name
+        # to the path-specific cookie name.
+        desired_cookie = getattr(request, "_session_cookie_name", settings.SESSION_COOKIE_NAME)
+        if desired_cookie != settings.SESSION_COOKIE_NAME and settings.SESSION_COOKIE_NAME in response.cookies:
+            old = response.cookies.pop(settings.SESSION_COOKIE_NAME)
+
+            response.cookies[desired_cookie] = old.value
+            new = response.cookies[desired_cookie]
+            for k, v in old.items():
+                new[k] = v
+
+            # Scope cookie to its area (defense in depth).
+            if (request.path or "").startswith("/admin/"):
+                new["path"] = "/admin/"
+            elif (request.path or "").startswith("/dashboard/"):
+                new["path"] = "/dashboard/"
+
+        # Rename any Set-Cookie made by CsrfViewMiddleware from the default name
+        # to the path-specific cookie name and scope it to the matching path.
+        desired_csrf_cookie = getattr(request, "_csrf_cookie_name", settings.CSRF_COOKIE_NAME)
+        if desired_csrf_cookie != settings.CSRF_COOKIE_NAME and settings.CSRF_COOKIE_NAME in response.cookies:
+            old = response.cookies.pop(settings.CSRF_COOKIE_NAME)
+
+            response.cookies[desired_csrf_cookie] = old.value
+            new = response.cookies[desired_csrf_cookie]
+            for k, v in old.items():
+                new[k] = v
+
+            if (request.path or "").startswith("/admin/"):
+                new["path"] = "/admin/"
+            elif (request.path or "").startswith("/dashboard/"):
+                new["path"] = "/dashboard/"
+
+        return response

@@ -7,11 +7,15 @@ from django.urls import reverse
 
 def _redirect_to_login(request, message):
     """
-    Redirect the user to the Django admin login page with an error message.
-    This keeps behaviour consistent for both unauthenticated and unauthorized users.
+    Redirect the user to the appropriate login page with an error message.
+    - /dashboard/* should use the dashboard login
+    - everything else falls back to Django admin login
     """
     messages.error(request, message)
-    login_url = reverse("admin:login")
+    if (request.path or "").startswith("/dashboard/"):
+        login_url = reverse("dashboard:login")
+    else:
+        login_url = reverse("admin:login")
     return redirect(f"{login_url}?next={request.path}")
 
 

@@ -721,7 +721,7 @@
                             {% endif %}
                         </span>
                     </div>
-                    <form method="post" action="/admin/logout/">
+                    <form method="post" action="{% url 'dashboard:logout' %}">
                         {% csrf_token %}
                         <button type="submit" class="logout-button">Log out</button>
                     </form>
