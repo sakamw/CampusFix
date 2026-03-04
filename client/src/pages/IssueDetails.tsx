@@ -32,9 +32,14 @@ import { issuesApi, IssueDetail, TimelineEvent } from "../lib/api";
 import Timeline from "../components/Timeline";
 
 const statusConfig = {
-  open: { variant: "info" as const, label: "Open" },
-  "in-progress": { variant: "warning" as const, label: "In Progress" },
+  open: { variant: "secondary" as const, label: "Pending" },
+  "in-progress": { variant: "info" as const, label: "In Progress" },
+  awaiting_verification: {
+    variant: "warning" as const,
+    label: "Awaiting Verification",
+  },
   resolved: { variant: "success" as const, label: "Resolved" },
+  reopened: { variant: "destructive" as const, label: "Reopened" },
   closed: { variant: "secondary" as const, label: "Closed" },
 };
 
@@ -74,8 +79,7 @@ export default function IssueDetails() {
     estimated_completion_date: string; // YYYY-MM-DD
   } | null>(null);
 
-  const isStaffOrAdmin =
-    user?.is_superuser || user?.is_staff || user?.role === "admin" || user?.role === "staff";
+  const isAdmin = user?.is_superuser || user?.role === "admin";
 
   useEffect(() => {
     async function fetchIssue() {
@@ -172,7 +176,7 @@ export default function IssueDetails() {
     user?.email &&
     currentUserEmail === user.email
   );
-  const canComment = isReporter || isStaffOrAdmin;
+  const canComment = isReporter || isAdmin;
 
   const roleBadge = (role: string | undefined) => {
     const r = (role || "").toLowerCase();
@@ -228,10 +232,9 @@ export default function IssueDetails() {
     if (!issue || !adminFields || adminSaving) return;
     setAdminSaving(true);
     try {
-      const estimated_completion =
-        adminFields.estimated_completion_date?.trim()
-          ? `${adminFields.estimated_completion_date.trim()}T00:00:00Z`
-          : null;
+      const estimated_completion = adminFields.estimated_completion_date?.trim()
+        ? `${adminFields.estimated_completion_date.trim()}T00:00:00Z`
+        : null;
 
       const res = await issuesApi.updateIssue(issue.id, {
         status: adminFields.status,
@@ -320,7 +323,9 @@ export default function IssueDetails() {
           </div>
           <div className="flex items-center gap-1">
             <User className="h-4 w-4" />
-            {issue.is_anonymous ? "Reported by Anonymous User" : (
+            {issue.is_anonymous ? (
+              "Reported by Anonymous User"
+            ) : (
               <>
                 Reported by {issue.reporter.first_name}{" "}
                 {issue.reporter.last_name}
@@ -417,6 +422,53 @@ export default function IssueDetails() {
             <Timeline events={timelineEvents} />
           )}
 
+          {/* Staff Progress Log (read-only) */}
+          {issue.progress_logs && issue.progress_logs.length > 0 && (
+            <div className="rounded-xl border bg-card p-6 space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                Work Log (Staff)
+              </h2>
+              <div className="space-y-4">
+                {issue.progress_logs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="rounded-lg border bg-muted/30 p-4 space-y-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">{log.log_type}</Badge>
+                        <span className="text-sm font-medium">
+                          {log.staff.first_name} {log.staff.last_name}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(log.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {log.description}
+                    </p>
+                    {log.photo && (
+                      <a
+                        href={log.photo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block"
+                      >
+                        <img
+                          src={log.photo}
+                          alt="Progress"
+                          className="h-28 w-40 rounded-md object-cover border"
+                        />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Comments */}
           <div className="rounded-xl border bg-card p-6">
             <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
@@ -490,7 +542,8 @@ export default function IssueDetails() {
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Only the original reporter and campus staff can comment on this issue.
+                  Only the original reporter and campus staff can comment on
+                  this issue.
                 </p>
               )}
             </div>
@@ -516,7 +569,9 @@ export default function IssueDetails() {
               <Separator />
               <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Estimated Resolution</span>
+                  <span className="text-muted-foreground">
+                    Estimated Resolution
+                  </span>
                   <span className="font-medium text-right">
                     {formatEstimatedResolution() === "Not set"
                       ? "Not set"
@@ -524,14 +579,16 @@ export default function IssueDetails() {
                   </span>
                 </div>
                 {issue.estimated_completion && (
-                  <p className="text-xs text-muted-foreground">{getCountdown()}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {getCountdown()}
+                  </p>
                 )}
               </div>
             </div>
           </div>
 
           {/* Admin/Staff Controls */}
-          {isStaffOrAdmin && adminFields && (
+          {isAdmin && adminFields && (
             <div className="rounded-xl border bg-card p-6 space-y-4">
               <h3 className="font-semibold">Admin Controls</h3>
               <div className="space-y-3">
@@ -541,7 +598,9 @@ export default function IssueDetails() {
                     value={adminFields.status}
                     onValueChange={(v) =>
                       setAdminFields((prev) =>
-                        prev ? { ...prev, status: v as IssueDetail["status"] } : prev,
+                        prev
+                          ? { ...prev, status: v as IssueDetail["status"] }
+                          : prev,
                       )
                     }
                   >
@@ -549,9 +608,13 @@ export default function IssueDetails() {
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="open">Pending</SelectItem>
                       <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="awaiting_verification">
+                        Awaiting Verification
+                      </SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="reopened">Reopened</SelectItem>
                       <SelectItem value="closed">Closed</SelectItem>
                     </SelectContent>
                   </Select>
@@ -567,7 +630,10 @@ export default function IssueDetails() {
                     onChange={(e) =>
                       setAdminFields((prev) =>
                         prev
-                          ? { ...prev, estimated_resolution_text: e.target.value }
+                          ? {
+                              ...prev,
+                              estimated_resolution_text: e.target.value,
+                            }
                           : prev,
                       )
                     }
@@ -585,7 +651,10 @@ export default function IssueDetails() {
                     onChange={(e) =>
                       setAdminFields((prev) =>
                         prev
-                          ? { ...prev, estimated_completion_date: e.target.value }
+                          ? {
+                              ...prev,
+                              estimated_completion_date: e.target.value,
+                            }
                           : prev,
                       )
                     }
@@ -700,6 +769,39 @@ export default function IssueDetails() {
               )}
             </div>
           )}
+
+          {/* Rate This Resolution (UI only) */}
+          {isReporter &&
+            (issue.status === "resolved" || issue.status === "closed") && (
+              <div className="rounded-xl border bg-card p-6 space-y-4">
+                <h3 className="font-semibold">Rate This Resolution</h3>
+                <p className="text-sm text-muted-foreground">
+                  This will be fully submitted in a later phase.
+                </p>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Button
+                      key={n}
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        toast({
+                          title: "Thanks!",
+                          description:
+                            "Rating captured locally (submission coming in Phase 4).",
+                        })
+                      }
+                    >
+                      {n}★
+                    </Button>
+                  ))}
+                </div>
+                <Textarea
+                  placeholder="Optional comment (Phase 4 submission)"
+                  disabled
+                />
+              </div>
+            )}
 
           {/* Reporter Info */}
           <div className="rounded-xl border bg-card p-6 space-y-4">

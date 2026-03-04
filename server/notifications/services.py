@@ -162,12 +162,14 @@ class NotificationService:
         """Notify about issue resolution."""
         # Notify issue reporter (if not the resolver)
         if issue.reporter != resolved_by:
+            summary = (issue.resolution_summary or "").strip()
+            summary_text = f" {summary}" if summary else ""
             NotificationService.create_notification(
                 user=issue.reporter,
-                title=f"Your issue has been resolved: {issue.title}",
-                message=f"This issue was resolved by {resolved_by.get_full_name() or resolved_by.email}",
-                notification_type='resolution',
-                related_issue=issue
+                title=f"Your issue '{issue.title}' has been resolved",
+                message=f"Your issue '{issue.title}' has been resolved.{summary_text} Please rate your experience.",
+                notification_type="resolution",
+                related_issue=issue,
             )
         
         # Notify all participants in the issue

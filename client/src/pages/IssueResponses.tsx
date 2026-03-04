@@ -37,16 +37,26 @@ import {
 } from "../lib/api";
 
 const statusConfig = {
-  open: { variant: "info" as const, label: "Open", icon: AlertCircle },
+  open: { variant: "secondary" as const, label: "Pending", icon: AlertCircle },
   "in-progress": {
     variant: "warning" as const,
     label: "In Progress",
+    icon: Clock,
+  },
+  awaiting_verification: {
+    variant: "info" as const,
+    label: "Awaiting Verification",
     icon: Clock,
   },
   resolved: {
     variant: "success" as const,
     label: "Resolved",
     icon: CheckCircle2,
+  },
+  reopened: {
+    variant: "destructive" as const,
+    label: "Reopened",
+    icon: AlertCircle,
   },
   closed: {
     variant: "secondary" as const,
@@ -96,7 +106,13 @@ export default function IssueResponses() {
   const [loading, setLoading] = useState(true);
   const [selectedIssue, setSelectedIssue] = useState<IssueDetail | null>(null);
   const [filter, setFilter] = useState<
-    "all" | "open" | "in-progress" | "resolved" | "closed"
+    | "all"
+    | "open"
+    | "in-progress"
+    | "awaiting_verification"
+    | "resolved"
+    | "reopened"
+    | "closed"
   >("all");
   const [chatOpen, setChatOpen] = useState<number | null>(null);
   const [commentInputs, setCommentInputs] = useState<{ [key: number]: string }>(
@@ -134,7 +150,8 @@ export default function IssueResponses() {
     return (
       (issue.comments &&
         issue.comments.some(
-          (comment) => comment.user.role === "admin" || comment.user.role === "staff",
+          (comment) =>
+            comment.user.role === "admin" || comment.user.role === "staff",
         )) ||
       issue.status !== "open" ||
       (issue.evidence_files && issue.evidence_files.length > 0) ||
@@ -145,7 +162,8 @@ export default function IssueResponses() {
 
   const getAdminComments = (issue: IssueDetail) => {
     return (issue.comments || []).filter(
-      (comment) => comment.user.role === "admin" || comment.user.role === "staff",
+      (comment) =>
+        comment.user.role === "admin" || comment.user.role === "staff",
     );
   };
 
@@ -239,7 +257,17 @@ export default function IssueResponses() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
-        {(["all", "open", "in-progress", "resolved", "closed"] as const).map(
+        {(
+          [
+            "all",
+            "open",
+            "in-progress",
+            "awaiting_verification",
+            "resolved",
+            "reopened",
+            "closed",
+          ] as const
+        ).map(
           (status) => (
             <Button
               key={status}
@@ -485,12 +513,14 @@ export default function IssueResponses() {
                                     {comment.user.first_name}{" "}
                                     {comment.user.last_name}
                                   </p>
-                                <Badge
-                                  variant={roleBadge(comment.user.role).variant}
-                                  className="text-xs"
-                                >
-                                  {roleBadge(comment.user.role).label}
-                                </Badge>
+                                  <Badge
+                                    variant={
+                                      roleBadge(comment.user.role).variant
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {roleBadge(comment.user.role).label}
+                                  </Badge>
                                   <span className="text-xs text-muted-foreground">
                                     {formatDate(comment.created_at)}
                                   </span>
@@ -620,7 +650,9 @@ export default function IssueResponses() {
                                     {comment.user.last_name}
                                   </p>
                                   <Badge
-                                    variant={roleBadge(comment.user.role).variant}
+                                    variant={
+                                      roleBadge(comment.user.role).variant
+                                    }
                                     className="text-xs"
                                   >
                                     {roleBadge(comment.user.role).label}

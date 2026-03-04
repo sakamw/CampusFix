@@ -284,7 +284,13 @@ export interface Issue {
   title: string;
   description: string;
   category: string;
-  status: "open" | "in-progress" | "resolved" | "closed";
+  status:
+    | "open"
+    | "in-progress"
+    | "awaiting_verification"
+    | "resolved"
+    | "reopened"
+    | "closed";
   priority: "low" | "medium" | "high" | "critical";
   location: string;
   reporter: UserData;
@@ -310,6 +316,11 @@ export interface Issue {
   progress_status?: string;
   progress_notes?: string;
   progress_updated_at?: string;
+  // Staff progress workflow
+  is_blocked?: boolean;
+  blocker_note?: string | null;
+  verified_by?: UserData | null;
+  verified_at?: string | null;
 }
 
 export interface IssueDetail extends Issue {
@@ -317,6 +328,7 @@ export interface IssueDetail extends Issue {
   attachments: Attachment[];
   evidence_files: ResolutionEvidence[];
   progress_updates: ProgressUpdate[];
+  progress_logs?: IssueProgressLog[];
   comment_count: number;
 }
 
@@ -368,6 +380,23 @@ export interface ProgressUpdate {
   next_steps: string;
   estimated_completion?: string;
   is_major_update: boolean;
+  created_at: string;
+}
+
+export interface IssueProgressLog {
+  id: number;
+  issue: number;
+  staff: UserData;
+  log_type:
+    | "acknowledged"
+    | "on_site"
+    | "diagnosis"
+    | "in_progress"
+    | "blocked"
+    | "completed"
+    | "reopened";
+  description: string;
+  photo: string | null;
   created_at: string;
 }
 

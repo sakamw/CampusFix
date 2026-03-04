@@ -2,13 +2,23 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F, Q
+from django.db.models import (
+    Avg,
+    Case,
+    Count,
+    DurationField,
+    ExpressionWrapper,
+    F,
+    IntegerField,
+    Q,
+    Value,
+    When,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.decorators import admin_required, superuser_required
 from accounts.models import User
-from dashboard.forms import StaffBlockerForm, StaffProgressUpdateForm, StaffResolutionForm
 from issues.models import Issue, IssueProgressLog
 from notifications.models import Notification
 from notifications.services import NotificationService
@@ -48,29 +58,74 @@ def dashboard_home(request):
     now = timezone.now()
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # For staff users (non-superuser), only show issues assigned to them
     is_staff_view = request.user.role == "staff" and not request.user.is_superuser
+
+    # Staff dashboard home is scoped to assigned issues only
     if is_staff_view:
         base_qs = Issue.objects.filter(assigned_to=request.user)
-    else:
-        base_qs = Issue.objects.all()
+
+        my_open_issues = base_qs.filter(status__in=["open", "in-progress"]).count()
+        resolved_this_month = base_qs.filter(
+            status="resolved",
+            resolved_at__gte=start_of_month,
+            resolved_at__lte=now,
+        ).count()
+        awaiting_verification = base_qs.filter(status="awaiting_verification").count()
+        blocked_issues = base_qs.filter(is_blocked=True).count()
+
+        status_filter = request.GET.get("status") or ""
+        sort = request.GET.get("sort") or "priority"
+
+        issues_qs = (
+            base_qs.select_related("reporter")
+            .order_by("-updated_at")
+        )
+        if status_filter:
+            issues_qs = issues_qs.filter(status=status_filter)
+
+        priority_rank = Case(
+            When(priority="critical", then=Value(0)),
+            When(priority="high", then=Value(1)),
+            When(priority="medium", then=Value(2)),
+            When(priority="low", then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+
+        if sort == "assigned_at":
+            issues_qs = issues_qs.order_by(F("assigned_at").desc(nulls_last=True), "-updated_at")
+        elif sort == "status":
+            issues_qs = issues_qs.order_by("status", "-updated_at")
+        else:
+            issues_qs = issues_qs.annotate(_priority_rank=priority_rank).order_by(
+                "_priority_rank", F("assigned_at").desc(nulls_last=True), "-updated_at"
+            )
+
+        context = {
+            **_get_active_context(request, "home"),
+            "is_staff_home": True,
+            "my_open_issues": my_open_issues,
+            "resolved_this_month": resolved_this_month,
+            "awaiting_verification": awaiting_verification,
+            "blocked_issues": blocked_issues,
+            "issues": issues_qs,
+            "status_filter": status_filter,
+            "sort": sort,
+            "status_choices": Issue.STATUS_CHOICES,
+        }
+        return render(request, "dashboard/home.html", context)
+
+    # Admin/superuser overview stays campus-wide
+    base_qs = Issue.objects.all()
 
     total_issues = base_qs.count()
     open_issues = base_qs.filter(status__in=["open", "in-progress"]).count()
 
-    # For staff, treat issues submitted for verification this month as "resolved this month"
-    if is_staff_view:
-        resolved_this_month_qs = base_qs.filter(
-            status__in=["awaiting_verification", "resolved", "closed"],
-            resolved_at__gte=start_of_month,
-            resolved_at__lte=now,
-        )
-    else:
-        resolved_this_month_qs = base_qs.filter(
-            status__in=["resolved", "closed"],
-            resolved_at__gte=start_of_month,
-            resolved_at__lte=now,
-        )
+    resolved_this_month_qs = base_qs.filter(
+        status__in=["resolved", "closed"],
+        resolved_at__gte=start_of_month,
+        resolved_at__lte=now,
+    )
     resolved_this_month = resolved_this_month_qs.count()
 
     resolution_time = ExpressionWrapper(
@@ -82,13 +137,11 @@ def dashboard_home(request):
         )["avg"]
         or timedelta(0)
     )
-    avg_resolution_days = round(avg_resolution.total_seconds() / 86400, 1) if avg_resolution else 0
-
-    # For staff users, we use "My Assigned Issues" with priority-first ordering
-    recent_issues = (
-        base_qs.select_related("reporter", "assigned_to")
-        .order_by("priority", "-created_at")[:25]
+    avg_resolution_days = (
+        round(avg_resolution.total_seconds() / 86400, 1) if avg_resolution else 0
     )
+
+    recent_issues = base_qs.select_related("reporter").order_by("-created_at")[:10]
 
     issues_by_status = (
         base_qs.values("status").annotate(count=Count("id")).order_by("status")
@@ -120,8 +173,6 @@ def dashboard_home(request):
         "issues_by_status": issues_by_status,
         "top_locations": top_locations,
         "top_categories": top_categories,
-        "is_staff_view": is_staff_view,
-        "status_choices": Issue.STATUS_CHOICES,
     }
     return render(request, "dashboard/home.html", context)
 
@@ -221,155 +272,167 @@ def issue_detail(request, pk):
     issue = get_object_or_404(
         Issue.objects.select_related("reporter", "assigned_to"), pk=pk
     )
-
-    # Staff can only view issues currently assigned to them
     is_staff_view = request.user.role == "staff" and not request.user.is_superuser
-    if is_staff_view:
-        if issue.assigned_to_id != request.user.id:
-            messages.error(request, "You do not have permission to view this issue.")
-            return redirect("dashboard:issues_list")
+    if is_staff_view and issue.assigned_to_id != request.user.id:
+        messages.error(request, "You do not have permission to view this issue.")
+        return redirect("dashboard:issues_list")
 
-    # Staff workflow actions
-    if request.method == "POST" and is_staff_view:
-        action = request.POST.get("staff_action")
-        if issue.assigned_to_id != request.user.id:
-            messages.error(request, "You can only modify issues assigned to you.")
-            return redirect("dashboard:issues_list")
+    if request.method == "POST":
+        if is_staff_view:
+            action = request.POST.get("action") or ""
 
-        # Acknowledge issue -> move to in-progress and log
-        if action == "acknowledge" and issue.status == "open":
-            issue.status = "in-progress"
-            issue._modified_by_user = request.user  # type: ignore[attr-defined]
-            issue.save()
-            IssueProgressLog.objects.create(
-                issue=issue,
-                staff=request.user,
-                log_type=IssueProgressLog.LOG_TYPE_ACKNOWLEDGED,
-                description="Issue acknowledged. Work starting.",
-            )
-            messages.success(request, "Issue acknowledged and work marked as in progress.")
+            if action == "acknowledge":
+                if issue.status != "open":
+                    messages.error(request, "This issue cannot be acknowledged in its current state.")
+                else:
+                    issue.status = "in-progress"
+                    issue.is_blocked = False
+                    issue.blocker_note = None
+                    issue._modified_by_user = request.user  # type: ignore[attr-defined]
+                    issue.save(update_fields=["status", "is_blocked", "blocker_note", "updated_at"])
+
+                    IssueProgressLog.objects.create(
+                        issue=issue,
+                        staff=request.user,
+                        log_type="acknowledged",
+                        description="Issue acknowledged. Work starting.",
+                    )
+                    messages.success(request, "Issue acknowledged.")
+
+            elif action == "add_progress":
+                if issue.status != "in-progress":
+                    messages.error(request, "You can only post progress updates while the issue is In Progress.")
+                else:
+                    log_type = request.POST.get("log_type") or ""
+                    allowed = {"on_site", "diagnosis", "in_progress"}
+                    if log_type not in allowed:
+                        messages.error(request, "Invalid log type selected.")
+                    else:
+                        description = (request.POST.get("description") or "").strip()
+                        if not description:
+                            messages.error(request, "Description is required.")
+                        else:
+                            photo = request.FILES.get("photo")
+                            IssueProgressLog.objects.create(
+                                issue=issue,
+                                staff=request.user,
+                                log_type=log_type,
+                                description=description,
+                                photo=photo,
+                            )
+                            messages.success(request, "Progress update posted.")
+
+            elif action == "flag_blocked":
+                if issue.status != "in-progress":
+                    messages.error(request, "You can only flag blockers while the issue is In Progress.")
+                else:
+                    blocker_note = (request.POST.get("blocker_note") or "").strip()
+                    if not blocker_note:
+                        messages.error(request, "Please provide a blocker note.")
+                    else:
+                        issue.is_blocked = True
+                        issue.blocker_note = blocker_note
+                        issue._modified_by_user = request.user  # type: ignore[attr-defined]
+                        issue.save(update_fields=["is_blocked", "blocker_note", "updated_at"])
+
+                        IssueProgressLog.objects.create(
+                            issue=issue,
+                            staff=request.user,
+                            log_type="blocked",
+                            description=blocker_note,
+                        )
+
+                        admins = User.objects.filter(Q(is_superuser=True) | Q(role="admin")).distinct()
+                        for admin_user in admins:
+                            NotificationService.create_notification(
+                                user=admin_user,
+                                title=f"Issue #{issue.id} blocked",
+                                message=f"{request.user.get_full_name() or request.user.email} flagged a blocker: {blocker_note}",
+                                notification_type="assignment",
+                                related_issue=issue,
+                            )
+                        messages.success(request, "Issue flagged as blocked and admins notified.")
+
+            elif action == "remove_blocker":
+                if issue.status != "in-progress" or not issue.is_blocked:
+                    messages.error(request, "This issue is not currently blocked.")
+                else:
+                    issue.is_blocked = False
+                    issue.blocker_note = None
+                    issue._modified_by_user = request.user  # type: ignore[attr-defined]
+                    issue.save(update_fields=["is_blocked", "blocker_note", "updated_at"])
+
+                    IssueProgressLog.objects.create(
+                        issue=issue,
+                        staff=request.user,
+                        log_type="in_progress",
+                        description="Blocker resolved. Resuming work.",
+                    )
+                    messages.success(request, "Blocker removed.")
+
+            elif action == "submit_resolution":
+                if issue.status != "in-progress":
+                    messages.error(request, "You can only submit resolution while the issue is In Progress.")
+                else:
+                    summary = (request.POST.get("resolution_summary") or "").strip()
+                    follow_up = (request.POST.get("follow_up_recommendations") or "").strip()
+                    if not summary:
+                        messages.error(request, "Resolution summary is required.")
+                    else:
+                        issue.status = "awaiting_verification"
+                        issue.resolved_at = timezone.now()
+                        issue.resolution_summary = summary
+                        if follow_up:
+                            issue.resolution_details = follow_up
+                        issue._modified_by_user = request.user  # type: ignore[attr-defined]
+                        issue.save()
+
+                        final_photo = request.FILES.get("final_photo")
+                        IssueProgressLog.objects.create(
+                            issue=issue,
+                            staff=request.user,
+                            log_type="completed",
+                            description=summary,
+                            photo=final_photo,
+                        )
+
+                        admins = User.objects.filter(Q(is_superuser=True) | Q(role="admin")).distinct()
+                        for admin_user in admins:
+                            NotificationService.create_notification(
+                                user=admin_user,
+                                title=f"Issue #{issue.id} awaiting verification",
+                                message=f"Issue #{issue.id} was resolved by {request.user.get_full_name() or request.user.email} and is awaiting your verification.",
+                                notification_type="assignment",
+                                related_issue=issue,
+                            )
+
+                        messages.success(request, "Issue submitted for verification.")
+
+            else:
+                messages.error(request, "Invalid action.")
+
             return redirect("dashboard:issue_detail", pk=issue.pk)
 
-        # Add progress update
-        if action == "add_progress" and issue.status in {"in-progress"}:
-            progress_form = StaffProgressUpdateForm(request.POST, request.FILES)
-            if progress_form.is_valid():
-                log = progress_form.save(commit=False)
-                log.issue = issue
-                log.staff = request.user
-                log.save()
-                messages.success(request, "Progress update posted.")
-                return redirect("dashboard:issue_detail", pk=issue.pk)
-        # Flag as blocked
-        if action == "flag_blocked" and issue.status in {"in-progress"}:
-            blocker_form = StaffBlockerForm(request.POST)
-            if blocker_form.is_valid():
-                blocker_note = blocker_form.cleaned_data["blocker_note"]
-                issue.is_blocked = True
-                issue.blocker_note = blocker_note
-                issue._modified_by_user = request.user  # type: ignore[attr-defined]
-                issue.save()
-                IssueProgressLog.objects.create(
-                    issue=issue,
-                    staff=request.user,
-                    log_type=IssueProgressLog.LOG_TYPE_BLOCKED,
-                    description=blocker_note,
-                )
-                # Notify admins about the blocker
-                admin_users = User.objects.filter(role="admin") | User.objects.filter(
-                    is_superuser=True
-                )
-                for admin_user in admin_users.distinct():
-                    NotificationService.create_notification(
-                        user=admin_user,
-                        title=f"Blocked issue needs attention: {issue.title}",
-                        message=blocker_note,
-                        notification_type="status_change",
-                        related_issue=issue,
-                    )
-                messages.success(request, "Issue flagged as blocked and admins notified.")
-                return redirect("dashboard:issue_detail", pk=issue.pk)
-
-        # Remove blocker
-        if action == "remove_blocker" and issue.status in {"in-progress"} and issue.is_blocked:
-            issue.is_blocked = False
-            issue.blocker_note = ""
-            issue._modified_by_user = request.user  # type: ignore[attr-defined]
-            issue.save()
-            IssueProgressLog.objects.create(
-                issue=issue,
-                staff=request.user,
-                log_type=IssueProgressLog.LOG_TYPE_IN_PROGRESS,
-                description="Blocker resolved. Resuming work.",
-            )
-            messages.success(request, "Blocker cleared. Issue is back in progress.")
-            return redirect("dashboard:issue_detail", pk=issue.pk)
-
-        # Mark as resolved -> Awaiting verification
-        if action == "mark_resolved" and issue.status in {"in-progress"}:
-            resolution_form = StaffResolutionForm(request.POST, request.FILES)
-            if resolution_form.is_valid():
-                resolution_summary = resolution_form.cleaned_data["resolution_summary"]
-                follow_up = resolution_form.cleaned_data["follow_up_recommendations"]
-                final_photo = resolution_form.cleaned_data.get("final_photo")
-
-                issue.status = "awaiting_verification"
-                issue.resolved_at = issue.resolved_at or timezone.now()
-                issue.resolution_summary = resolution_summary
-                issue._modified_by_user = request.user  # type: ignore[attr-defined]
-                issue.save()
-
-                log = IssueProgressLog.objects.create(
-                    issue=issue,
-                    staff=request.user,
-                    log_type=IssueProgressLog.LOG_TYPE_COMPLETED,
-                    description=resolution_summary
-                    + (f"\n\nFollow-up recommendations: {follow_up}" if follow_up else ""),
-                    photo=final_photo,
-                )
-
-                # Notify admins that this issue is awaiting verification
-                admin_users = User.objects.filter(role="admin") | User.objects.filter(
-                    is_superuser=True
-                )
-                for admin_user in admin_users.distinct():
-                    NotificationService.create_notification(
-                        user=admin_user,
-                        title=f"Issue #{issue.id} awaiting verification",
-                        message=f"Issue '{issue.title}' has been resolved by {request.user.get_full_name() or request.user.email} and is awaiting your verification.",
-                        notification_type="resolution",
-                        related_issue=issue,
-                    )
-                messages.success(request, "Issue submitted for verification.")
-                return redirect("dashboard:issue_detail", pk=issue.pk)
-
-        # If we reach here, either the action was invalid or the form had errors
-        messages.error(request, "Unable to process your request. Please check the form and try again.")
-        return redirect("dashboard:issue_detail", pk=issue.pk)
-
-    # Admin / superuser path for status and assignment management
-    if request.method == "POST" and not is_staff_view:
+        # Admin/superuser edit flow (existing behavior)
         updated = False
 
-        # Status update
         new_status = request.POST.get("status")
         if new_status:
             if new_status in dict(Issue.STATUS_CHOICES):
                 issue.status = new_status
                 updated = True
-                # Keep resolved_at in sync when status becomes resolved
                 if new_status in {"resolved", "closed"} and not issue.resolved_at:
                     issue.resolved_at = timezone.now()
             else:
                 messages.error(request, "Invalid status selected.")
 
-        # Assignment update (superusers and admin-role users only)
         if request.user.is_superuser or getattr(request.user, "role", "") == "admin":
             assigned_to_id = request.POST.get("assigned_to")
             if assigned_to_id is not None:
                 if assigned_to_id == "":
                     if issue.assigned_to is not None:
                         issue.assigned_to = None
+                        issue.assigned_at = None
                         updated = True
                 else:
                     try:
@@ -382,10 +445,7 @@ def issue_detail(request, pk):
                             issue.assigned_at = timezone.now()
                             updated = True
                     except User.DoesNotExist:
-                        messages.error(
-                            request,
-                            "Selected staff member is not valid.",
-                        )
+                        messages.error(request, "Selected staff member is not valid.")
 
         if updated:
             issue._modified_by_user = request.user  # type: ignore[attr-defined]
@@ -403,22 +463,18 @@ def issue_detail(request, pk):
             .distinct()
         )
 
-    # Forms for staff workflow
-    progress_form = StaffProgressUpdateForm()
-    blocker_form = StaffBlockerForm()
-    resolution_form = StaffResolutionForm()
+    progress_logs = IssueProgressLog.objects.filter(issue=issue).select_related("staff")
 
     context = {
         **_get_active_context(request, "issues"),
         "issue": issue,
         "status_choices": Issue.STATUS_CHOICES,
         "staff_users": staff_users,
+        "progress_logs": progress_logs,
         "is_staff_view": is_staff_view,
-        "progress_form": progress_form,
-        "blocker_form": blocker_form,
-        "resolution_form": resolution_form,
-        "progress_logs": issue.progress_logs.select_related("staff"),
     }
+    if is_staff_view:
+        return render(request, "dashboard/staff_issue_detail.html", context)
     return render(request, "dashboard/issue_detail.html", context)
 
 

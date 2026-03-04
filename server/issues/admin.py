@@ -1,26 +1,38 @@
 from django.contrib import admin
+from django.http import HttpResponseRedirect
+from django.urls import path
 from django.db.models import Sum, Q
 from django.utils import timezone
 from django.utils.safestring import mark_safe
-from .models import Issue, Comment, Attachment, Upvote, AdminWorkLog, ResolutionEvidence, ProgressUpdate, IssueProgressLog
+from .models import (
+    Issue,
+    Comment,
+    Attachment,
+    Upvote,
+    AdminWorkLog,
+    ResolutionEvidence,
+    ProgressUpdate,
+    IssueProgressLog,
+)
 from notifications.services import NotificationService
 
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
     list_display = ['id', 'title', 'category', 'status', 'priority', 'reporter', 'assigned_to', 'created_at', 'upvote_count', 'work_progress', 'evidence_count']
-    list_filter = ['status', 'priority', 'category', 'created_at', 'is_blocked']
+    list_filter = ['status', 'priority', 'category', 'created_at']
     search_fields = ['title', 'description', 'location']
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'updated_at', 'upvote_count', 'evidence_files_display', 'progress_display', 'comments_chat_display']
+    change_form_template = "admin/issues/issue/change_form.html"
     
     fieldsets = (
         ('Issue Information', {
             'fields': ('title', 'description', 'category', 'location', 'visibility')
         }),
         ('Status & Priority', {
-            'fields': ('status', 'priority', 'assigned_to', 'is_blocked', 'blocker_note')
+            'fields': ('status', 'priority', 'assigned_to')
         }),
         ('Reporter Information', {
             'fields': ('reporter',)
@@ -54,8 +66,8 @@ class IssueAdmin(admin.ModelAdmin):
             'fields': ('comments_chat_display',),
             'classes': ('collapse',),
         }),
-        ('Timestamps & Verification', {
-            'fields': ('created_at', 'updated_at', 'resolved_at', 'verified_by', 'verified_at', 'upvote_count', 'progress_display', 'verification_panel')
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'resolved_at', 'upvote_count', 'progress_display')
         }),
     )
 
@@ -88,38 +100,124 @@ class IssueAdmin(admin.ModelAdmin):
             except Issue.DoesNotExist:
                 previous_assigned_to = None
 
+        # Keep assigned_at aligned when assignee changes
+        if obj.assigned_to and obj.assigned_to != previous_assigned_to:
+            obj.assigned_at = timezone.now()
+        if not obj.assigned_to:
+            obj.assigned_at = None
+
         super().save_model(request, obj, form, change)
 
-        # Fire assignment notification when assigned_to is newly set or changed
         if obj.assigned_to and obj.assigned_to != previous_assigned_to:
-            # Track when the issue was assigned
-            obj.assigned_at = obj.assigned_at or timezone.now()
-            obj.save(update_fields=['assigned_at'])
             NotificationService.notify_issue_assignment(obj, assigned_by=request.user)
-    
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<path:object_id>/verify/",
+                self.admin_site.admin_view(self.verify_issue),
+                name="issues_issue_verify",
+            ),
+            path(
+                "<path:object_id>/send-back/",
+                self.admin_site.admin_view(self.send_back_to_staff),
+                name="issues_issue_send_back",
+            ),
+        ]
+        return custom + urls
+
+    def verify_issue(self, request, object_id):
+        issue = self.get_object(request, object_id)
+        if not issue:
+            self.message_user(request, "Issue not found.", level="error")
+            return HttpResponseRedirect("../")
+
+        if issue.status != "awaiting_verification":
+            self.message_user(request, "Issue is not awaiting verification.", level="error")
+            return HttpResponseRedirect("../")
+
+        issue.status = "resolved"
+        issue.verified_by = request.user
+        issue.verified_at = timezone.now()
+        issue._modified_by_user = request.user  # type: ignore[attr-defined]
+        issue.save()
+
+        IssueProgressLog.objects.create(
+            issue=issue,
+            staff=request.user,
+            log_type="completed",
+            description="Verified & closed by admin.",
+        )
+
+        self.message_user(request, "Issue verified and closed.")
+        return HttpResponseRedirect("../")
+
+    def send_back_to_staff(self, request, object_id):
+        issue = self.get_object(request, object_id)
+        if not issue:
+            self.message_user(request, "Issue not found.", level="error")
+            return HttpResponseRedirect("../")
+
+        if issue.status != "awaiting_verification":
+            self.message_user(request, "Issue is not awaiting verification.", level="error")
+            return HttpResponseRedirect("../")
+
+        note = (request.POST.get("reopen_note") or "").strip()
+        if request.method != "POST" or not note:
+            self.message_user(request, "Please provide a note to send back to staff.", level="error")
+            return HttpResponseRedirect("../")
+
+        issue.status = "in-progress"
+        issue.verified_by = None
+        issue.verified_at = None
+        issue._modified_by_user = request.user  # type: ignore[attr-defined]
+        issue.save(update_fields=["status", "verified_by", "verified_at", "updated_at"])
+
+        IssueProgressLog.objects.create(
+            issue=issue,
+            staff=request.user,
+            log_type="reopened",
+            description=note,
+        )
+
+        if issue.assigned_to:
+            NotificationService.create_notification(
+                user=issue.assigned_to,
+                title=f"Issue #{issue.id} sent back",
+                message=f"Admin requested changes: {note}",
+                notification_type="assignment",
+                related_issue=issue,
+            )
+
+        self.message_user(request, "Sent back to staff.")
+        return HttpResponseRedirect("../")
+
     def work_progress(self, obj):
         """Show work progress based on work logs"""
-        total_hours = obj.work_logs.aggregate(total=Sum('hours_spent'))['total'] or 0
+        total_hours = obj.work_logs.aggregate(total=Sum("hours_spent"))["total"] or 0
         log_count = obj.work_logs.count()
         if log_count == 0:
             return "No work started"
         return f"{log_count} tasks, {total_hours}h total"
-    work_progress.short_description = 'Work Progress'
-    
+
+    work_progress.short_description = "Work Progress"
+
     def evidence_count(self, obj):
         """Show count of evidence files"""
         count = obj.evidence_files.count()
         if count == 0:
             return "No evidence"
         return f"{count} file(s)"
-    evidence_count.short_description = 'Evidence Files'
-    
+
+    evidence_count.short_description = "Evidence Files"
+
     def evidence_files_display(self, obj):
         """Display evidence files with links"""
         evidence_files = obj.evidence_files.all()
         if not evidence_files:
             return "No evidence files uploaded"
-        
+
         html = "<div style='max-height: 200px; overflow-y: auto;'>"
         for evidence in evidence_files:
             html += f"""
@@ -132,27 +230,27 @@ class IssueAdmin(admin.ModelAdmin):
             """
         html += "</div>"
         return mark_safe(html)
-    evidence_files_display.short_description = 'Evidence Files'
-    
+
+    evidence_files_display.short_description = "Evidence Files"
+
     def _format_file_size(self, size):
         """Format file size in human readable format"""
         if not size:
             return "Unknown"
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if size < 1024.0:
                 return f"{size:.1f} {unit}"
             size /= 1024.0
         return f"{size:.1f} TB"
-    
+
     def progress_display(self, obj):
         """Display progress information"""
         progress_updates = obj.progress_updates.all()
         if not progress_updates and obj.progress_percentage == 0:
             return "No progress updates yet"
-        
+
         html = "<div style='max-height: 200px; overflow-y: auto;'>"
-        
-        # Show current progress
+
         html += f"""
         <div style="margin-bottom: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
             <strong style="color: #212529;">Current Progress: {obj.progress_percentage}%</strong><br>
@@ -161,8 +259,7 @@ class IssueAdmin(admin.ModelAdmin):
             <small style="color: #495057; font-weight: 500;">Last updated: {obj.progress_updated_at.strftime('%Y-%m-%d %H:%M')}</small>
         </div>
         """
-        
-        # Show recent updates
+
         if progress_updates:
             html += "<strong style='color: #212529;'>Recent Updates:</strong><br>"
             for update in progress_updates[:3]:
@@ -173,165 +270,36 @@ class IssueAdmin(admin.ModelAdmin):
                     <small style="color: #495057; font-weight: 500;">{update.created_at.strftime('%Y-%m-%d %H:%M')}</small>
                 </div>
                 """
-        
+
         html += "</div>"
         return mark_safe(html)
-    progress_display.short_description = 'Progress Information'
 
-    def verification_panel(self, obj):
-        """
-        Read-only verification panel shown on the issue admin page when
-        an issue is awaiting verification. Provides context and admin actions.
-        """
-        if obj.status != 'awaiting_verification':
-            return "Verification tools become available when the issue is Awaiting Verification."
+    progress_display.short_description = "Progress Information"
 
-        logs = obj.progress_logs.all().select_related("staff")
-        latest_completed = logs.filter(log_type=IssueProgressLog.LOG_TYPE_COMPLETED).first()
-
-        html = "<div style='padding: 10px; border-radius: 6px; background: #f0f9ff; border: 1px solid #bae6fd;'>"
-        html += "<h4 style='margin-top: 0; margin-bottom: 8px; color: #0369a1;'>Verification Required</h4>"
-        html += "<p style='margin: 0 0 8px 0; font-size: 13px; color: #0f172a;'>Review the resolution summary and progress log before closing the issue or sending it back to staff.</p>"
-
-        html += "<div style='margin-bottom: 10px; padding: 8px; background: #e0f2fe; border-radius: 4px;'>"
-        html += "<strong>Resolution Summary</strong><br>"
-        html += f"<span style='font-size: 13px;'>{obj.resolution_summary or 'No resolution summary provided.'}</span>"
-        html += "</div>"
-
-        if latest_completed and latest_completed.photo:
-            html += "<div style='margin-bottom: 10px;'>"
-            html += "<strong>Final Photo</strong><br>"
-            html += f"<img src='{latest_completed.photo.url}' style='max-width: 260px; border-radius: 4px; border: 1px solid #e5e7eb; margin-top: 4px;' />"
-            html += "</div>"
-
-        # Compact timeline preview (recent progress logs)
-        if logs.exists():
-            html += "<div style='margin-bottom: 10px;'>"
-            html += "<strong>Recent Progress Log</strong>"
-            html += "<ul style='list-style:none; padding-left:0; margin:6px 0 0 0; max-height: 180px; overflow-y: auto;'>"
-            for log in logs[:5]:
-                staff_name = log.staff.get_full_name() or log.staff.email
-                html += (
-                    "<li style='padding:6px 0; border-bottom:1px solid #e5e7eb;'>"
-                    f"<div style='font-size:12px;'><strong>{log.get_log_type_display()}</strong> "
-                    f"<span style='color:#6b7280;'>· {staff_name}</span></div>"
-                    f"<div style='font-size:12px;color:#6b7280;'>{log.created_at.strftime('%Y-%m-%d %H:%M')}</div>"
-                    f"<div style='font-size:12px;margin-top:2px;'>{log.description[:160]}{'...' if len(log.description) > 160 else ''}</div>"
-                    "</li>"
-                )
-            html += "</ul></div>"
-
-        # Action buttons: verify & close or send back
-        html += "<div style='margin-top: 10px; padding-top: 8px; border-top: 1px dashed #bae6fd;'>"
-        html += "<form method='post' style='display:inline-block; margin-right:8px;'>"
-        html += "{csrf_token_placeholder}"
-        html += "<button type='submit' name='_verify_and_close' value='1' "
-        html += "style='background:#16a34a;color:white;border:none;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer;'>"
-        html += "Verify &amp; Close Issue</button></form>"
-
-        html += "<form method='post' style='display:inline-block; margin-top:6px;'>"
-        html += "{csrf_token_placeholder}"
-        html += "<textarea name='reopen_note' rows='2' "
-        html += "placeholder='Explain what is missing or needs rework...' "
-        html += "style='width:100%;margin-bottom:6px;font-size:12px;'></textarea>"
-        html += "<button type='submit' name='_send_back_to_staff' value='1' "
-        html += "style='background:#f97316;color:white;border:none;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer;'>"
-        html += "Send Back to Staff</button></form>"
-        html += "</div></div>"
-
-        # Django admin will inject CSRF token automatically; we just use the placeholder here
-        return mark_safe(html.replace("{csrf_token_placeholder}", "{{ csrf_token }}"))
-
-    verification_panel.short_description = "Verification & Closure"
-
-    def response_change(self, request, obj):
-        """
-        Handle verification actions from the admin change form:
-        - Verify & Close Issue
-        - Send Back to Staff
-        """
-        if "_verify_and_close" in request.POST and obj.status == "awaiting_verification":
-            old_status = obj.status
-            obj.status = "resolved"
-            obj.verified_by = request.user
-            obj.verified_at = timezone.now()
-            if obj.resolved_at is None:
-                obj.resolved_at = timezone.now()
-            obj.save()
-
-            # Notify the reporting student with a detailed resolution message
-            summary_text = obj.resolution_summary or ""
-            message = f"Your issue '{obj.title}' has been resolved. {summary_text} Please rate your experience."
-            NotificationService.create_notification(
-                user=obj.reporter,
-                title=f"Issue resolved: {obj.title}",
-                message=message,
-                notification_type="resolution",
-                related_issue=obj,
-            )
-
-            self.message_user(request, "Issue verified and marked as resolved.")
-            return super().response_change(request, obj)
-
-        if "_send_back_to_staff" in request.POST and obj.status == "awaiting_verification":
-            note = request.POST.get("reopen_note", "").strip()
-            if not note:
-                note = "Sent back to staff for further work."
-
-            old_status = obj.status
-            obj.status = "in-progress"
-            obj.is_blocked = False
-            obj.save()
-
-            # Log the reopening
-            assignee = obj.assigned_to or request.user
-            IssueProgressLog.objects.create(
-                issue=obj,
-                staff=assignee,
-                log_type=IssueProgressLog.LOG_TYPE_REOPENED,
-                description=note,
-            )
-
-            # Notify assigned staff member if present
-            if obj.assigned_to:
-                NotificationService.create_notification(
-                    user=obj.assigned_to,
-                    title=f"Issue sent back for more work: {obj.title}",
-                    message=note,
-                    notification_type="status_change",
-                    related_issue=obj,
-                )
-
-            self.message_user(request, "Issue sent back to staff for additional work.")
-            return super().response_change(request, obj)
-
-        return super().response_change(request, obj)
-    
     def comments_chat_display(self, obj):
         """Display chat/comments interface for admins"""
-        comments = obj.comments.all().order_by('created_at')
-        
+        comments = obj.comments.all().order_by("created_at")
+
         if not comments:
             return "No comments yet. Users can comment through the frontend interface."
-        
+
         html = """
         <div style='max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f9f9f9;'>
             <h4 style='margin-top: 0; color: #333; border-bottom: 2px solid #007cba; padding-bottom: 5px;'>
                 💬 Chat History ({comments.count()} messages)
             </h4>
         """
-        
+
         for comment in comments:
-            # Determine comment style based on user role
-            if comment.user.role == 'admin':
-                bg_color = '#e3f2fd'  # Light blue for admin
-                border_color = '#2196f3'
-                role_label = '👨‍💼 Admin'
+            if comment.user.role == "admin":
+                bg_color = "#e3f2fd"
+                border_color = "#2196f3"
+                role_label = "👨‍💼 Admin"
             else:
-                bg_color = '#fff3e0'  # Light orange for user
-                border_color = '#ff9800'
-                role_label = '👤 User'
-            
+                bg_color = "#fff3e0"
+                border_color = "#ff9800"
+                role_label = "👤 User"
+
             html += f"""
             <div style='margin-bottom: 15px; padding: 12px; border-left: 4px solid {border_color}; background-color: {bg_color}; border-radius: 4px;'>
                 <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>
@@ -349,18 +317,36 @@ class IssueAdmin(admin.ModelAdmin):
                 </div>
             </div>
             """
-        
-        # Add admin response prompt
+
         html += """
             <div style='margin-top: 20px; padding: 10px; background: #f0f8ff; border: 1px dashed #007cba; border-radius: 4px; text-align: center;'>
                 <p style='margin: 0; color: #007cba; font-weight: bold;'>💡 Admin Response</p>
                 <p style='margin: 5px 0 0 0; font-size: 12px; color: #495057; font-weight: 500;'>To respond to this issue, add a comment through the Comment model in Django Admin or use the frontend interface.</p>
             </div>
             """
-        
+
         html += "</div>"
         return mark_safe(html)
-    comments_chat_display.short_description = 'Chat & Comments'
+
+    comments_chat_display.short_description = "Chat & Comments"
+
+
+@admin.register(IssueProgressLog)
+class IssueProgressLogAdmin(admin.ModelAdmin):
+    list_display = ["id", "issue", "log_type", "staff", "created_at"]
+    list_filter = ["log_type", "created_at"]
+    search_fields = ["issue__title", "description", "staff__email"]
+    ordering = ["-created_at"]
+    readonly_fields = ["issue", "staff", "log_type", "description", "photo", "created_at"]
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser or getattr(request.user, "role", "") == "admin"
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(AdminWorkLog)

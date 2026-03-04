@@ -19,16 +19,19 @@ from .analytics import AnalyticsService
 @user_passes_test(lambda u: u.is_staff)
 def admin_dashboard(request):
     """Admin dashboard view"""
-    blocked_issues = Issue.objects.filter(is_blocked=True).select_related('assigned_to')
-
+    blocked = (
+        Issue.objects.filter(is_blocked=True)
+        .select_related("assigned_to")
+        .order_by("-updated_at")[:20]
+    )
     context = {
         'total_issues': Issue.objects.count(),
         'open_issues': Issue.objects.filter(status='open').count(),
         'in_progress_issues': Issue.objects.filter(status='in-progress').count(),
         'resolved_issues': Issue.objects.filter(status='resolved').count(),
         'recent_work_logs': AdminWorkLog.objects.select_related('issue', 'admin').order_by('-created_at')[:10],
-        'blocked_issues': blocked_issues,
-        'blocked_count': blocked_issues.count(),
+        'blocked_issues': blocked,
+        'blocked_count': Issue.objects.filter(is_blocked=True).count(),
     }
     return render(request, 'admin/admin_dashboard.html', context)
 

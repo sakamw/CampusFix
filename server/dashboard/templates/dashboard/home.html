@@ -1,240 +1,232 @@
 {% extends "dashboard/base.html" %}
 
 {% block content %}
+{% if is_staff_home %}
+<div class="page-header">
+    <div class="page-title">My Work</div>
+    <div class="page-subtitle">Only issues assigned to you appear here.</div>
+</div>
+
+<div class="cards-grid mt-md">
+  <div class="card">
+    <div class="card-title">My Open Issues</div>
+    <div class="card-value">{{ my_open_issues }}</div>
+    <div class="card-muted">Pending + In Progress</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Issues I Resolved This Month</div>
+    <div class="card-value">{{ resolved_this_month }}</div>
+    <div class="card-muted">Verified and closed this month</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Awaiting Verification</div>
+    <div class="card-value">{{ awaiting_verification }}</div>
+    <div class="card-muted">Submitted to admin</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Blocked Issues</div>
+    <div class="card-value">{{ blocked_issues }}</div>
+    <div class="card-muted">Need attention</div>
+  </div>
+</div>
+
+<div class="table-wrapper mt-md">
+  <div class="table-header" style="gap: 0.75rem;">
+    <h2>My Assigned Issues</h2>
+    <form method="get" class="filters-row" style="margin: 0;">
+      <select name="status">
+        <option value="">All statuses</option>
+        {% for value,label in status_choices %}
+          <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="sort">
+        <option value="priority" {% if sort == "priority" %}selected{% endif %}>Sort: Priority</option>
+        <option value="assigned_at" {% if sort == "assigned_at" %}selected{% endif %}>Sort: Date Assigned</option>
+        <option value="status" {% if sort == "status" %}selected{% endif %}>Sort: Status</option>
+      </select>
+      <button type="submit">Apply</button>
+      <a class="nav-item" href="{% url 'dashboard:issues_list' %}" style="padding:0.35rem 0.9rem;border:1px solid #d1d5db;border-radius:999px;background:white;color:#374151;font-size:0.8rem;">Full list</a>
+    </form>
+  </div>
+  <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Location</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Date Assigned</th>
+          <th>Last Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for issue in issues %}
+          <tr>
+            <td>#{{ issue.id }}</td>
+            <td>
+              <a href="{% url 'dashboard:issue_detail' issue.id %}" style="color:#2563eb;">
+                {{ issue.title }}
+              </a>
+            </td>
+            <td>{{ issue.location }}</td>
+            <td>{{ issue.get_category_display }}</td>
+            <td>{{ issue.get_priority_display }}</td>
+            <td>
+              {% if issue.is_blocked %}
+                <span class="badge badge-red">Blocked</span>
+              {% else %}
+                {% if issue.status == 'open' %}
+                  <span class="badge badge-gray">Pending</span>
+                {% elif issue.status == 'in-progress' %}
+                  <span class="badge badge-blue">In Progress</span>
+                {% elif issue.status == 'awaiting_verification' %}
+                  <span class="badge badge-yellow">Awaiting Verification</span>
+                {% elif issue.status == 'resolved' %}
+                  <span class="badge badge-green">Resolved</span>
+                {% elif issue.status == 'reopened' %}
+                  <span class="badge badge-red">Reopened</span>
+                {% else %}
+                  <span class="badge badge-gray">{{ issue.get_status_display }}</span>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td>
+              {% if issue.assigned_at %}
+                {{ issue.assigned_at|date:"Y-m-d H:i" }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>{{ issue.updated_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="text-muted">
+              You don't have any issues assigned to you yet.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
 <div class="page-header">
     <div class="page-title">Overview</div>
-    <div class="page-subtitle">
-        {% if request.user.role == 'staff' and not request.user.is_superuser %}
-            Your assigned maintenance workload at a glance.
-        {% else %}
-            Campus-wide maintenance activity at a glance.
-        {% endif %}
-    </div>
+    <div class="page-subtitle">Campus-wide maintenance activity at a glance.</div>
     </div>
 
 <div class="cards-grid mt-md">
     <div class="card">
         <div class="card-title">
-            {% if request.user.role == 'staff' and not request.user.is_superuser %}
-                Your Assigned Issues
-            {% else %}
-                Total Issues Reported
-            {% endif %}
+            Total Issues Reported
         </div>
         <div class="card-value">{{ total_issues }}</div>
         <div class="card-muted">
-            {% if request.user.role == 'staff' and not request.user.is_superuser %}
-                All issues currently assigned to you
-            {% else %}
-                All-time across CampusFix
-            {% endif %}
+            All-time across CampusFix
         </div>
     </div>
     <div class="card">
-        <div class="card-title">
-            {% if request.user.role == 'staff' and not request.user.is_superuser %}
-                My Open Issues
-            {% else %}
-                Open Issues
-            {% endif %}
-        </div>
+        <div class="card-title">Open Issues</div>
         <div class="card-value">{{ open_issues }}</div>
         <div class="card-muted">
-            {% if request.user.role == 'staff' and not request.user.is_superuser %}
-                Your assigned issues that are Pending or In Progress
-            {% else %}
-                Pending and In Progress
-            {% endif %}
+            Pending and In Progress
         </div>
     </div>
     <div class="card">
         <div class="card-title">Resolved This Month</div>
         <div class="card-value">{{ resolved_this_month }}</div>
         <div class="card-muted">
-            {% if request.user.role == 'staff' and not request.user.is_superuser %}
-                Assigned issues you see here that were resolved/closed
-            {% else %}
-                Issues marked resolved/closed
-            {% endif %}
+            Issues marked resolved/closed
         </div>
     </div>
     <div class="card">
-        <div class="card-title">Awaiting Verification</div>
-        <div class="card-value">
-            {% if is_staff_view %}
-                {{ issues_by_status|dictsort:"status"|default_if_none:0 }}
-            {% else %}
-                {{ issues_by_status|length }}
-            {% endif %}
-        </div>
+        <div class="card-title">Avg. Resolution Time</div>
+        <div class="card-value">{{ avg_resolution_days }}d</div>
         <div class="card-muted">
-            Issues currently marked as Awaiting Verification.
-        </div>
-    </div>
-    <div class="card">
-        <div class="card-title">Blocked Issues</div>
-        <div class="card-value">
-            {{ base_qs|default_if_none:"" }}
-        </div>
-        <div class="card-muted">
-            Issues flagged by staff as blocked and needing admin attention.
+            Closed this month
         </div>
     </div>
 </div>
 
-{% if request.user.role == 'staff' and not request.user.is_superuser %}
-    <div class="mt-lg flex-between">
-        <h2 class="page-title" style="font-size: 1rem;">
-            My Assigned Issues
-        </h2>
-        <a href="{% url 'dashboard:issues_list' %}" style="font-size: 0.8rem; color: #2563eb;">Go to full issues view →</a>
-    </div>
+<div class="mt-lg flex-between">
+    <h2 class="page-title" style="font-size: 1rem;">
+        Recent Issues
+    </h2>
+    <a href="{% url 'dashboard:issues_list' %}" style="font-size: 0.8rem; color: #2563eb;">View all →</a>
+</div>
 
-    <div class="table-wrapper mt-md">
-        <div class="table-header">
-            <h2>Assigned to you</h2>
-        </div>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
+<div class="table-wrapper mt-md">
+    <div class="table-header">
+        <h2>Last 10 issues</h2>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Reporter</th>
+                <th>Date Submitted</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for issue in recent_issues %}
                 <tr>
-                    <th>ID</th>
-                    <th>Title</th>
-                    <th>Location</th>
-                    <th>Category</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Date Assigned</th>
-                    <th>Last Updated</th>
+                    <td>#{{ issue.id }}</td>
+                    <td>
+                        <a href="{% url 'dashboard:issue_detail' issue.id %}" style="color:#2563eb;">
+                            {{ issue.title }}
+                        </a>
+                    </td>
+                    <td>{{ issue.get_category_display }}</td>
+                    <td>{{ issue.location }}</td>
+                    <td>
+                        {% with status=issue.status %}
+                            {% if status == 'open' %}
+                                <span class="badge badge-yellow">Pending</span>
+                            {% elif status == 'in-progress' %}
+                                <span class="badge badge-blue">In Progress</span>
+                            {% elif status == 'awaiting_verification' %}
+                                <span class="badge badge-yellow">Awaiting Verification</span>
+                            {% elif status == 'resolved' %}
+                                <span class="badge badge-green">Resolved</span>
+                            {% elif status == 'closed' %}
+                                <span class="badge badge-gray">Closed</span>
+                            {% elif status == 'reopened' %}
+                                <span class="badge badge-red">Reopened</span>
+                            {% else %}
+                                <span class="badge badge-gray">{{ issue.get_status_display }}</span>
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td>
+                        {% if issue.reporter.first_name %}
+                            {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
+                        {% else %}
+                            {{ issue.reporter.email }}
+                        {% endif %}
+                    </td>
+                    <td>{{ issue.created_at|date:"Y-m-d H:i" }}</td>
                 </tr>
-                </thead>
-                <tbody>
-                {% for issue in recent_issues %}
-                    <tr>
-                        <td>#{{ issue.id }}</td>
-                        <td>
-                            <a href="{% url 'dashboard:issue_detail' issue.id %}" style="color:#2563eb;">
-                                {{ issue.title }}
-                            </a>
-                        </td>
-                        <td>{{ issue.location }}</td>
-                        <td>{{ issue.get_category_display }}</td>
-                        <td>{{ issue.get_priority_display }}</td>
-                        <td>
-                            {% if issue.is_blocked %}
-                                <span class="badge badge-red">Blocked</span>
-                            {% else %}
-                                {% with status=issue.status %}
-                                    {% if status == 'open' %}
-                                        <span class="badge badge-gray">Pending</span>
-                                    {% elif status == 'in-progress' %}
-                                        <span class="badge badge-blue">In Progress</span>
-                                    {% elif status == 'awaiting_verification' %}
-                                        <span class="badge badge-yellow">Awaiting Verification</span>
-                                    {% elif status == 'resolved' %}
-                                        <span class="badge badge-green">Resolved</span>
-                                    {% elif status == 'reopened' %}
-                                        <span class="badge badge-blue">Reopened</span>
-                                    {% elif status == 'closed' %}
-                                        <span class="badge badge-gray">Closed</span>
-                                    {% else %}
-                                        <span class="badge badge-gray">{{ issue.get_status_display }}</span>
-                                    {% endif %}
-                                {% endwith %}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if issue.assigned_at %}
-                                {{ issue.assigned_at|date:"Y-m-d H:i" }}
-                            {% else %}
-                                <span class="text-muted">Not tracked</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ issue.updated_at|date:"Y-m-d H:i" }}</td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="8" class="text-muted">
-                            You don't have any issues assigned to you yet. Once an administrator assigns an issue, it will appear here.
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-{% else %}
-    <div class="mt-lg flex-between">
-        <h2 class="page-title" style="font-size: 1rem;">
-            Recent Issues
-        </h2>
-        <a href="{% url 'dashboard:issues_list' %}" style="font-size: 0.8rem; color: #2563eb;">View all →</a>
-    </div>
-
-    <div class="table-wrapper mt-md">
-        <div class="table-header">
-            <h2>Last 10 issues</h2>
-        </div>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
+            {% empty %}
                 <tr>
-                    <th>ID</th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Reporter</th>
-                    <th>Date Submitted</th>
+                    <td colspan="7" class="text-muted">
+                        No issues have been reported yet.
+                    </td>
                 </tr>
-                </thead>
-                <tbody>
-                {% for issue in recent_issues %}
-                    <tr>
-                        <td>#{{ issue.id }}</td>
-                        <td>
-                            <a href="{% url 'dashboard:issue_detail' issue.id %}" style="color:#2563eb;">
-                                {{ issue.title }}
-                            </a>
-                        </td>
-                        <td>{{ issue.get_category_display }}</td>
-                        <td>{{ issue.location }}</td>
-                        <td>
-                            {% with status=issue.status %}
-                                {% if status == 'open' %}
-                                    <span class="badge badge-yellow">Pending</span>
-                                {% elif status == 'in-progress' %}
-                                    <span class="badge badge-blue">In Progress</span>
-                                {% elif status == 'resolved' %}
-                                    <span class="badge badge-green">Resolved</span>
-                                {% elif status == 'closed' %}
-                                    <span class="badge badge-gray">Closed</span>
-                                {% else %}
-                                    <span class="badge badge-gray">{{ issue.get_status_display }}</span>
-                                {% endif %}
-                            {% endwith %}
-                        </td>
-                        <td>
-                            {% if issue.reporter.first_name %}
-                                {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
-                            {% else %}
-                                {{ issue.reporter.email }}
-                            {% endif %}
-                        </td>
-                        <td>{{ issue.created_at|date:"Y-m-d H:i" }}</td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-muted">
-                            No issues have been reported yet.
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-{% endif %}
+</div>
 
 <div class="mt-lg">
     <h2 class="page-title" style="font-size: 1rem;">Quick Stats</h2>
@@ -280,5 +272,6 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 

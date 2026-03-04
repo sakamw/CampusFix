@@ -1,0 +1,62 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block after_field_sets %}
+  {{ block.super }}
+
+  {% if original and original.status == "awaiting_verification" %}
+    <fieldset class="module aligned">
+      <h2>Verification</h2>
+      <div class="form-row">
+        <div>
+          <strong>Resolution summary submitted by staff</strong>
+          <div style="margin-top:0.35rem;white-space:pre-wrap;">
+            {{ original.resolution_summary|default:"(none)" }}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <strong>Progress log (read-only)</strong>
+          <div style="margin-top:0.5rem;max-height:360px;overflow:auto;border:1px solid #e5e7eb;border-radius:8px;padding:10px;background:#fafafa;">
+            {% for log in original.progress_logs.all %}
+              <div style="padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:white;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                  <div>
+                    <strong>{{ log.get_log_type_display }}</strong>
+                    ·
+                    {% if log.staff.first_name %}{{ log.staff.first_name }} {{ log.staff.last_name }}{% else %}{{ log.staff.email }}{% endif %}
+                  </div>
+                  <div style="color:#6b7280;">{{ log.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+                <div style="margin-top:6px;white-space:pre-wrap;">{{ log.description }}</div>
+                {% if log.photo %}
+                  <div style="margin-top:8px;">
+                    <a href="{{ log.photo.url }}" target="_blank">
+                      <img src="{{ log.photo.url }}" alt="Log photo" style="width:160px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />
+                    </a>
+                  </div>
+                {% endif %}
+              </div>
+            {% empty %}
+              <div style="color:#6b7280;">No progress logs yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a class="button default" href="{% url 'admin:issues_issue_verify' original.pk %}">Verify &amp; Close Issue</a>
+          <form method="post" action="{% url 'admin:issues_issue_send_back' original.pk %}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            {% csrf_token %}
+            <input type="text" name="reopen_note" placeholder="Note to staff (required)" style="min-width:320px;" />
+            <button type="submit" class="button">Send Back to Staff</button>
+          </form>
+        </div>
+      </div>
+    </fieldset>
+  {% endif %}
+{% endblock %}
+

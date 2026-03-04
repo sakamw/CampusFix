@@ -1,0 +1,207 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title">Issue #{{ issue.id }}</div>
+  <div class="page-subtitle">{{ issue.title }}</div>
+</div>
+
+<a href="{% url 'dashboard:home' %}" style="font-size:0.8rem;color:#2563eb;">← Back to My Work</a>
+
+{% if issue.is_blocked %}
+  <div class="alert alert-error mt-md" style="border-left:4px solid #b91c1c;">
+    <strong>BLOCKED</strong>
+    {% if issue.blocker_note %}
+      <div style="margin-top:0.25rem;">{{ issue.blocker_note }}</div>
+    {% endif %}
+  </div>
+{% endif %}
+
+<div class="mt-md" style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;align-items:flex-start;">
+  <div class="card">
+    <div class="card-title">Issue Info</div>
+    <div style="font-size:0.85rem;margin-top:0.5rem;line-height:1.5;">
+      <p><strong>Category:</strong> {{ issue.get_category_display }}</p>
+      <p><strong>Location:</strong> {{ issue.location }}</p>
+      <p><strong>Priority:</strong> {{ issue.get_priority_display }}</p>
+      <p><strong>Submitted:</strong> {{ issue.created_at|date:"Y-m-d H:i" }}</p>
+      <p>
+        <strong>Reporter:</strong>
+        {% if issue.is_anonymous and not request.user.is_superuser %}
+          Anonymous User
+        {% else %}
+          {% if issue.reporter.first_name or issue.reporter.last_name %}
+            {% if issue.reporter.first_name %}{{ issue.reporter.first_name }}{% endif %}
+            {% if issue.reporter.last_name %} {{ issue.reporter.last_name }}{% endif %}
+          {% else %}
+            {{ issue.reporter.email }}
+          {% endif %}
+        {% endif %}
+      </p>
+      <p>
+        <strong>Date assigned:</strong>
+        {% if issue.assigned_at %}
+          {{ issue.assigned_at|date:"Y-m-d H:i" }}
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </p>
+      <p>
+        <strong>Status:</strong>
+        {% if issue.is_blocked %}
+          <span class="badge badge-red">Blocked</span>
+        {% else %}
+          {% if issue.status == 'open' %}
+            <span class="badge badge-gray">Pending</span>
+          {% elif issue.status == 'in-progress' %}
+            <span class="badge badge-blue">In Progress</span>
+          {% elif issue.status == 'awaiting_verification' %}
+            <span class="badge badge-yellow">Awaiting Verification</span>
+          {% elif issue.status == 'resolved' %}
+            <span class="badge badge-green">Resolved</span>
+          {% elif issue.status == 'reopened' %}
+            <span class="badge badge-red">Reopened</span>
+          {% else %}
+            <span class="badge badge-gray">{{ issue.get_status_display }}</span>
+          {% endif %}
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="mt-md">
+      <p style="font-size:0.85rem;"><strong>Description</strong></p>
+      <p style="font-size:0.85rem;margin-top:0.25rem;white-space:pre-wrap;">{{ issue.description }}</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Actions</div>
+
+    {% if issue.status == 'open' %}
+      <form method="post" class="mt-md">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="acknowledge" />
+        <button type="submit" style="width:100%;border-radius:0.5rem;border:1px solid #2563eb;background-color:#2563eb;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;">
+          Acknowledge Issue
+        </button>
+      </form>
+      <p class="text-muted mt-md">Acknowledging moves the issue to In Progress and starts your audit trail.</p>
+    {% elif issue.status == 'in-progress' %}
+      <details class="mt-md">
+        <summary style="cursor:pointer;font-size:0.85rem;font-weight:600;">Add Progress Update</summary>
+        <form method="post" enctype="multipart/form-data" style="margin-top:0.6rem;font-size:0.85rem;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_progress" />
+          <label><strong>Log Type</strong></label>
+          <select name="log_type" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.6rem;border-radius:0.5rem;border:1px solid #d1d5db;padding:0.4rem 0.6rem;font-size:0.85rem;">
+            <option value="on_site">Arrived On Site</option>
+            <option value="diagnosis">Diagnosis</option>
+            <option value="in_progress">Work In Progress</option>
+          </select>
+          <label><strong>Description</strong></label>
+          <textarea name="description" required rows="4" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.6rem;border-radius:0.5rem;border:1px solid #d1d5db;padding:0.4rem 0.6rem;font-size:0.85rem;"></textarea>
+          <label><strong>Photo (optional)</strong></label>
+          <input type="file" name="photo" accept="image/*" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.75rem;" />
+          <button type="submit" style="width:100%;border-radius:0.5rem;border:1px solid #2563eb;background-color:#2563eb;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;">
+            Post Update
+          </button>
+        </form>
+      </details>
+
+      {% if issue.is_blocked %}
+        <form method="post" class="mt-md">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="remove_blocker" />
+          <button type="submit" style="width:100%;border-radius:0.5rem;border:1px solid #16a34a;background-color:#16a34a;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;">
+            Remove Blocker
+          </button>
+        </form>
+      {% else %}
+        <details class="mt-md">
+          <summary style="cursor:pointer;font-size:0.85rem;font-weight:600;color:#b91c1c;">Flag as Blocked</summary>
+          <form method="post" style="margin-top:0.6rem;font-size:0.85rem;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="flag_blocked" />
+            <label><strong>Blocker note</strong></label>
+            <textarea name="blocker_note" required rows="3" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.75rem;border-radius:0.5rem;border:1px solid #d1d5db;padding:0.4rem 0.6rem;font-size:0.85rem;"></textarea>
+            <button type="submit" style="width:100%;border-radius:0.5rem;border:1px solid #b91c1c;background-color:#b91c1c;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;">
+              Flag Blocker
+            </button>
+          </form>
+        </details>
+      {% endif %}
+
+      <details class="mt-md">
+        <summary style="cursor:pointer;font-size:0.85rem;font-weight:600;color:#166534;">Mark as Resolved</summary>
+        <form method="post" enctype="multipart/form-data" style="margin-top:0.6rem;font-size:0.85rem;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="submit_resolution" />
+          <label><strong>Resolution Summary</strong></label>
+          <textarea name="resolution_summary" required rows="4" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.6rem;border-radius:0.5rem;border:1px solid #d1d5db;padding:0.4rem 0.6rem;font-size:0.85rem;"></textarea>
+          <label><strong>Follow-up Recommendations (optional)</strong></label>
+          <textarea name="follow_up_recommendations" rows="3" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.6rem;border-radius:0.5rem;border:1px solid #d1d5db;padding:0.4rem 0.6rem;font-size:0.85rem;"></textarea>
+          <label><strong>Final Photo (optional)</strong></label>
+          <input type="file" name="final_photo" accept="image/*" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.75rem;" />
+          <button type="submit" style="width:100%;border-radius:0.5rem;border:1px solid #16a34a;background-color:#16a34a;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;">
+            Submit for Verification
+          </button>
+        </form>
+      </details>
+
+    {% elif issue.status == 'awaiting_verification' %}
+      <div class="mt-md" style="font-size:0.85rem;">
+        <p><strong>Awaiting admin verification.</strong></p>
+        {% if issue.resolution_summary %}
+          <p class="text-muted" style="margin-top:0.4rem;">Resolution summary:</p>
+          <p style="white-space:pre-wrap;margin-top:0.25rem;">{{ issue.resolution_summary }}</p>
+        {% endif %}
+      </div>
+    {% elif issue.status == 'resolved' %}
+      <div class="mt-md" style="font-size:0.85rem;">
+        <p><strong>Issue closed and verified.</strong></p>
+      </div>
+    {% else %}
+      <div class="mt-md" style="font-size:0.85rem;">
+        <p class="text-muted">No actions available for this state.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mt-lg card">
+  <div class="card-title">Progress Log</div>
+  <div style="margin-top:0.75rem;">
+    {% if progress_logs %}
+      <div style="position:relative;padding-left:1.25rem;">
+        <div style="position:absolute;left:0.35rem;top:0;bottom:0;width:2px;background:#e5e7eb;"></div>
+        {% for log in progress_logs %}
+          <div style="position:relative;margin-bottom:0.9rem;">
+            <div style="position:absolute;left:-0.05rem;top:0.55rem;width:10px;height:10px;border-radius:999px;background:#2563eb;border:2px solid white;"></div>
+            <div style="border:1px solid #e5e7eb;border-radius:0.75rem;background:white;padding:0.85rem 0.9rem;">
+              <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                  <span class="badge badge-gray">{{ log.get_log_type_display }}</span>
+                  <span style="font-size:0.85rem;font-weight:600;">
+                    {% if log.staff.first_name %}{{ log.staff.first_name }} {{ log.staff.last_name }}{% else %}{{ log.staff.email }}{% endif %}
+                  </span>
+                </div>
+                <span class="text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</span>
+              </div>
+              <p style="margin-top:0.5rem;white-space:pre-wrap;font-size:0.85rem;line-height:1.4;">{{ log.description }}</p>
+              {% if log.photo %}
+                <div style="margin-top:0.6rem;">
+                  <a href="{{ log.photo.url }}" target="_blank" style="text-decoration:none;">
+                    <img src="{{ log.photo.url }}" alt="Log photo" style="width:140px;height:100px;object-fit:cover;border-radius:0.6rem;border:1px solid #e5e7eb;" />
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted" style="font-size:0.85rem;">No progress logs yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

@@ -1,6 +1,24 @@
 from rest_framework import serializers
-from .models import Issue, Comment, Attachment, Upvote, ResolutionEvidence, ProgressUpdate, AdminWorkLog
+from .models import (
+    Issue,
+    Comment,
+    Attachment,
+    Upvote,
+    ResolutionEvidence,
+    ProgressUpdate,
+    AdminWorkLog,
+    IssueProgressLog,
+)
 from accounts.serializers import UserSerializer
+
+
+class IssueProgressLogSerializer(serializers.ModelSerializer):
+    staff = UserSerializer(read_only=True)
+
+    class Meta:
+        model = IssueProgressLog
+        fields = ["id", "issue", "staff", "log_type", "description", "photo", "created_at"]
+        read_only_fields = ["id", "issue", "staff", "created_at"]
 
 
 class ResolutionEvidenceSerializer(serializers.ModelSerializer):
@@ -75,6 +93,7 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
 class IssueListSerializer(serializers.ModelSerializer):
     reporter = UserSerializer(read_only=True)
+    verified_by = UserSerializer(read_only=True)
     upvoted_by_user = serializers.SerializerMethodField()
     is_anonymous = serializers.BooleanField(read_only=True)
     
@@ -85,7 +104,8 @@ class IssueListSerializer(serializers.ModelSerializer):
             'location', 'reporter', 'created_at', 'updated_at',
             'resolved_at', 'upvote_count', 'upvoted_by_user', 'visibility',
             'is_anonymous',
-            'progress_percentage', 'progress_status', 'progress_updated_at'
+            'progress_percentage', 'progress_status', 'progress_updated_at',
+            'is_blocked', 'blocker_note', 'verified_at', 'verified_by'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
         extra_kwargs = {
@@ -124,11 +144,13 @@ class IssueListSerializer(serializers.ModelSerializer):
 
 class IssueDetailSerializer(serializers.ModelSerializer):
     reporter = UserSerializer(read_only=True)
+    verified_by = UserSerializer(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     attachments = AttachmentSerializer(many=True, read_only=True)
     evidence_files = ResolutionEvidenceSerializer(many=True, read_only=True)
     progress_updates = ProgressUpdateSerializer(many=True, read_only=True)
     work_logs = AdminWorkLogSerializer(many=True, read_only=True)
+    progress_logs = IssueProgressLogSerializer(many=True, read_only=True)
     upvoted_by_user = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     is_anonymous = serializers.BooleanField(read_only=True)
@@ -140,10 +162,12 @@ class IssueDetailSerializer(serializers.ModelSerializer):
             'location', 'reporter', 'created_at', 'updated_at', 
             'resolved_at', 'upvote_count', 'upvoted_by_user', 'comments', 
             'attachments', 'evidence_files', 'progress_updates', 'work_logs',
+            'progress_logs',
             'comment_count', 'visibility', 'progress_percentage', 'progress_status', 
             'progress_notes', 'progress_updated_at', 'admin_notes', 'resolution_summary', 
             'resolution_details', 'estimated_resolution_text', 'estimated_completion', 'actual_completion', 
-            'work_hours', 'resolution_cost', 'is_anonymous'
+            'work_hours', 'resolution_cost', 'is_anonymous',
+            'is_blocked', 'blocker_note', 'verified_by', 'verified_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
     
