@@ -17,7 +17,7 @@ interface UserData {
   last_name: string;
   student_id: string | null;
   phone: string | null;
-  role: "student" | "admin";
+  role: "student" | "staff" | "admin";
   avatar: string | null;
   two_factor_enabled: boolean;
   created_at: string;
@@ -300,8 +300,9 @@ export interface Issue {
   resolution_summary?: string;
   resolution_details?: string;
   resolution_evidence?: string;
-  estimated_completion?: string;
-  actual_completion?: string;
+  estimated_resolution_text?: string | null;
+  estimated_completion?: string | null;
+  actual_completion?: string | null;
   work_hours?: number;
   resolution_cost?: number;
   // Progress tracking fields
@@ -555,8 +556,11 @@ export const issuesApi = {
 
 // Notifications API
 export const notificationsApi = {
-  getNotifications: async (): Promise<ApiResponse<Notification[]>> => {
-    return apiFetch<Notification[]>("/notifications/");
+  getNotifications: async (
+    limit?: number,
+  ): Promise<ApiResponse<Notification[]>> => {
+    const query = typeof limit === "number" ? `?limit=${limit}` : "";
+    return apiFetch<Notification[]>(`/notifications/${query}`);
   },
 
   markAsRead: async (id: number): Promise<ApiResponse<Notification>> => {

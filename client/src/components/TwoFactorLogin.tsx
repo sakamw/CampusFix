@@ -11,10 +11,11 @@ import {
 } from "./ui/card";
 import { useToast } from "../hooks/use-toast";
 import { Shield, Loader2 } from "lucide-react";
+import type { UserData } from "../lib/api";
 
 interface TwoFactorLoginProps {
   email: string;
-  onSuccess: (userData: any) => void;
+  onSuccess: (userData: UserData) => void;
   onBack: () => void;
 }
 

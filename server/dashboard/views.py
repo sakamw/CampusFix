@@ -9,10 +9,35 @@ from django.utils import timezone
 from accounts.decorators import admin_required, superuser_required
 from accounts.models import User
 from issues.models import Issue
+from notifications.models import Notification
 
 
-def _get_active_context(active_page):
-    return {"active_page": active_page}
+def _get_active_context(request, active_page):
+    """
+    Base context for all dashboard pages, including notification badge counts.
+    """
+    assignment_unread = 0
+    assignment_notifications = []
+    if request.user.is_authenticated:
+        assignment_unread = Notification.objects.filter(
+            user=request.user,
+            notification_type="assignment",
+            is_read=False,
+        ).count()
+        assignment_notifications = list(
+            Notification.objects.filter(
+                user=request.user,
+                notification_type="assignment",
+            )
+            .select_related("related_issue")
+            .order_by("-created_at")[:10]
+        )
+
+    return {
+        "active_page": active_page,
+        "assignment_unread_count": assignment_unread,
+        "assignment_notifications": assignment_notifications,
+    }
 
 
 @admin_required
@@ -21,10 +46,16 @@ def dashboard_home(request):
     now = timezone.now()
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    total_issues = Issue.objects.count()
-    open_issues = Issue.objects.filter(status__in=["open", "in-progress"]).count()
+    # For staff users (non-superuser), only show issues assigned to them
+    if request.user.role == "staff" and not request.user.is_superuser:
+        base_qs = Issue.objects.filter(assigned_to=request.user)
+    else:
+        base_qs = Issue.objects.all()
 
-    resolved_this_month_qs = Issue.objects.filter(
+    total_issues = base_qs.count()
+    open_issues = base_qs.filter(status__in=["open", "in-progress"]).count()
+
+    resolved_this_month_qs = base_qs.filter(
         status__in=["resolved", "closed"],
         resolved_at__gte=start_of_month,
         resolved_at__lte=now,
@@ -43,16 +74,15 @@ def dashboard_home(request):
     avg_resolution_days = round(avg_resolution.total_seconds() / 86400, 1) if avg_resolution else 0
 
     recent_issues = (
-        Issue.objects.select_related("reporter")
-        .all()
+        base_qs.select_related("reporter")
         .order_by("-created_at")[:10]
     )
 
     issues_by_status = (
-        Issue.objects.values("status").annotate(count=Count("id")).order_by("status")
+        base_qs.values("status").annotate(count=Count("id")).order_by("status")
     )
 
-    month_issues = Issue.objects.filter(
+    month_issues = base_qs.filter(
         created_at__gte=start_of_month,
         created_at__lte=now,
     )
@@ -69,7 +99,7 @@ def dashboard_home(request):
     )
 
     context = {
-        **_get_active_context("home"),
+        **_get_active_context(request, "home"),
         "total_issues": total_issues,
         "open_issues": open_issues,
         "resolved_this_month": resolved_this_month,
@@ -85,7 +115,13 @@ def dashboard_home(request):
 @admin_required
 def issue_list(request):
     """Paginated issue management list with filters and search."""
-    issues_qs = Issue.objects.select_related("reporter").all()
+    # Staff users should only see issues assigned to them
+    if request.user.role == "staff" and not request.user.is_superuser:
+        issues_qs = Issue.objects.select_related("reporter").filter(
+            assigned_to=request.user
+        )
+    else:
+        issues_qs = Issue.objects.select_related("reporter").all()
 
     status = request.GET.get("status")
     category = request.GET.get("category")
@@ -124,6 +160,9 @@ def issue_list(request):
         action = request.POST.get("action")
         selected_ids = request.POST.getlist("selected")
         selected_issues = Issue.objects.filter(id__in=selected_ids)
+        # Staff users can only bulk-update issues assigned to them
+        if request.user.role == "staff" and not request.user.is_superuser:
+            selected_issues = selected_issues.filter(assigned_to=request.user)
 
         if action == "mark_in_progress":
             updated = selected_issues.update(status="in-progress")
@@ -145,7 +184,7 @@ def issue_list(request):
     page_obj = paginator.get_page(page_number)
 
     context = {
-        **_get_active_context("issues"),
+        **_get_active_context(request, "issues"),
         "page_obj": page_obj,
         "status_filter": status or "",
         "category_filter": category or "",
@@ -157,6 +196,7 @@ def issue_list(request):
         "status_choices": Issue.STATUS_CHOICES,
         "category_choices": Issue.CATEGORY_CHOICES,
         "priority_choices": Issue.PRIORITY_CHOICES,
+        "is_staff_view": request.user.role == "staff" and not request.user.is_superuser,
     }
     return render(request, "dashboard/issues_list.html", context)
 
@@ -164,28 +204,116 @@ def issue_list(request):
 @admin_required
 def issue_detail(request, pk):
     """Detailed view for managing a single issue."""
-    issue = get_object_or_404(Issue.objects.select_related("reporter"), pk=pk)
+    issue = get_object_or_404(
+        Issue.objects.select_related("reporter", "assigned_to"), pk=pk
+    )
+    # Staff can only view:
+    # - issues currently assigned to them, OR
+    # - issues they have been explicitly assigned to in the past (via an assignment notification)
+    if request.user.role == "staff" and not request.user.is_superuser:
+        has_assignment_notification = Notification.objects.filter(
+            user=request.user,
+            notification_type="assignment",
+            related_issue=issue,
+        ).exists()
+        if issue.assigned_to_id != request.user.id and not has_assignment_notification:
+            messages.error(request, "You do not have permission to view this issue.")
+            return redirect("dashboard:issues_list")
 
     if request.method == "POST":
+        updated = False
+
+        # Status update
         new_status = request.POST.get("status")
-        if new_status and new_status in dict(Issue.STATUS_CHOICES):
-            issue.status = new_status
-            # Keep resolved_at in sync when status becomes resolved
-            if new_status in {"resolved", "closed"} and not issue.resolved_at:
-                issue.resolved_at = timezone.now()
+        if new_status:
+            if new_status in dict(Issue.STATUS_CHOICES):
+                issue.status = new_status
+                updated = True
+                # Keep resolved_at in sync when status becomes resolved
+                if new_status in {"resolved", "closed"} and not issue.resolved_at:
+                    issue.resolved_at = timezone.now()
+            else:
+                messages.error(request, "Invalid status selected.")
+
+        # Assignment update (superusers and admin-role users only)
+        if request.user.is_superuser or getattr(request.user, "role", "") == "admin":
+            assigned_to_id = request.POST.get("assigned_to")
+            if assigned_to_id is not None:
+                if assigned_to_id == "":
+                    if issue.assigned_to is not None:
+                        issue.assigned_to = None
+                        updated = True
+                else:
+                    try:
+                        assignee = User.objects.get(
+                            id=assigned_to_id,
+                            role__in=["staff", "admin"],
+                        )
+                        if issue.assigned_to_id != assignee.id:
+                            issue.assigned_to = assignee
+                            updated = True
+                    except User.DoesNotExist:
+                        messages.error(
+                            request,
+                            "Selected staff member is not valid.",
+                        )
+
+        if updated:
+            issue._modified_by_user = request.user  # type: ignore[attr-defined]
             issue.save()
             messages.success(request, "Issue updated successfully.")
-        else:
-            messages.error(request, "Invalid status selected.")
 
         return redirect("dashboard:issue_detail", pk=issue.pk)
 
+    # Staff users available for assignment (superuser/admin only)
+    staff_users = []
+    if request.user.is_superuser or getattr(request.user, "role", "") == "admin":
+        staff_users = (
+            User.objects.filter(role__in=["staff", "admin"])
+            .order_by("first_name", "last_name", "email")
+            .distinct()
+        )
+
     context = {
-        **_get_active_context("issues"),
+        **_get_active_context(request, "issues"),
         "issue": issue,
         "status_choices": Issue.STATUS_CHOICES,
+        "staff_users": staff_users,
     }
     return render(request, "dashboard/issue_detail.html", context)
+
+
+@admin_required
+def issue_quick_update(request, pk):
+    """
+    Lightweight endpoint for staff to update an issue status directly
+    from the list view while keeping their current filters and page.
+    """
+    if request.method != "POST":
+        return redirect("dashboard:issues_list")
+
+    issue = get_object_or_404(Issue, pk=pk)
+    # Staff can only update issues assigned to them
+    if request.user.role == "staff" and not request.user.is_superuser:
+        if issue.assigned_to_id != request.user.id:
+            messages.error(request, "You do not have permission to update this issue.")
+            return redirect("dashboard:issues_list")
+    new_status = request.POST.get("status")
+
+    if new_status and new_status in dict(Issue.STATUS_CHOICES):
+        issue.status = new_status
+        issue._modified_by_user = request.user  # type: ignore[attr-defined]
+        if new_status in {"resolved", "closed"} and not issue.resolved_at:
+            issue.resolved_at = timezone.now()
+        issue.save()
+        messages.success(request, "Issue updated successfully.")
+    else:
+        messages.error(request, "Invalid status selected.")
+
+    return_url = request.POST.get("return_url")
+    if return_url:
+        return redirect(return_url)
+    return redirect("dashboard:issues_list")
 
 
 @superuser_required
@@ -227,7 +355,7 @@ def user_management(request):
     users = users_qs
 
     context = {
-        **_get_active_context("users"),
+        **_get_active_context(request, "users"),
         "users": users,
         "search_query": search,
         "role_choices": User.ROLE_CHOICES,
@@ -255,7 +383,7 @@ def staff_overview(request):
         )
 
     context = {
-        **_get_active_context("staff"),
+        **_get_active_context(request, "staff"),
         "staff_data": staff_data,
     }
     return render(request, "dashboard/staff.html", context)
@@ -264,7 +392,7 @@ def staff_overview(request):
 @admin_required
 def analytics(request):
     context = {
-        **_get_active_context("analytics"),
+        **_get_active_context(request, "analytics"),
     }
     return render(request, "dashboard/analytics.html", context)
 
@@ -272,7 +400,7 @@ def analytics(request):
 @admin_required
 def calendar(request):
     context = {
-        **_get_active_context("calendar"),
+        **_get_active_context(request, "calendar"),
     }
     return render(request, "dashboard/calendar.html", context)
 
@@ -280,7 +408,7 @@ def calendar(request):
 @admin_required
 def announcements(request):
     context = {
-        **_get_active_context("announcements"),
+        **_get_active_context(request, "announcements"),
     }
     return render(request, "dashboard/announcements.html", context)
 
@@ -288,7 +416,31 @@ def announcements(request):
 @admin_required
 def settings_view(request):
     context = {
-        **_get_active_context("settings"),
+        **_get_active_context(request, "settings"),
     }
     return render(request, "dashboard/settings.html", context)
+
+
+@admin_required
+def assignment_notifications_mark_all_read(request):
+    """
+    Mark all assignment notifications for the current user as read,
+    then redirect back to the dashboard (or the referring page).
+    """
+    if request.method == "POST":
+        count = Notification.objects.filter(
+            user=request.user,
+            notification_type="assignment",
+            is_read=False,
+        ).update(is_read=True)
+        if count:
+            messages.success(
+                request, f"Marked {count} assignment notification(s) as read."
+            )
+    # Prefer redirecting to referrer if available
+    redirect_to = request.META.get("HTTP_REFERER") or "dashboard:home"
+    try:
+        return redirect(redirect_to)
+    except Exception:
+        return redirect("dashboard:home")
 

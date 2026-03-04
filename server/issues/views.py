@@ -13,6 +13,7 @@ from .serializers import (
     IssueListSerializer,
     IssueDetailSerializer,
     IssueCreateSerializer,
+    IssueUpdateSerializer,
     CommentSerializer,
     AttachmentSerializer,
     UpvoteSerializer,
@@ -36,6 +37,18 @@ class IssueViewSet(viewsets.ModelViewSet):
         queryset = Issue.objects.all().select_related('reporter').prefetch_related(
             'upvotes', 'comments', 'attachments', 'evidence_files', 'progress_updates', 'work_logs'
         )
+
+        # Visibility / access rules:
+        # - Staff can only see issues assigned to them
+        # - Admins/superusers can see all issues
+        # - Non-staff can see public issues, plus any issues they reported
+        role = getattr(self.request.user, "role", None)
+        if self.request.user.is_staff and not self.request.user.is_superuser and role == "staff":
+            queryset = queryset.filter(assigned_to=self.request.user)
+        elif not self.request.user.is_staff:
+            queryset = queryset.filter(
+                Q(visibility='public') | Q(reporter=self.request.user)
+            )
         
         # Allow filtering by 'my-issues'
         filter_type = getattr(self.request, 'query_params', {}).get('filter', None)
@@ -47,8 +60,10 @@ class IssueViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return IssueDetailSerializer
-        elif self.action in ['create', 'update', 'partial_update']:
+        elif self.action == 'create':
             return IssueCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return IssueUpdateSerializer
         return IssueListSerializer
     
     def perform_create(self, serializer):
@@ -87,18 +102,6 @@ class IssueViewSet(viewsets.ModelViewSet):
             Upvote.objects.create(issue=issue, user=user)
             issue.upvote_count += 1
             issue.save()
-            
-            # Create notification for issue reporter
-            from notifications.models import Notification
-            if issue.reporter != user:
-                Notification.objects.create(
-                    user=issue.reporter,
-                    title='New Upvote',
-                    message=f'{user.first_name} {user.last_name} upvoted your issue: {issue.title}',
-                    type='upvote',
-                    related_issue=issue
-                )
-            
             return Response({'message': 'Upvoted successfully', 'upvoted': True, 'upvote_count': issue.upvote_count})
     
     @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser])
@@ -164,6 +167,19 @@ class IssueViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         
         elif request.method == 'POST':
+            # Only:
+            # - the reporter, OR
+            # - admins/superusers, OR
+            # - assigned staff member
+            role = getattr(request.user, "role", None)
+            is_admin = request.user.is_superuser or role == "admin"
+            is_assigned_staff = role == "staff" and issue.assigned_to_id == request.user.id
+            if not (is_admin or is_assigned_staff or issue.reporter_id == request.user.id):
+                return Response(
+                    {'error': 'You do not have permission to comment on this issue.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             # Apply rate limiting for POST requests
             from django.core.cache import cache
             from django.http import HttpResponse
@@ -187,93 +203,27 @@ class IssueViewSet(viewsets.ModelViewSet):
             serializer = CommentSerializer(data=request.data, context={'request': request})
             if serializer.is_valid():
                 serializer.save(issue=issue)
-                
-                # Create notifications for issue reporter and all admins
-                from notifications.models import Notification
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
-                
-                recipients = set()
-                
-                # Notify issue reporter if they didn't post the comment
-                if issue.reporter != request.user:
-                    recipients.add(issue.reporter)
-                
-                # Notify all admin users (except the commenter if they're an admin)
-                admin_users = User.objects.filter(role='admin')
-                for admin in admin_users:
-                    if admin != request.user:
-                        recipients.add(admin)
-                
-                for recipient in recipients:
-                    # Customize message based on recipient type
-                    if recipient == issue.reporter:
-                        message = f'{request.user.first_name} {request.user.last_name} commented on your issue: {issue.title}'
-                    else:
-                        message = f'New comment from {request.user.first_name} {request.user.last_name} on issue: {issue.title}'
-                    
-                    Notification.objects.create(
-                        user=recipient,
-                        title='New Comment',
-                        message=message,
-                        type='comment',
-                        related_issue=issue
-                    )
-                
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def perform_update(self, serializer):
         """Override to handle status changes and create notifications."""
-        old_status = self.get_object().status
+        obj = self.get_object()
+        old_status = obj.status
+
+        # Attach modifier for signals-based notifications
+        obj._modified_by_user = self.request.user  # type: ignore[attr-defined]
+
         instance = serializer.save()
         
         # If status changed, create notifications
         if old_status != instance.status:
-            from notifications.models import Notification
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            
-            recipients = set()
-            
-            # Notify reporter if they didn't make the change
-            if instance.reporter != self.request.user:
-                recipients.add(instance.reporter)
-            
-            # Notify all admin users (except the changer if they're an admin)
-            admin_users = User.objects.filter(role='admin')
-            for admin in admin_users:
-                if admin != self.request.user:
-                    recipients.add(admin)
-            
-            for recipient in recipients:
-                # Customize message based on recipient type and who made the change
-                if recipient == instance.reporter:
-                    if self.request.user == instance.reporter:
-                        message = f'You changed your issue "{instance.title}" status to {instance.get_status_display()}'
-                    else:
-                        message = f'Your issue "{instance.title}" status was changed to {instance.get_status_display()} by {self.request.user.first_name} {self.request.user.last_name}'
-                    title = 'Issue Status Updated'
-                else:
-                    # Admin notification
-                    if self.request.user.role == 'admin':
-                        message = f'Admin {self.request.user.first_name} {self.request.user.last_name} changed issue "{instance.title}" status to {instance.get_status_display()}'
-                    else:
-                        message = f'User {self.request.user.first_name} {self.request.user.last_name} marked issue "{instance.title}" as {instance.get_status_display()}'
-                    title = 'Issue Status Changed'
-                
-                Notification.objects.create(
-                    user=recipient,
-                    title=title,
-                    message=message,
-                    type='status_change',
-                    related_issue=instance
-                )
-            
-            # Update resolved_at timestamp
-            if instance.status == 'resolved' and not instance.resolved_at:
-                instance.resolved_at = timezone.now()
-                instance.save()
+            pass
+
+        # Update resolved_at timestamp
+        if instance.status == 'resolved' and not instance.resolved_at:
+            instance.resolved_at = timezone.now()
+            instance.save()
     
     @action(detail=True, methods=['get'])
     def timeline(self, request, pk=None):
@@ -441,8 +391,24 @@ class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all().select_related('user', 'issue')
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        role = getattr(self.request.user, "role", None)
+        if self.request.user.is_staff and not self.request.user.is_superuser and role == "staff":
+            return qs.filter(issue__assigned_to=self.request.user)
+        if self.request.user.is_staff:
+            return qs
+        return qs.filter(Q(issue__visibility='public') | Q(issue__reporter=self.request.user))
     
     def perform_create(self, serializer):
+        issue = serializer.validated_data.get('issue')
+        role = getattr(self.request.user, "role", None)
+        is_admin = self.request.user.is_superuser or role == "admin"
+        is_assigned_staff = role == "staff" and issue and issue.assigned_to_id == self.request.user.id
+        if issue and not (is_admin or is_assigned_staff or issue.reporter_id == self.request.user.id):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to comment on this issue.")
         serializer.save(user=self.request.user)
 
 
@@ -509,8 +475,12 @@ class DashboardStatsView(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def admin_stats(self, request):
         """Get campus-wide statistics for admins."""
-        if not request.user.is_staff:
-            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        role = getattr(request.user, "role", None)
+        if not (request.user.is_superuser or role == "admin"):
+            return Response(
+                {'error': 'Admin access required'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         
         # Get all issues
         all_issues = Issue.objects.all()

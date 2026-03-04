@@ -1,12 +1,13 @@
 from django.contrib import admin
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.utils.safestring import mark_safe
 from .models import Issue, Comment, Attachment, Upvote, AdminWorkLog, ResolutionEvidence, ProgressUpdate
+from notifications.services import NotificationService
 
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
-    list_display = ['id', 'title', 'category', 'status', 'priority', 'reporter', 'created_at', 'upvote_count', 'work_progress', 'evidence_count']
+    list_display = ['id', 'title', 'category', 'status', 'priority', 'reporter', 'assigned_to', 'created_at', 'upvote_count', 'work_progress', 'evidence_count']
     list_filter = ['status', 'priority', 'category', 'created_at']
     search_fields = ['title', 'description', 'location']
     date_hierarchy = 'created_at'
@@ -18,7 +19,7 @@ class IssueAdmin(admin.ModelAdmin):
             'fields': ('title', 'description', 'category', 'location', 'visibility')
         }),
         ('Status & Priority', {
-            'fields': ('status', 'priority')
+            'fields': ('status', 'priority', 'assigned_to')
         }),
         ('Reporter Information', {
             'fields': ('reporter',)
@@ -28,6 +29,7 @@ class IssueAdmin(admin.ModelAdmin):
                 'progress_percentage',
                 'progress_status',
                 'progress_notes',
+                'estimated_resolution_text',
                 'estimated_completion'
             ),
             'classes': ('collapse',),
@@ -55,6 +57,41 @@ class IssueAdmin(admin.ModelAdmin):
             'fields': ('created_at', 'updated_at', 'resolved_at', 'upvote_count', 'progress_display')
         }),
     )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        Restrict foreign key dropdowns:
+        - 'assigned_to' should only list staff/admin users (and is_staff Django users),
+          never regular student accounts.
+        """
+        if db_field.name == "assigned_to":
+            from django.contrib.auth import get_user_model
+
+            User = get_user_model()
+            kwargs["queryset"] = User.objects.filter(
+                Q(role__in=["staff", "admin"]) | Q(is_staff=True)
+            ).distinct()
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        """
+        When a superuser/admin assigns an issue to a staff member,
+        send an assignment notification.
+        """
+        previous_assigned_to = None
+        if change:
+            try:
+                previous = Issue.objects.get(pk=obj.pk)
+                previous_assigned_to = previous.assigned_to
+            except Issue.DoesNotExist:
+                previous_assigned_to = None
+
+        super().save_model(request, obj, form, change)
+
+        # Fire assignment notification when assigned_to is newly set or changed
+        if obj.assigned_to and obj.assigned_to != previous_assigned_to:
+            NotificationService.notify_issue_assignment(obj, assigned_by=request.user)
     
     def work_progress(self, obj):
         """Show work progress based on work logs"""

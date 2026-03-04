@@ -19,6 +19,7 @@ import IssueDetails from "./pages/IssueDetails";
 import EditIssue from "./pages/EditIssue";
 import Settings from "./pages/Settings";
 import { UserSettingsProvider } from "./contexts/UserSettingsContext";
+import Notifications from "./pages/Notifications";
 
 import NotFound from "./pages/NotFound";
 
@@ -95,6 +96,14 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <Settings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/notifications"
+                    element={
+                      <ProtectedRoute>
+                        <Notifications />
                       </ProtectedRoute>
                     }
                   />

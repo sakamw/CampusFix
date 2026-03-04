@@ -18,7 +18,22 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         # Only return notifications for the current user
-        return Notification.objects.filter(user=self.request.user).select_related('related_issue')
+        return Notification.objects.filter(user=self.request.user).select_related('related_issue').order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        """
+        List notifications for the current user.
+        Supports `?limit=30` to cap results.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        limit = request.query_params.get('limit')
+        if limit:
+            try:
+                queryset = queryset[: max(0, int(limit))]
+            except (TypeError, ValueError):
+                pass
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
@@ -27,11 +42,7 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         notification.is_read = True
         notification.save()
         serializer = self.get_serializer(notification)
-        return Response({
-            'message': 'Notification marked as read',
-            'success': True,
-            'data': serializer.data
-        })
+        return Response(serializer.data)
     
     @action(detail=False, methods=['post'])
     def mark_all_read(self, request):

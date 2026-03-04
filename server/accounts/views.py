@@ -74,7 +74,18 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        
+
+        # Prevent staff/admin accounts from using the student-facing API login.
+        # These accounts should authenticate via the CampusFix Admin Dashboard instead.
+        if getattr(user, "role", None) in {"staff", "admin"} or user.is_staff or user.is_superuser:
+            return Response(
+                {
+                    "error": "Admin or staff account login not allowed here",
+                    "message": "Staff and admin accounts must use the CampusFix Admin Dashboard to sign in.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if not user.is_active:
             return Response(
                 {

@@ -82,7 +82,7 @@ class IssueListSerializer(serializers.ModelSerializer):
         model = Issue
         fields = [
             'id', 'title', 'description', 'category', 'status', 'priority', 
-            'location', 'reporter', 'created_at', 'updated_at', 
+            'location', 'reporter', 'created_at', 'updated_at',
             'resolved_at', 'upvote_count', 'upvoted_by_user', 'visibility',
             'is_anonymous',
             'progress_percentage', 'progress_status', 'progress_updated_at'
@@ -142,7 +142,7 @@ class IssueDetailSerializer(serializers.ModelSerializer):
             'attachments', 'evidence_files', 'progress_updates', 'work_logs',
             'comment_count', 'visibility', 'progress_percentage', 'progress_status', 
             'progress_notes', 'progress_updated_at', 'admin_notes', 'resolution_summary', 
-            'resolution_details', 'estimated_completion', 'actual_completion', 
+            'resolution_details', 'estimated_resolution_text', 'estimated_completion', 'actual_completion', 
             'work_hours', 'resolution_cost', 'is_anonymous'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
@@ -224,6 +224,60 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         validated_data['is_anonymous'] = bool(report_anonymously)
 
         return super().create(validated_data)
+
+
+class IssueUpdateSerializer(serializers.ModelSerializer):
+    """
+    Update serializer with role-based field protections.
+    - Staff/admin users can update operational/admin fields (status, estimates, resolution info, progress).
+    - Non-staff users can only update their own issue's basic editable fields.
+    """
+
+    class Meta:
+        model = Issue
+        fields = [
+            'title', 'description', 'category', 'priority',
+            'location', 'visibility',
+            # Operational/admin fields
+            'status',
+            'estimated_resolution_text',
+            'estimated_completion',
+            'actual_completion',
+            'progress_percentage', 'progress_status', 'progress_notes',
+            'admin_notes', 'resolution_summary', 'resolution_details',
+            'work_hours', 'resolution_cost',
+        ]
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        instance = getattr(self, 'instance', None)
+
+        if not user or not user.is_authenticated:
+            return attrs
+
+        # Non-staff can only edit their own issue
+        if not user.is_staff:
+            if not instance or instance.reporter_id != user.id:
+                raise serializers.ValidationError("You do not have permission to update this issue.")
+
+            admin_only_fields = {
+                'status',
+                'estimated_resolution_text',
+                'estimated_completion',
+                'actual_completion',
+                'progress_percentage', 'progress_status', 'progress_notes',
+                'admin_notes', 'resolution_summary', 'resolution_details',
+                'work_hours', 'resolution_cost',
+            }
+
+            forbidden = admin_only_fields.intersection(self.initial_data.keys())
+            if forbidden:
+                raise serializers.ValidationError(
+                    "You do not have permission to update administrative fields on this issue."
+                )
+
+        return attrs
 
 
 class UpvoteSerializer(serializers.ModelSerializer):

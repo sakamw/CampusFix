@@ -606,9 +606,104 @@
                 </div>
             </div>
             <div class="topbar-right">
-                <button class="icon-button" title="Notifications">
-                    🔔
-                </button>
+                <div style="position: relative;">
+                    <button
+                        id="notification-button"
+                        class="icon-button"
+                        type="button"
+                        title="Notifications"
+                    >
+                        🔔
+                        {% if assignment_unread_count and assignment_unread_count > 0 %}
+                            <span
+                                id="notification-badge"
+                                style="position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:999px;background-color:#ef4444;color:white;font-size:10px;display:flex;align-items:center;justify-content:center;"
+                            >
+                                {{ assignment_unread_count }}
+                            </span>
+                        {% else %}
+                            <span
+                                id="notification-badge"
+                                style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:999px;background-color:#ef4444;color:white;font-size:10px;display:flex;align-items:center;justify-content:center;"
+                            >
+                                0
+                            </span>
+                        {% endif %}
+                    </button>
+                    <div
+                        id="notification-dropdown"
+                        style="
+                            display:none;
+                            position:absolute;
+                            right:0;
+                            margin-top:0.5rem;
+                            width:320px;
+                            background-color:#ffffff;
+                            border:1px solid #e5e7eb;
+                            border-radius:0.75rem;
+                            box-shadow:0 10px 25px rgba(15,23,42,0.15);
+                            z-index:50;
+                            font-size:0.8rem;
+                        "
+                    >
+                        <div style="padding:0.6rem 0.8rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-weight:600;">Assignments</span>
+                            <form method="post" action="{% url 'dashboard:assignment_notifications_mark_all_read' %}">
+                                {% csrf_token %}
+                                <button
+                                    id="notification-mark-all"
+                                    type="submit"
+                                    style="border:none;background:none;color:#2563eb;font-size:0.75rem;cursor:pointer;"
+                                >
+                                    Mark all as read
+                                </button>
+                            </form>
+                        </div>
+                        <div
+                            id="notification-list"
+                            style="max-height:260px;overflow-y:auto;padding:0.4rem 0.2rem;"
+                        >
+                            {% if assignment_notifications %}
+                                {% for n in assignment_notifications %}
+                                    {% if n.related_issue %}
+                                        <a
+                                            href="{% url 'dashboard:issue_detail' n.related_issue.id %}"
+                                            style="display:block;padding:0.6rem 0.8rem;text-decoration:none;color:#111827;border-bottom:1px solid #f3f4f6;{% if not n.is_read %}background-color:#eff6ff;font-weight:500;{% endif %}"
+                                        >
+                                            <div style="font-size:0.8rem;margin-bottom:0.1rem;">
+                                                {{ n.title|default:"New assignment" }}
+                                            </div>
+                                            <div style="font-size:0.75rem;color:#6b7280;">
+                                                {{ n.related_issue.title }}
+                                            </div>
+                                        </a>
+                                    {% else %}
+                                        <div
+                                            style="padding:0.6rem 0.8rem;border-bottom:1px solid #f3f4f6;{% if not n.is_read %}background-color:#eff6ff;font-weight:500;{% endif %}"
+                                        >
+                                            <div style="font-size:0.8rem;margin-bottom:0.1rem;">
+                                                {{ n.title|default:"New assignment" }}
+                                            </div>
+                                            <div style="font-size:0.75rem;color:#6b7280;">
+                                                {{ n.message }}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <div
+                                    id="notification-empty"
+                                    style="padding:0.6rem 0.8rem;color:#6b7280;"
+                                >
+                                    No assignment notifications yet.
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div style="padding:0.4rem 0.8rem;border-top:1px solid #e5e7eb;text-align:right;">
+                            <a href="{% url 'dashboard:issues_list' %}" style="color:#2563eb;">Go to Issues →</a>
+                        </div>
+                    </div>
+                </div>
                 {% if request.user.is_authenticated %}
                     <div class="user-pill">
                         <div class="user-avatar">
@@ -646,5 +741,32 @@
     </div>
 </div>
 </body>
+<script>
+    (function () {
+        const button = document.getElementById("notification-button");
+        const dropdown = document.getElementById("notification-dropdown");
+        if (!button || !dropdown) return;
+
+        let open = false;
+
+        function toggleDropdown() {
+            open = !open;
+            dropdown.style.display = open ? "block" : "none";
+        }
+
+        button.addEventListener("click", function (event) {
+            event.stopPropagation();
+            toggleDropdown();
+        });
+
+        document.addEventListener("click", function (event) {
+            if (!open) return;
+            if (!dropdown.contains(event.target) && event.target !== button) {
+                dropdown.style.display = "none";
+                open = false;
+            }
+        });
+    })();
+</script>
 </html>
 

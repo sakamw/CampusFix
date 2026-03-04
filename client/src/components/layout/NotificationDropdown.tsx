@@ -68,7 +68,7 @@ export function NotificationDropdown() {
 
   const fetchNotifications = async () => {
     setLoading(true);
-    const result = await notificationsApi.getNotifications();
+    const result = await notificationsApi.getNotifications(10);
     if (result.data) {
       setNotifications(result.data);
     }
@@ -200,6 +200,12 @@ export function NotificationDropdown() {
             })
           )}
         </ScrollArea>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/notifications" className="w-full text-sm text-muted-foreground">
+            View all notifications
+          </Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

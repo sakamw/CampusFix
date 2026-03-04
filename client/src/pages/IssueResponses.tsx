@@ -62,6 +62,13 @@ const priorityConfig = {
   critical: { variant: "destructive" as const, label: "Critical" },
 };
 
+const roleBadge = (role: string | undefined) => {
+  const r = (role || "").toLowerCase();
+  if (r === "admin") return { label: "Admin", variant: "default" as const };
+  if (r === "staff") return { label: "Staff", variant: "info" as const };
+  return { label: "Student", variant: "secondary" as const };
+};
+
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return "0 B";
@@ -126,7 +133,9 @@ export default function IssueResponses() {
   const hasAdminActivity = (issue: IssueDetail) => {
     return (
       (issue.comments &&
-        issue.comments.some((comment) => comment.user.role === "admin")) ||
+        issue.comments.some(
+          (comment) => comment.user.role === "admin" || comment.user.role === "staff",
+        )) ||
       issue.status !== "open" ||
       (issue.evidence_files && issue.evidence_files.length > 0) ||
       issue.progress_percentage > 0 ||
@@ -136,7 +145,7 @@ export default function IssueResponses() {
 
   const getAdminComments = (issue: IssueDetail) => {
     return (issue.comments || []).filter(
-      (comment) => comment.user.role === "admin",
+      (comment) => comment.user.role === "admin" || comment.user.role === "staff",
     );
   };
 
@@ -476,12 +485,12 @@ export default function IssueResponses() {
                                     {comment.user.first_name}{" "}
                                     {comment.user.last_name}
                                   </p>
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    Admin
-                                  </Badge>
+                                <Badge
+                                  variant={roleBadge(comment.user.role).variant}
+                                  className="text-xs"
+                                >
+                                  {roleBadge(comment.user.role).label}
+                                </Badge>
                                   <span className="text-xs text-muted-foreground">
                                     {formatDate(comment.created_at)}
                                   </span>
@@ -610,14 +619,12 @@ export default function IssueResponses() {
                                     {comment.user.first_name}{" "}
                                     {comment.user.last_name}
                                   </p>
-                                  {comment.user.role === "admin" && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-xs"
-                                    >
-                                      Admin
-                                    </Badge>
-                                  )}
+                                  <Badge
+                                    variant={roleBadge(comment.user.role).variant}
+                                    className="text-xs"
+                                  >
+                                    {roleBadge(comment.user.role).label}
+                                  </Badge>
                                   <span className="text-xs text-muted-foreground">
                                     {formatDate(comment.created_at)}
                                   </span>

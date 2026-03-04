@@ -15,6 +15,14 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { Textarea } from "../components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/avatar";
 import { Separator } from "../components/ui/separator";
@@ -58,8 +66,16 @@ export default function IssueDetails() {
   const [upvoting, setUpvoting] = useState(false);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
+  const [etaNow, setEtaNow] = useState<Date>(() => new Date());
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminFields, setAdminFields] = useState<{
+    status: IssueDetail["status"];
+    estimated_resolution_text: string;
+    estimated_completion_date: string; // YYYY-MM-DD
+  } | null>(null);
 
-  const isAdmin = user?.role === "admin" || user?.is_superuser;
+  const isStaffOrAdmin =
+    user?.is_superuser || user?.is_staff || user?.role === "admin" || user?.role === "staff";
 
   useEffect(() => {
     async function fetchIssue() {
@@ -71,6 +87,23 @@ export default function IssueDetails() {
     }
     fetchIssue();
   }, [id]);
+
+  useEffect(() => {
+    const t = setInterval(() => setEtaNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!issue) return;
+    const dateOnly = issue.estimated_completion
+      ? new Date(issue.estimated_completion).toISOString().slice(0, 10)
+      : "";
+    setAdminFields({
+      status: issue.status,
+      estimated_resolution_text: issue.estimated_resolution_text || "",
+      estimated_completion_date: dateOnly,
+    });
+  }, [issue]);
 
   useEffect(() => {
     async function fetchTimeline() {
@@ -139,6 +172,14 @@ export default function IssueDetails() {
     user?.email &&
     currentUserEmail === user.email
   );
+  const canComment = isReporter || isStaffOrAdmin;
+
+  const roleBadge = (role: string | undefined) => {
+    const r = (role || "").toLowerCase();
+    if (r === "admin") return { label: "Admin", variant: "default" as const };
+    if (r === "staff") return { label: "Staff", variant: "info" as const };
+    return { label: "Student", variant: "secondary" as const };
+  };
 
   if (loading) {
     return (
@@ -154,6 +195,70 @@ export default function IssueDetails() {
       </div>
     );
   }
+
+  const formatEstimatedResolution = () => {
+    if (
+      issue.estimated_resolution_text &&
+      issue.estimated_resolution_text.trim()
+    ) {
+      return issue.estimated_resolution_text.trim();
+    }
+    if (issue.estimated_completion) {
+      const d = new Date(issue.estimated_completion);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString();
+      }
+    }
+    return "Not set";
+  };
+
+  const getCountdown = () => {
+    if (!issue.estimated_completion) return null;
+    const due = new Date(issue.estimated_completion);
+    if (isNaN(due.getTime())) return null;
+    const diffMs = due.getTime() - etaNow.getTime();
+    const abs = Math.abs(diffMs);
+    const days = Math.floor(abs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((abs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    if (diffMs >= 0) return `Due in ${days}d ${hours}h`;
+    return `Overdue by ${days}d ${hours}h`;
+  };
+
+  const saveAdminUpdates = async () => {
+    if (!issue || !adminFields || adminSaving) return;
+    setAdminSaving(true);
+    try {
+      const estimated_completion =
+        adminFields.estimated_completion_date?.trim()
+          ? `${adminFields.estimated_completion_date.trim()}T00:00:00Z`
+          : null;
+
+      const res = await issuesApi.updateIssue(issue.id, {
+        status: adminFields.status,
+        estimated_resolution_text: adminFields.estimated_resolution_text,
+        estimated_completion,
+      });
+
+      if (res.error) throw new Error(res.error);
+      if (res.data) {
+        toast({
+          title: "Saved",
+          description: "Issue updates have been saved.",
+        });
+        // refresh view with latest
+        setIssue((prev) => (prev ? { ...prev, ...res.data } : prev));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save";
+      toast({
+        title: "Error",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setAdminSaving(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -342,15 +447,18 @@ export default function IssueDetails() {
                         <p className="font-medium">
                           {c.user.first_name} {c.user.last_name}
                         </p>
-                        <Badge variant="secondary" className="text-xs">
-                          {c.user.role}
+                        <Badge
+                          variant={roleBadge(c.user.role).variant}
+                          className="text-xs"
+                        >
+                          {roleBadge(c.user.role).label}
                         </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(c.created_at).toLocaleString()}
+                        </span>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {c.content}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {new Date(c.created_at).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -361,22 +469,30 @@ export default function IssueDetails() {
             <Separator className="my-6" />
 
             <div className="space-y-4">
-              <Textarea
-                placeholder="Add a comment..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="input-focus"
-                disabled={postingComment}
-              />
-              <div className="flex justify-end">
-                <Button
-                  disabled={!comment.trim() || postingComment}
-                  onClick={handlePostComment}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Post Comment
-                </Button>
-              </div>
+              {canComment ? (
+                <>
+                  <Textarea
+                    placeholder="Add a comment..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    className="input-focus"
+                    disabled={postingComment}
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      disabled={!comment.trim() || postingComment}
+                      onClick={handlePostComment}
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Post Comment
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Only the original reporter and campus staff can comment on this issue.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -397,8 +513,95 @@ export default function IssueDetails() {
                 <span className="text-muted-foreground">Upvotes</span>
                 <span className="font-medium">{issue.upvote_count}</span>
               </div>
+              <Separator />
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Estimated Resolution</span>
+                  <span className="font-medium text-right">
+                    {formatEstimatedResolution() === "Not set"
+                      ? "Not set"
+                      : `Estimated: ${formatEstimatedResolution()}`}
+                  </span>
+                </div>
+                {issue.estimated_completion && (
+                  <p className="text-xs text-muted-foreground">{getCountdown()}</p>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Admin/Staff Controls */}
+          {isStaffOrAdmin && adminFields && (
+            <div className="rounded-xl border bg-card p-6 space-y-4">
+              <h3 className="font-semibold">Admin Controls</h3>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <Select
+                    value={adminFields.status}
+                    onValueChange={(v) =>
+                      setAdminFields((prev) =>
+                        prev ? { ...prev, status: v as IssueDetail["status"] } : prev,
+                      )
+                    }
+                  >
+                    <SelectTrigger className="input-focus">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-sm text-muted-foreground">
+                    Estimated Resolution (text)
+                  </span>
+                  <Input
+                    placeholder='e.g. "2–3 business days"'
+                    value={adminFields.estimated_resolution_text}
+                    onChange={(e) =>
+                      setAdminFields((prev) =>
+                        prev
+                          ? { ...prev, estimated_resolution_text: e.target.value }
+                          : prev,
+                      )
+                    }
+                    className="input-focus"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-sm text-muted-foreground">
+                    Estimated Completion (date)
+                  </span>
+                  <Input
+                    type="date"
+                    value={adminFields.estimated_completion_date}
+                    onChange={(e) =>
+                      setAdminFields((prev) =>
+                        prev
+                          ? { ...prev, estimated_completion_date: e.target.value }
+                          : prev,
+                      )
+                    }
+                    className="input-focus"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If set, a countdown will appear for all viewers.
+                  </p>
+                </div>
+
+                <Button onClick={saveAdminUpdates} disabled={adminSaving}>
+                  {adminSaving ? "Saving..." : "Save Updates"}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Resolution Information - Show if resolved */}
           {(issue.status === "resolved" || issue.status === "closed") && (

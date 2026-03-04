@@ -1,124 +1,246 @@
-{% extends "dashboard/base.html" %}
-
-{% block content %}
+{% extends "dashboard/base.html" %} {% block content %}
 <div class="page-header">
-    <div class="page-title">Issue #{{ issue.id }}</div>
-    <div class="page-subtitle">{{ issue.title }}</div>
+  <div class="page-title">Issue #{{ issue.id }}</div>
+  <div class="page-subtitle">{{ issue.title }}</div>
 </div>
 
-<a href="{% url 'dashboard:issues_list' %}" style="font-size:0.8rem;color:#2563eb;">← Back to issues</a>
+<a
+  href="{% url 'dashboard:issues_list' %}"
+  style="font-size: 0.8rem; color: #2563eb"
+  >← Back to issues</a
+>
 
-<div class="mt-md" style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;align-items:flex-start;">
-    <div class="card">
-        <div class="card-title">Details</div>
-        <div style="font-size:0.85rem;margin-top:0.5rem;line-height:1.4;">
-            <p><strong>Category:</strong> {{ issue.get_category_display }}</p>
-            <p><strong>Location:</strong> {{ issue.location }}</p>
-            <p><strong>Reported by:</strong>
-                {% if issue.is_anonymous and not request.user.is_superuser %}
-                    Anonymous User
-                {% else %}
-                    {% if issue.reporter.first_name %}
-                        {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
-                    {% else %}
-                        {{ issue.reporter.email }}
-                    {% endif %}
-                {% endif %}
-            </p>
-            <p><strong>Submitted:</strong> {{ issue.created_at|date:"Y-m-d H:i" }}</p>
-            <p><strong>Last updated:</strong> {{ issue.updated_at|date:"Y-m-d H:i" }}</p>
-            <p><strong>Status:</strong> {{ issue.get_status_display }}</p>
-            <p><strong>Priority:</strong> {{ issue.get_priority_display }}</p>
-            <p>
-                <strong>Upvotes:</strong>
-                {{ issue.upvote_count|default:0 }}
-                {% if issue.upvote_count|default:0 >= 10 %}
-                    <span class="badge badge-red" style="margin-left:0.35rem;">High Demand</span>
-                {% endif %}
-            </p>
-        </div>
-        <div class="mt-md">
-            <p style="font-size:0.85rem;"><strong>Description</strong></p>
-            <p style="font-size:0.85rem;margin-top:0.25rem;white-space:pre-wrap;">{{ issue.description }}</p>
-        </div>
-        <div class="mt-md">
-            <p style="font-size:0.85rem;"><strong>Attachments</strong></p>
-            {% if issue.attachments.all %}
-                <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;">
-                    {% for attachment in issue.attachments.all %}
-                        <div style="width:90px;">
-                            {% with attachment.file.url|lower as file_url %}
-                                {% if ".jpg" in file_url or ".jpeg" in file_url or ".png" in file_url or ".gif" in file_url %}
-                                    <a href="{{ attachment.file.url }}" target="_blank" style="text-decoration:none;">
-                                        <img src="{{ attachment.file.url }}" alt="{{ attachment.filename }}"
-                                             style="width:100%;height:70px;object-fit:cover;border-radius:0.5rem;border:1px solid #e5e7eb;">
-                                    </a>
-                                {% elif ".mp4" in file_url or ".webm" in file_url or ".mov" in file_url or ".avi" in file_url or ".mkv" in file_url %}
-                                    <video controls style="width:100%;height:70px;border-radius:0.5rem;border:1px solid #e5e7eb;object-fit:cover;">
-                                        <source src="{{ attachment.file.url }}">
-                                    </video>
-                                {% else %}
-                                    <a href="{{ attachment.file.url }}" target="_blank" style="font-size:0.8rem;color:#2563eb;word-break:break-all;">
-                                        {{ attachment.filename }}
-                                    </a>
-                                {% endif %}
-                            {% endwith %}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="text-muted" style="font-size:0.8rem;margin-top:0.25rem;">No attachments for this issue.</p>
-            {% endif %}
-        </div>
+<div
+  class="mt-md"
+  style="
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    align-items: flex-start;
+  "
+>
+  <div class="card">
+    <div class="card-title">Details</div>
+    <div style="font-size: 0.85rem; margin-top: 0.5rem; line-height: 1.4">
+      <p><strong>Category:</strong> {{ issue.get_category_display }}</p>
+      <p><strong>Location:</strong> {{ issue.location }}</p>
+      <p>
+        <strong>Reported by:</strong>
+        {% if issue.is_anonymous and not request.user.is_superuser %}
+          Anonymous User
+        {% else %}
+          {% if issue.reporter.first_name or issue.reporter.last_name %}
+            {% if issue.reporter.first_name %}{{ issue.reporter.first_name }}{% endif %}
+            {% if issue.reporter.last_name %} {{ issue.reporter.last_name }}{% endif %}
+          {% else %}
+            {{ issue.reporter.email }}
+          {% endif %}
+        {% endif %}
+      </p>
+      <p><strong>Submitted:</strong> {{ issue.created_at|date:"Y-m-d H:i" }}</p>
+      <p>
+        <strong>Last updated:</strong> {{ issue.updated_at|date:"Y-m-d H:i" }}
+      </p>
+      <p><strong>Status:</strong> {{ issue.get_status_display }}</p>
+      <p><strong>Priority:</strong> {{ issue.get_priority_display }}</p>
+      <p>
+        <strong>Assigned to:</strong>
+        {% if issue.assigned_to %}
+          {% if issue.assigned_to.first_name %}
+            {{ issue.assigned_to.first_name }} {{ issue.assigned_to.last_name }}
+          {% else %}
+            {{ issue.assigned_to.email }}
+          {% endif %}
+        {% else %}
+          <span class="text-muted">Unassigned</span>
+        {% endif %}
+      </p>
+      <p>
+        <strong>Upvotes:</strong>
+        {{ issue.upvote_count|default:0 }}
+        {% if issue.upvote_count|default:0 >= 10 %}
+          <span class="badge badge-red" style="margin-left: 0.35rem">
+            High Demand
+          </span>
+        {% endif %}
+      </p>
     </div>
+    <div class="mt-md">
+      <p style="font-size: 0.85rem"><strong>Description</strong></p>
+      <p style="font-size: 0.85rem; margin-top: 0.25rem; white-space: pre-wrap">
+        {{ issue.description }}
+      </p>
+    </div>
+    <div class="mt-md">
+      <p style="font-size: 0.85rem"><strong>Attachments</strong></p>
+      {% if issue.attachments.all %}
+      <div
+        style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem"
+      >
+        {% for attachment in issue.attachments.all %}
+        <div style="width: 90px">
+          {% if ".jpg" in attachment.file.url|lower or ".jpeg" in attachment.file.url|lower or ".png" in attachment.file.url|lower or ".gif" in attachment.file.url|lower %}
+            <a
+              href="{{ attachment.file.url }}"
+              target="_blank"
+              style="text-decoration: none"
+            >
+              <img
+                src="{{ attachment.file.url }}"
+                alt="{{ attachment.filename }}"
+                style="
+                  width: 100%;
+                  height: 70px;
+                  object-fit: cover;
+                  border-radius: 0.5rem;
+                  border: 1px solid #e5e7eb;
+                "
+              />
+            </a>
+          {% elif ".mp4" in attachment.file.url|lower or ".webm" in attachment.file.url|lower or ".mov" in attachment.file.url|lower or ".avi" in attachment.file.url|lower or ".mkv" in attachment.file.url|lower %}
+            <video
+              controls
+              style="
+                width: 100%;
+                height: 70px;
+                border-radius: 0.5rem;
+                border: 1px solid #e5e7eb;
+                object-fit: cover;
+              "
+            >
+              <source src="{{ attachment.file.url }}" />
+            </video>
+          {% else %}
+            <a
+              href="{{ attachment.file.url }}"
+              target="_blank"
+              style="font-size: 0.8rem; color: #2563eb; word-break: break-all"
+            >
+              {{ attachment.filename }}
+            </a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.25rem">
+        No attachments for this issue.
+      </p>
+      {% endif %}
+    </div>
+  </div>
 
-    <div class="card">
-        <div class="card-title">Admin Controls</div>
-        <form method="post" style="margin-top:0.5rem;font-size:0.85rem;">
-            {% csrf_token %}
-            <label for="status"><strong>Status</strong></label>
-            <select name="status" id="status" style="display:block;width:100%;margin-top:0.25rem;margin-bottom:0.75rem;border-radius:0.5rem;border:1px solid #d1d5db;padding:0.4rem 0.6rem;font-size:0.85rem;">
-                {% for value,label in status_choices %}
-                    <option value="{{ value }}" {% if issue.status == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" style="width:100%;border-radius:0.5rem;border:1px solid #2563eb;background-color:#2563eb;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;">
-                Save Changes
-            </button>
-        </form>
-    </div>
+  <div class="card">
+    <div class="card-title">Admin Controls</div>
+    <form method="post" style="margin-top: 0.5rem; font-size: 0.85rem">
+      {% csrf_token %}
+      <label for="status"><strong>Status</strong></label>
+      <select
+        name="status"
+        id="status"
+        style="
+          display: block;
+          width: 100%;
+          margin-top: 0.25rem;
+          margin-bottom: 0.75rem;
+          border-radius: 0.5rem;
+          border: 1px solid #d1d5db;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+        "
+      >
+        {% for value,label in status_choices %}
+        <option
+          value="{{ value }}"
+          {% if issue.status == value %}selected{% endif %}
+        >
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+
+      {% if staff_users %}
+      <label for="assigned_to"><strong>Assign to staff</strong></label>
+      <select
+        name="assigned_to"
+        id="assigned_to"
+        style="
+          display: block;
+          width: 100%;
+          margin-top: 0.25rem;
+          margin-bottom: 0.75rem;
+          border-radius: 0.5rem;
+          border: 1px solid #d1d5db;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+        "
+      >
+        <option value="">Unassigned</option>
+        {% for staff in staff_users %}
+        <option
+          value="{{ staff.id }}"
+          {% if issue.assigned_to and issue.assigned_to.id == staff.id %}selected{% endif %}
+        >
+          {% if staff.first_name %}{{ staff.first_name }} {{ staff.last_name }}{% else %}{{ staff.email }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <button
+        type="submit"
+        style="
+          width: 100%;
+          border-radius: 0.5rem;
+          border: 1px solid #2563eb;
+          background-color: #2563eb;
+          color: white;
+          font-size: 0.85rem;
+          padding: 0.45rem 0.75rem;
+          cursor: pointer;
+        "
+      >
+        Save Changes
+      </button>
+    </form>
+  </div>
 </div>
 
 <div class="mt-lg card">
-    <div class="card-title">Activity & Comments</div>
-    <p class="card-muted" style="margin-top:0.25rem;">
-        Read-only thread for now. Comment management will be added in a later phase.
-    </p>
-    <div style="margin-top:0.75rem;font-size:0.85rem;">
-        {% if issue.comments.all %}
-            <ul style="list-style:none;padding-left:0;">
-                {% for comment in issue.comments.all %}
-                    <li style="border-top:1px solid #e5e7eb;padding:0.6rem 0;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <strong>
-                                {% if comment.user.first_name %}
-                                    {{ comment.user.first_name }} {{ comment.user.last_name }}
-                                {% else %}
-                                    {{ comment.user.email }}
-                                {% endif %}
-                            </strong>
-                            <span class="text-muted">{{ comment.created_at|date:"Y-m-d H:i" }}</span>
-                        </div>
-                        <p style="margin-top:0.25rem;white-space:pre-wrap;">{{ comment.content }}</p>
-                    </li>
-                {% empty %}
-                    <li class="text-muted">No comments yet.</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p class="text-muted">No comments yet.</p>
-        {% endif %}
-    </div>
+  <div class="card-title">Activity & Comments</div>
+  <p class="card-muted" style="margin-top: 0.25rem">
+    Read-only thread for now. Comment management will be added in a later phase.
+  </p>
+  <div style="margin-top: 0.75rem; font-size: 0.85rem">
+    <ul style="list-style: none; padding-left: 0">
+      {% for comment in issue.comments.all %}
+        <li style="border-top: 1px solid #e5e7eb; padding: 0.6rem 0">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              align-items: center;
+            "
+          >
+            <strong>
+              {% if comment.user.first_name %}
+                {{ comment.user.first_name }} {{ comment.user.last_name }}
+              {% else %}
+                {{ comment.user.email }}
+              {% endif %}
+            </strong>
+            <span class="text-muted">
+              {{ comment.created_at|date:"Y-m-d H:i" }}
+            </span>
+          </div>
+          <p style="margin-top: 0.25rem; white-space: pre-wrap">
+            {{ comment.content }}
+          </p>
+        </li>
+      {% empty %}
+        <li class="text-muted">No comments yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
 </div>
 {% endblock %}
-

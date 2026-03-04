@@ -31,33 +31,52 @@ def issue_created_or_updated(sender, instance, created, **kwargs):
                     related_issue=instance
                 )
     else:
-        # Issue updated - check if status changed
-        try:
-            old_instance = sender.objects.get(pk=instance.pk)
-            if old_instance.status != instance.status:
-                # Status changed
-                NotificationService.notify_issue_status_change(
-                    instance, 
-                    old_instance.status, 
-                    instance.status,
-                    # Use the last user who modified the issue
-                    getattr(instance, '_modified_by_user', instance.reporter)
-                )
-                
-                AdminDashboardService.notify_issue_status_change(
+        old_status = getattr(instance, "_old_status", None)
+        if old_status and old_status != instance.status:
+            # Status changed
+            changed_by = getattr(instance, "_modified_by_user", instance.reporter)
+
+            NotificationService.notify_issue_status_change(
+                instance,
+                old_status,
+                instance.status,
+                changed_by,
+            )
+
+            AdminDashboardService.notify_issue_status_change(
+                instance,
+                old_status,
+                instance.status,
+            )
+
+            # If resolved, send resolution notifications
+            if instance.status == 'resolved' and old_status != 'resolved':
+                NotificationService.notify_issue_resolution(
                     instance,
-                    old_instance.status,
-                    instance.status
+                    changed_by,
                 )
-                
-                # If resolved, send resolution notifications
-                if instance.status == 'resolved' and old_instance.status != 'resolved':
-                    NotificationService.notify_issue_resolution(
-                        instance,
-                        getattr(instance, '_modified_by_user', instance.reporter)
-                    )
-        except sender.DoesNotExist:
-            pass
+
+
+@receiver(pre_save, sender=Issue)
+def issue_pre_save(sender, instance, **kwargs):
+    """
+    Capture old status for reliable change detection and
+    keep `resolved_at` aligned across all save entrypoints.
+    """
+    if not instance.pk:
+        return
+
+    try:
+        old = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+
+    instance._old_status = old.status  # type: ignore[attr-defined]
+
+    # Keep resolved_at in sync when status becomes resolved/closed
+    if old.status != instance.status and instance.status in {"resolved", "closed"} and not instance.resolved_at:
+        from django.utils import timezone
+        instance.resolved_at = timezone.now()
 
 
 @receiver(post_save, sender=Comment)

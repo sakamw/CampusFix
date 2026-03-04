@@ -48,6 +48,14 @@ class Issue(models.Model):
         on_delete=models.CASCADE,
         related_name='reported_issues'
     )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='assigned_issues',
+        null=True,
+        blank=True,
+        help_text="Staff member currently responsible for this issue",
+    )
     is_anonymous = models.BooleanField(
         default=False,
         help_text="If true, reporter identity is hidden from non-superusers."
@@ -58,6 +66,11 @@ class Issue(models.Model):
     resolution_summary = models.TextField(blank=True, help_text="Summary of resolution for user")
     resolution_details = models.TextField(blank=True, help_text="Detailed explanation of work done")
     resolution_evidence = models.TextField(blank=True, help_text="Evidence or proof of resolution")
+    estimated_resolution_text = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Human-friendly ETA, e.g. "2–3 business days"',
+    )
     estimated_completion = models.DateTimeField(null=True, blank=True, help_text="Estimated completion date")
     actual_completion = models.DateTimeField(null=True, blank=True, help_text="Actual completion date")
     work_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Hours spent on resolution")

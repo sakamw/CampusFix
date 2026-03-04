@@ -3,11 +3,17 @@
 {% block content %}
 <div class="page-header">
     <div class="page-title">Issues</div>
-    <div class="page-subtitle">Search, filter, and manage all CampusFix issues.</div>
+    <div class="page-subtitle">
+        {% if is_staff_view %}
+            View and work on issues that have been assigned to you by an administrator.
+        {% else %}
+            Search, filter, and manage all CampusFix issues.
+        {% endif %}
+    </div>
 </div>
 
 <div class="card mt-md">
-    <form method="get" class="filters-row" style="align-items:center; justify-content:space-between; gap:0.75rem;">
+    <form id="issues-filter-form" method="get" class="filters-row" style="align-items:center; justify-content:space-between; gap:0.75rem;">
         <div class="filters-row" style="flex:1;">
             <select name="status">
                 <option value="">Status</option>
@@ -38,7 +44,6 @@
                 </option>
             </select>
             <input type="text" name="q" value="{{ search_query }}" placeholder="Search title, location, reporter...">
-            <button type="submit">Apply</button>
             <a href="{% url 'dashboard:issues_list' %}" class="filters-row" style="text-decoration:none;">
                 <button type="button" class="secondary">Reset</button>
             </a>
@@ -46,18 +51,24 @@
     </form>
 </div>
 
-<form method="post" class="table-wrapper mt-md" onsubmit="return confirmBulkAction(this);">
+<form method="post" id="issues-table-form" class="table-wrapper mt-md">
     {% csrf_token %}
     <div class="table-header">
         <h2>Issues</h2>
         <div class="filters-row">
-            <select name="action">
-                <option value="">Bulk action</option>
-                <option value="mark_in_progress">Mark as In Progress</option>
-                <option value="mark_resolved">Mark as Resolved</option>
-                <option value="delete">Delete</option>
-            </select>
-            <button type="submit">Apply</button>
+            <span class="text-muted" style="margin-right:0.5rem;">With selected:</span>
+            <input type="hidden" name="action" id="bulk-action-input">
+            <button type="button" class="secondary" onclick="handleBulkAction('mark_in_progress')">
+                Start work
+            </button>
+            <button type="button" class="secondary" onclick="handleBulkAction('mark_resolved')">
+                Mark resolved
+            </button>
+            {% if not is_staff_view %}
+                <button type="button" class="danger" onclick="handleBulkAction('delete')">
+                    Delete
+                </button>
+            {% endif %}
         </div>
     </div>
     <div style="overflow-x: auto;">
@@ -74,6 +85,9 @@
                 <th>Priority</th>
                 <th>Reporter</th>
                 <th>Date Submitted</th>
+                {% if is_staff_view %}
+                    <th>Actions</th>
+                {% endif %}
             </tr>
             </thead>
             <tbody>
@@ -122,10 +136,42 @@
                         {% endif %}
                     </td>
                     <td>{{ issue.created_at|date:"Y-m-d H:i" }}</td>
+                    {% if is_staff_view %}
+                        <td>
+                            <div class="filters-row" style="gap:0.25rem; flex-wrap:wrap;">
+                                <a href="{% url 'dashboard:issue_detail' issue.id %}" class="secondary">
+                                    View
+                                </a>
+                                {% if issue.status == 'open' %}
+                                    <button
+                                        type="button"
+                                        class="secondary"
+                                        onclick="quickUpdateIssue('{% url 'dashboard:issue_quick_update' issue.id %}', 'in-progress')"
+                                    >
+                                        Start work
+                                    </button>
+                                {% elif issue.status == 'in-progress' %}
+                                    <button
+                                        type="button"
+                                        class="secondary"
+                                        onclick="quickUpdateIssue('{% url 'dashboard:issue_quick_update' issue.id %}', 'resolved')"
+                                    >
+                                        Mark resolved
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    {% endif %}
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="9" class="text-muted">No issues found.</td>
+                    <td colspan="9" class="text-muted">
+                        {% if is_staff_view %}
+                            You don't have any assigned issues yet. Once an administrator assigns an issue to you, it will appear here.
+                        {% else %}
+                            No issues found.
+                        {% endif %}
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -142,22 +188,81 @@
     </div>
 </form>
 
+<form id="quick-update-form" method="post" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="status" id="quick-status-input">
+    <input type="hidden" name="return_url" id="quick-return-url-input" value="{{ request.get_full_path }}">
+</form>
+
 <script>
     function toggleSelectAll(master) {
         const checkboxes = document.querySelectorAll('input[name="selected"]');
         checkboxes.forEach(cb => cb.checked = master.checked);
     }
 
-    function confirmBulkAction(form) {
-        const action = form.querySelector('select[name="action"]').value;
-        if (!action) {
-            alert('Please select a bulk action first.');
-            return false;
+    function handleBulkAction(action) {
+        const form = document.getElementById('issues-table-form');
+        if (!form) return;
+
+        const selected = form.querySelectorAll('input[name="selected"]:checked');
+        if (!selected.length) {
+            alert('Please select at least one issue first.');
+            return;
         }
+
         if (action === 'delete') {
-            return confirm('Are you sure you want to delete the selected issues? This cannot be undone.');
+            const confirmed = confirm('Are you sure you want to delete the selected issues? This cannot be undone.');
+            if (!confirmed) {
+                return;
+            }
         }
-        return true;
+
+        const actionInput = document.getElementById('bulk-action-input');
+        if (actionInput) {
+            actionInput.value = action;
+        }
+
+        form.submit();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const filterForm = document.getElementById('issues-filter-form');
+        if (!filterForm) return;
+
+        const autoSubmitInputs = filterForm.querySelectorAll('select, input[type="date"]');
+        autoSubmitInputs.forEach(function (el) {
+            el.addEventListener('change', function () {
+                filterForm.submit();
+            });
+        });
+
+        const searchInput = filterForm.querySelector('input[name="q"]');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    filterForm.submit();
+                }
+            });
+        }
+    });
+
+    function quickUpdateIssue(url, status) {
+        const form = document.getElementById('quick-update-form');
+        if (!form) return;
+
+        const statusInput = document.getElementById('quick-status-input');
+        if (statusInput) {
+            statusInput.value = status;
+        }
+
+        const returnUrlInput = document.getElementById('quick-return-url-input');
+        if (returnUrlInput && !returnUrlInput.value) {
+            returnUrlInput.value = window.location.href;
+        }
+
+        form.action = url;
+        form.submit();
     }
 </script>
 {% endblock %}

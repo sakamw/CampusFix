@@ -210,7 +210,9 @@ class AdminDashboardConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
         """Handle WebSocket connection."""
-        if not self.scope["user"].is_staff:
+        user = self.scope["user"]
+        role = getattr(user, "role", None)
+        if not (user.is_superuser or role == "admin"):
             await self.close()
             return
         

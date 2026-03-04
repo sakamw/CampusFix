@@ -40,7 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         const result = await authApi.getProfile();
         if (result.data) {
-          setUser(result.data);
+          if (result.data.role === "student") {
+            setUser(result.data);
+          } else {
+            clearTokens();
+          }
         } else {
           clearTokens();
         }
@@ -55,8 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.login(email, password);
 
     if (result.data) {
-      setUser(result.data.user);
-      return { success: true, user: result.data.user };
+      const loggedInUser = result.data.user;
+
+      if (loggedInUser.role !== "student") {
+        clearTokens();
+        return {
+          success: false,
+          error:
+            "Staff and admin accounts must use the CampusFix Admin Dashboard to sign in.",
+        };
+      }
+
+      setUser(loggedInUser);
+      return { success: true, user: loggedInUser };
     }
 
     return { success: false, error: result.error };

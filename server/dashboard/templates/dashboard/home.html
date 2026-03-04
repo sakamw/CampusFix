@@ -8,29 +8,65 @@
 
 <div class="cards-grid mt-md">
     <div class="card">
-        <div class="card-title">Total Issues Reported</div>
+        <div class="card-title">
+            {% if request.user.role == 'staff' and not request.user.is_superuser %}
+                Your Assigned Issues
+            {% else %}
+                Total Issues Reported
+            {% endif %}
+        </div>
         <div class="card-value">{{ total_issues }}</div>
-        <div class="card-muted">All-time across CampusFix</div>
+        <div class="card-muted">
+            {% if request.user.role == 'staff' and not request.user.is_superuser %}
+                All issues currently assigned to you
+            {% else %}
+                All-time across CampusFix
+            {% endif %}
+        </div>
     </div>
     <div class="card">
         <div class="card-title">Open Issues</div>
         <div class="card-value">{{ open_issues }}</div>
-        <div class="card-muted">Pending and In Progress</div>
+        <div class="card-muted">
+            {% if request.user.role == 'staff' and not request.user.is_superuser %}
+                Your assigned issues that are Pending or In Progress
+            {% else %}
+                Pending and In Progress
+            {% endif %}
+        </div>
     </div>
     <div class="card">
         <div class="card-title">Resolved This Month</div>
         <div class="card-value">{{ resolved_this_month }}</div>
-        <div class="card-muted">Issues marked resolved/closed</div>
+        <div class="card-muted">
+            {% if request.user.role == 'staff' and not request.user.is_superuser %}
+                Assigned issues you see here that were resolved/closed
+            {% else %}
+                Issues marked resolved/closed
+            {% endif %}
+        </div>
     </div>
     <div class="card">
         <div class="card-title">Avg. Resolution Time</div>
         <div class="card-value">{{ avg_resolution_days }}d</div>
-        <div class="card-muted">Closed this month</div>
+        <div class="card-muted">
+            {% if request.user.role == 'staff' and not request.user.is_superuser %}
+                Based on the assigned issues visible on your dashboard
+            {% else %}
+                Closed this month
+            {% endif %}
+        </div>
     </div>
 </div>
 
 <div class="mt-lg flex-between">
-    <h2 class="page-title" style="font-size: 1rem;">Recent Issues</h2>
+    <h2 class="page-title" style="font-size: 1rem;">
+        {% if request.user.role == 'staff' and not request.user.is_superuser %}
+            Your Recent Assigned Issues
+        {% else %}
+            Recent Issues
+        {% endif %}
+    </h2>
     <a href="{% url 'dashboard:issues_list' %}" style="font-size: 0.8rem; color: #2563eb;">View all →</a>
 </div>
 
@@ -88,7 +124,13 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="7" class="text-muted">No issues have been reported yet.</td>
+                    <td colspan="7" class="text-muted">
+                        {% if request.user.role == 'staff' and not request.user.is_superuser %}
+                            You don't have any issues assigned to you yet. Once an administrator assigns an issue, it will appear here.
+                        {% else %}
+                            No issues have been reported yet.
+                        {% endif %}
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>
