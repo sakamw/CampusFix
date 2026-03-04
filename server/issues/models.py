@@ -1,7 +1,14 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
-from security.validators import NoMaliciousContentValidator, secure_location_validator, validate_file_upload
+from django.utils import timezone
+from django.apps import apps
+from datetime import timedelta, datetime
+from security.validators import (
+    NoMaliciousContentValidator,
+    secure_location_validator,
+    validate_file_upload,
+)
 
 
 class Issue(models.Model):
@@ -117,6 +124,19 @@ class Issue(models.Model):
         blank=True,
         help_text="When the issue was verified by an admin",
     )
+    sla_due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this issue is due according to SLA rules",
+    )
+    is_overdue = models.BooleanField(
+        default=False,
+        help_text="Whether this issue has exceeded its SLA without being resolved",
+    )
+    is_recurring = models.BooleanField(
+        default=False,
+        help_text="Whether this issue is part of a recurring pattern for the same location and category",
+    )
     
     upvote_count = models.IntegerField(default=0)
     
@@ -130,6 +150,59 @@ class Issue(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.get_status_display()}"
+
+    def mark_recurring(self):
+        """
+        Mark this issue as recurring if there have been at least two
+        other issues in the last 30 days with the same location and category.
+        """
+        if not self.location or not self.category:
+            return
+
+        window_start = timezone.now() - timedelta(days=30)
+        qs = self.__class__.objects.filter(
+            location=self.location,
+            category=self.category,
+            created_at__gte=window_start,
+        )
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+
+        if qs.count() >= 2:
+            self.is_recurring = True
+
+    def apply_sla(self):
+        """
+        Ensure sla_due_at and is_overdue reflect the current SLA rule
+        for this issue's category, based on created_at.
+        """
+        SLARule = apps.get_model("issues", "SLARule")  # type: ignore[assignment]
+        try:
+            rule = SLARule.objects.get(category=self.category)  # type: ignore[attr-defined]
+        except SLARule.DoesNotExist:  # type: ignore[attr-defined]
+            return
+
+        if not self.created_at:
+            return
+
+        self.sla_due_at = self.created_at + timedelta(hours=rule.response_time_hours)
+
+        # Only mark overdue for non-resolved/closed issues
+        if self.status not in {"resolved", "closed"} and timezone.now() > self.sla_due_at:
+            self.is_overdue = True
+
+    def save(self, *args, **kwargs):
+        # Recompute SLA fields when creating the issue or when category/status changes.
+        # For safety, always ensure sla_due_at is set if possible.
+        self.mark_recurring()
+        if self.created_at and not self.sla_due_at:
+            self.apply_sla()
+        else:
+            # If status changed to a non-final state, keep overdue flag up to date
+            if self.sla_due_at and self.status not in {"resolved", "closed"}:
+                if timezone.now() > self.sla_due_at:
+                    self.is_overdue = True
+        super().save(*args, **kwargs)
 
 
 class IssueProgressLog(models.Model):
@@ -318,3 +391,69 @@ class ResolutionEvidence(models.Model):
     
     def __str__(self):
         return f"{self.filename} - Evidence for {self.issue.title}"
+
+
+class SLARule(models.Model):
+    """
+    SLA configuration per issue category.
+
+    Stores the expected resolution window in hours; e.g.
+    Safety = 24h, Plumbing = 48h, General = 120h.
+    """
+
+    category = models.CharField(
+        max_length=50,
+        choices=Issue.CATEGORY_CHOICES,
+        unique=True,
+    )
+    response_time_hours = models.PositiveIntegerField(
+        help_text="Target resolution time in hours for this category",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category"]
+
+    def __str__(self):
+        return f"{self.get_category_display()} SLA: {self.response_time_hours}h"
+
+
+class MaintenanceTask(models.Model):
+    """
+    Scheduled preventive maintenance task for the maintenance calendar.
+    """
+
+    title = models.CharField(max_length=255, validators=[NoMaliciousContentValidator()])
+    location = models.CharField(max_length=255, validators=[secure_location_validator])
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="maintenance_tasks",
+    )
+    scheduled_for = models.DateTimeField(
+        help_text="When this maintenance task is planned to occur"
+    )
+    notes = models.TextField(blank=True, validators=[NoMaliciousContentValidator()])
+    related_issue = models.ForeignKey(
+        Issue,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="maintenance_tasks",
+        help_text="Optional related issue that motivated this maintenance task",
+    )
+    reminder_sent = models.BooleanField(
+        default=False,
+        help_text="Whether the 24-hour reminder email has been sent to the assigned staff",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["scheduled_for"]
+
+    def __str__(self):
+        return f"{self.title} @ {self.location} on {self.scheduled_for}"

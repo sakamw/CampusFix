@@ -3,14 +3,109 @@
 {% block content %}
 <div class="page-header">
     <div class="page-title">Maintenance Calendar</div>
-    <div class="page-subtitle">Plan and track maintenance activities over time.</div>
+    <div class="page-subtitle">Plan and track preventive maintenance activities.</div>
 </div>
 
 <div class="card mt-md">
-    <div class="card-title">Maintenance Calendar — Coming in Phase 3</div>
-    <p class="card-muted" style="margin-top:0.5rem;">
-        This page will visualise scheduled maintenance, upcoming work, and key campus events.
+    <div class="card-title">Schedule Maintenance Task</div>
+    <p class="card-muted" style="margin-top:0.5rem;font-size:0.85rem;">
+        Create preventive maintenance entries that appear on this calendar and trigger
+        reminder emails 24 hours before the scheduled time.
     </p>
+
+    <form method="post" class="mt-md" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;align-items:flex-end;">
+        {% csrf_token %}
+        <div>
+            <label for="title"><strong>Title</strong></label>
+            <input type="text" id="title" name="title" placeholder="e.g. Fire extinguisher inspection" required>
+        </div>
+        <div>
+            <label for="location"><strong>Location</strong></label>
+            <input type="text" id="location" name="location" placeholder="e.g. Engineering Block B" required>
+        </div>
+        <div>
+            <label for="scheduled_date"><strong>Date</strong></label>
+            <input type="date" id="scheduled_date" name="scheduled_date" required>
+        </div>
+        <div>
+            <label for="scheduled_time"><strong>Time</strong></label>
+            <input type="time" id="scheduled_time" name="scheduled_time" required>
+        </div>
+        <div>
+            <label for="assigned_to"><strong>Assign to staff</strong></label>
+            <select id="assigned_to" name="assigned_to">
+                <option value="">Unassigned</option>
+                {% for staff in staff_users %}
+                    <option value="{{ staff.id }}">
+                        {% if staff.first_name %}{{ staff.first_name }} {{ staff.last_name }}{% else %}{{ staff.email }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="notes"><strong>Notes</strong></label>
+            <textarea id="notes" name="notes" rows="2" placeholder="Optional details, scope, or safety notes"></textarea>
+        </div>
+        <div style="grid-column:1 / -1;display:flex;justify-content:flex-end;">
+            <button type="submit">Add Task</button>
+        </div>
+    </form>
+</div>
+
+<div class="card mt-lg">
+    <div class="card-title">Upcoming Maintenance</div>
+    <p class="card-muted" style="margin-top:0.5rem;font-size:0.85rem;">
+        Tasks scheduled from yesterday onwards, ordered by date and time.
+    </p>
+
+    <div class="table-wrapper mt-md">
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date &amp; Time</th>
+                        <th>Title</th>
+                        <th>Location</th>
+                        <th>Assigned To</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in upcoming_tasks %}
+                        <tr>
+                            <td>{{ task.scheduled_for|date:"Y-m-d H:i" }}</td>
+                            <td>{{ task.title }}</td>
+                            <td>{{ task.location }}</td>
+                            <td>
+                                {% if task.assigned_to %}
+                                    {% if task.assigned_to.first_name %}
+                                        {{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}
+                                    {% else %}
+                                        {{ task.assigned_to.email }}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if task.notes %}
+                                    <span style="white-space:pre-wrap;">{{ task.notes }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-muted">
+                                No maintenance tasks have been scheduled yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
+</div>
 {% endblock %}
 

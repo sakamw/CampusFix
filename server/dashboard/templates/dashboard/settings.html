@@ -3,14 +3,50 @@
 {% block content %}
 <div class="page-header">
     <div class="page-title">Settings</div>
-    <div class="page-subtitle">Configure CampusFix dashboard preferences.</div>
+    <div class="page-subtitle">Configure CampusFix SLAs and dashboard preferences.</div>
 </div>
 
 <div class="card mt-md">
-    <div class="card-title">Settings — Coming Soon</div>
-    <p class="card-muted" style="margin-top:0.5rem;">
-        This area will centralise dashboard, notification, and integration settings for CampusFix administrators.
+    <div class="card-title">SLA Rules by Category</div>
+    <p class="card-muted" style="margin-top:0.5rem;font-size:0.85rem;">
+        Define target resolution windows for each issue category. These SLAs are used to
+        calculate when an issue becomes <strong>overdue</strong>.
     </p>
+
+    <form method="post" class="mt-md">
+        {% csrf_token %}
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th style="width:200px;">SLA (hours)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in sla_rows %}
+                        <tr>
+                            <td>{{ row.label }}</td>
+                            <td>
+                                <input
+                                    type="number"
+                                    name="sla_hours_{% autoescape off %}{{ row.value }}{% endautoescape %}"
+                                    min="1"
+                                    step="1"
+                                    value="{{ row.hours }}"
+                                    style="width:100%;max-width:160px;"
+                                >
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end;">
+            <button type="submit">Save SLA Settings</button>
+        </div>
+    </form>
 </div>
 {% endblock %}
 

@@ -21,6 +21,12 @@
                     <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
+            <select name="recurring">
+                <option value="">All issues</option>
+                <option value="1" {% if recurring_filter == "1" %}selected{% endif %}>
+                    Recurring issues only
+                </option>
+            </select>
             <select name="category">
                 <option value="">Category</option>
                 {% for value,label in category_choices %}
@@ -82,6 +88,7 @@
                 <th>Category</th>
                 <th>Location</th>
                 <th>Status</th>
+                <th>SLA</th>
                 <th>Priority</th>
                 <th>Reporter</th>
                 <th>Date Submitted</th>
@@ -99,6 +106,9 @@
                         <a href="{% url 'dashboard:issue_detail' issue.id %}" style="color:#2563eb;">
                             {{ issue.title }}
                         </a>
+                        {% if issue.is_recurring %}
+                            <span class="badge badge-blue" style="margin-left:0.25rem;">Recurring Issue</span>
+                        {% endif %}
                         {% if issue.upvote_count|default:0 >= 10 %}
                             <span class="badge badge-red" style="margin-left:0.25rem;">High Demand</span>
                         {% endif %}
@@ -122,6 +132,17 @@
                                 <span class="badge badge-gray">{{ issue.get_status_display }}</span>
                             {% endif %}
                         {% endwith %}
+                    </td>
+                    <td>
+                        {% if issue.is_overdue %}
+                            <span class="badge badge-red">OVERDUE</span>
+                        {% elif issue.sla_due_at %}
+                            <span class="badge badge-gray">
+                                Due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
                     </td>
                     <td>{{ issue.get_priority_display }}</td>
                     <td>

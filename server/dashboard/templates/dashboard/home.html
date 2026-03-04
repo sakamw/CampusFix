@@ -71,6 +71,12 @@
               <a href="{% url 'dashboard:issue_detail' issue.id %}" style="color:#2563eb;">
                 {{ issue.title }}
               </a>
+            {% if issue.is_recurring %}
+              <span class="badge badge-blue" style="margin-left:0.25rem;">Recurring Issue</span>
+            {% endif %}
+              {% if issue.is_overdue %}
+                <span class="badge badge-red" style="margin-left:0.25rem;">OVERDUE</span>
+              {% endif %}
             </td>
             <td>{{ issue.location }}</td>
             <td>{{ issue.get_category_display }}</td>

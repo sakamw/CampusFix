@@ -3,14 +3,141 @@
 {% block content %}
 <div class="page-header">
     <div class="page-title">Analytics</div>
-    <div class="page-subtitle">High-level performance and trend analytics.</div>
+    <div class="page-subtitle">High-level performance, trends, and SLA compliance.</div>
 </div>
 
 <div class="card mt-md">
-    <div class="card-title">Analytics Dashboard — Coming in Phase 3</div>
-    <p class="card-muted" style="margin-top:0.5rem;">
-        This area will surface advanced issue analytics, heatmaps, and trends powered by the existing analytics services.
+    <div class="card-title">Filters</div>
+    <form method="get" class="filters-row" style="margin-top:0.5rem;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+            <label for="range"><strong>Date range</strong></label>
+            <select id="range" name="range">
+                <option value="7" {% if range == "7" %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if range == "30" %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if range == "90" %}selected{% endif %}>Last 90 days</option>
+                <option value="custom" {% if range == "custom" %}selected{% endif %}>Custom</option>
+            </select>
+        </div>
+        <div>
+            <label for="date_from"><strong>From</strong></label>
+            <input type="date" id="date_from" name="date_from" value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+        <div>
+            <label for="date_to"><strong>To</strong></label>
+            <input type="date" id="date_to" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+        <div style="margin-top:1.5rem;">
+            <button type="submit">Apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="cards-grid mt-md">
+    <div class="card">
+        <div class="card-title">SLA Compliance</div>
+        <div class="card-value">{{ sla_compliance_rate }}%</div>
+        <div class="card-muted">
+            {{ total_resolved_with_sla }} resolved issues with SLA in range
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">Top Locations</div>
+        <ul style="list-style:none;margin-top:0.5rem;font-size:0.85rem;">
+            {% for row in top_locations %}
+                <li>
+                    <strong>{{ row.location }}</strong>
+                    <span class="text-muted">· {{ row.count }} issues</span>
+                </li>
+            {% empty %}
+                <li class="text-muted">No data for this range.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<div class="mt-lg" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem;">
+    <div class="card">
+        <div class="card-title">Issues by Status</div>
+        <canvas id="statusChart" style="margin-top:0.75rem;"></canvas>
+    </div>
+    <div class="card">
+        <div class="card-title">Issues per Day</div>
+        <canvas id="dailyChart" style="margin-top:0.75rem;"></canvas>
+    </div>
+</div>
+
+<div class="card mt-lg">
+    <div class="card-title">Average Resolution Time by Category (hours)</div>
+    <canvas id="resolutionChart" style="margin-top:0.75rem;"></canvas>
+    <p class="card-muted" style="margin-top:0.5rem;font-size:0.8rem;">
+        Only includes issues that have been resolved and have an associated resolution time.
     </p>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function () {
+        const statusData = JSON.parse('{{ status_chart_data|escapejs }}');
+        const dailyData = JSON.parse('{{ daily_chart_data|escapejs }}');
+        const resolutionData = JSON.parse('{{ resolution_chart_data|escapejs }}');
+
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        new Chart(statusCtx, {
+            type: 'pie',
+            data: {
+                labels: statusData.labels,
+                datasets: [{
+                    data: statusData.data,
+                    backgroundColor: ['#60a5fa', '#f97316', '#22c55e', '#facc15', '#a855f7', '#9ca3af'],
+                }],
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom' },
+                },
+            },
+        });
+
+        const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+        new Chart(dailyCtx, {
+            type: 'line',
+            data: {
+                labels: dailyData.labels,
+                datasets: [{
+                    label: 'Issues reported',
+                    data: dailyData.data,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.1)',
+                    tension: 0.3,
+                    fill: true,
+                }],
+            },
+            options: {
+                scales: {
+                    x: { ticks: { autoSkip: true, maxTicksLimit: 10 } },
+                    y: { beginAtZero: true, precision: 0 },
+                },
+            },
+        });
+
+        const resolutionCtx = document.getElementById('resolutionChart').getContext('2d');
+        new Chart(resolutionCtx, {
+            type: 'bar',
+            data: {
+                labels: resolutionData.labels,
+                datasets: [{
+                    label: 'Avg hours to resolve',
+                    data: resolutionData.data,
+                    backgroundColor: '#22c55e',
+                }],
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true },
+                },
+            },
+        });
+    })();
+</script>
 {% endblock %}
 

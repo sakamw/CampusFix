@@ -56,6 +56,23 @@
         {% endif %}
       </p>
       <p>
+        <strong>SLA:</strong>
+        {% if issue.is_overdue %}
+          <span class="badge badge-red">OVERDUE</span>
+          {% if issue.sla_due_at %}
+            <span class="text-muted" style="margin-left:0.25rem;font-size:0.8rem;">
+              Was due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
+            </span>
+          {% endif %}
+        {% elif issue.sla_due_at %}
+          <span class="badge badge-gray">
+            Due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
+          </span>
+        {% else %}
+          <span class="text-muted">No SLA configured for this category.</span>
+        {% endif %}
+      </p>
+      <p>
         <strong>Upvotes:</strong>
         {{ issue.upvote_count|default:0 }}
         {% if issue.upvote_count|default:0 >= 10 %}

@@ -6,6 +6,8 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.conf import settings
+from django.core.mail import send_mail
 from .models import Notification, NotificationPreference
 
 User = get_user_model()
@@ -81,10 +83,25 @@ class NotificationService:
     @staticmethod
     def _send_email_notification(user, notification):
         """Send email notification (placeholder for email service)."""
-        # TODO: Implement email sending logic
-        # This would integrate with Django's email backend
-        # or a service like SendGrid, SES, etc.
-        pass
+        subject = notification.title or "CampusFix notification"
+        message = notification.message or ""
+
+        from_email = getattr(
+            settings, "DEFAULT_FROM_EMAIL", "no-reply@campusfix.local"
+        )
+
+        # Best-effort email send; failures should not break the app
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=from_email,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            # Intentionally swallow exceptions; logging can be added later
+            return
     
     @staticmethod
     def notify_issue_comment(issue, comment_author, comment_content):
