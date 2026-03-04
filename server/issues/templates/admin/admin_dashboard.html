@@ -41,8 +41,73 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">{{ blocked_count }}</h5>
+                            <p class="card-text">
+                                Blocked Issues
+                                <small>
+                                    <a href="{% url 'admin:issues_issue_changelist' %}?is_blocked__exact=1">
+                                        View in Issues →
+                                    </a>
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
             
+            <!-- Blocked Issues Panel -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Blocked Issues</h5>
+                    <small class="text-muted">Issues where progress is blocked and need admin attention</small>
+                </div>
+                <div class="card-body">
+                    {% if blocked_issues %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Issue</th>
+                                        <th>Location</th>
+                                        <th>Assigned To</th>
+                                        <th>Blocker Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for issue in blocked_issues %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'admin:issues_issue_change' issue.id %}">
+                                                    {{ issue.title }}
+                                                </a>
+                                            </td>
+                                            <td>{{ issue.location }}</td>
+                                            <td>
+                                                {% if issue.assigned_to %}
+                                                    {{ issue.assigned_to.get_full_name|default:issue.assigned_to.email }}
+                                                {% else %}
+                                                    <span class="text-muted">Unassigned</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="max-width: 320px;">
+                                                <small class="text-muted">
+                                                    {{ issue.blocker_note|default:"No blocker note provided." }}
+                                                </small>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No issues are currently marked as blocked.</p>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- Recent Work Logs -->
             <div class="card">
                 <div class="card-header">

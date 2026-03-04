@@ -6,9 +6,11 @@ from security.validators import NoMaliciousContentValidator, secure_location_val
 
 class Issue(models.Model):
     STATUS_CHOICES = [
-        ('open', 'Open'),
+        ('open', 'Pending'),
         ('in-progress', 'In Progress'),
+        ('awaiting_verification', 'Awaiting Verification'),
         ('resolved', 'Resolved'),
+        ('reopened', 'Reopened'),
         ('closed', 'Closed'),
     ]
     
@@ -38,7 +40,7 @@ class Issue(models.Model):
     title = models.CharField(max_length=255, validators=[NoMaliciousContentValidator()])
     description = models.TextField(validators=[NoMaliciousContentValidator()])
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='open')
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
     location = models.CharField(max_length=255, validators=[secure_location_validator])
     visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, default='public')
@@ -63,7 +65,7 @@ class Issue(models.Model):
     
     # Admin work fields
     admin_notes = models.TextField(blank=True, help_text="Admin's internal notes about the issue")
-    resolution_summary = models.TextField(blank=True, help_text="Summary of resolution for user")
+    resolution_summary = models.TextField(blank=True, null=True, help_text="Summary of resolution for user")
     resolution_details = models.TextField(blank=True, help_text="Detailed explanation of work done")
     resolution_evidence = models.TextField(blank=True, help_text="Evidence or proof of resolution")
     estimated_resolution_text = models.CharField(
@@ -87,6 +89,18 @@ class Issue(models.Model):
     resolved_at = models.DateTimeField(null=True, blank=True)
     
     upvote_count = models.IntegerField(default=0)
+    assigned_at = models.DateTimeField(null=True, blank=True, help_text="When this issue was assigned to the current assignee")
+    is_blocked = models.BooleanField(default=False, help_text="Whether this issue is currently blocked")
+    blocker_note = models.TextField(null=True, blank=True, help_text="Explanation of what is blocking progress")
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="verified_issues",
+        help_text="Admin who verified and closed the issue",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True, help_text="When the issue was verified by an admin")
     
     class Meta:
         ordering = ['-created_at']
@@ -208,6 +222,57 @@ class ProgressUpdate(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.issue.title} ({self.progress_percentage}%)"
+
+
+class IssueProgressLog(models.Model):
+    """Structured, immutable progress log entries for staff working on an issue."""
+
+    LOG_TYPE_ACKNOWLEDGED = "acknowledged"
+    LOG_TYPE_ON_SITE = "on_site"
+    LOG_TYPE_DIAGNOSIS = "diagnosis"
+    LOG_TYPE_IN_PROGRESS = "in_progress"
+    LOG_TYPE_BLOCKED = "blocked"
+    LOG_TYPE_COMPLETED = "completed"
+    LOG_TYPE_REOPENED = "reopened"
+
+    LOG_TYPE_CHOICES = [
+        (LOG_TYPE_ACKNOWLEDGED, "Acknowledged"),
+        (LOG_TYPE_ON_SITE, "Arrived On Site"),
+        (LOG_TYPE_DIAGNOSIS, "Diagnosis"),
+        (LOG_TYPE_IN_PROGRESS, "Work In Progress"),
+        (LOG_TYPE_BLOCKED, "Blocked - Needs Attention"),
+        (LOG_TYPE_COMPLETED, "Work Completed"),
+        (LOG_TYPE_REOPENED, "Reopened"),
+    ]
+
+    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="progress_logs")
+    staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="issue_progress_logs",
+        help_text="Staff member who created this log entry",
+    )
+    log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
+    description = models.TextField(help_text="What was observed or done at this step")
+    photo = models.ImageField(
+        upload_to="issue_progress/%Y/%m/%d/",
+        null=True,
+        blank=True,
+        help_text="Optional photo evidence for this log entry",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"]),
+            models.Index(fields=["issue"]),
+            models.Index(fields=["staff"]),
+            models.Index(fields=["log_type"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_log_type_display()} - {self.issue.title} by {self.staff.email}"
 
 
 class ResolutionEvidence(models.Model):

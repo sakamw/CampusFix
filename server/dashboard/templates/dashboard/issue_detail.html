@@ -20,10 +20,11 @@
   "
 >
   <div class="card">
-    <div class="card-title">Details</div>
+    <div class="card-title">Issue Info</div>
     <div style="font-size: 0.85rem; margin-top: 0.5rem; line-height: 1.4">
       <p><strong>Category:</strong> {{ issue.get_category_display }}</p>
       <p><strong>Location:</strong> {{ issue.location }}</p>
+      <p><strong>Priority:</strong> {{ issue.get_priority_display }}</p>
       <p>
         <strong>Reported by:</strong>
         {% if issue.is_anonymous and not request.user.is_superuser %}
@@ -37,12 +38,42 @@
           {% endif %}
         {% endif %}
       </p>
-      <p><strong>Submitted:</strong> {{ issue.created_at|date:"Y-m-d H:i" }}</p>
+      <p><strong>Date submitted:</strong> {{ issue.created_at|date:"Y-m-d H:i" }}</p>
+      <p>
+        <strong>Date assigned:</strong>
+        {% if issue.assigned_at %}
+          {{ issue.assigned_at|date:"Y-m-d H:i" }}
+        {% else %}
+          <span class="text-muted">Not tracked</span>
+        {% endif %}
+      </p>
       <p>
         <strong>Last updated:</strong> {{ issue.updated_at|date:"Y-m-d H:i" }}
       </p>
-      <p><strong>Status:</strong> {{ issue.get_status_display }}</p>
-      <p><strong>Priority:</strong> {{ issue.get_priority_display }}</p>
+      <p>
+        <strong>Status:</strong>
+        {% if issue.is_blocked %}
+          <span class="badge badge-red">Blocked</span>
+        {% else %}
+          {% with status=issue.status %}
+            {% if status == 'open' %}
+              <span class="badge badge-gray">Pending</span>
+            {% elif status == 'in-progress' %}
+              <span class="badge badge-blue">In Progress</span>
+            {% elif status == 'awaiting_verification' %}
+              <span class="badge badge-yellow">Awaiting Verification</span>
+            {% elif status == 'resolved' %}
+              <span class="badge badge-green">Resolved</span>
+            {% elif status == 'reopened' %}
+              <span class="badge badge-blue">Reopened</span>
+            {% elif status == 'closed' %}
+              <span class="badge badge-gray">Closed</span>
+            {% else %}
+              <span class="badge badge-gray">{{ issue.get_status_display }}</span>
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      </p>
       <p>
         <strong>Assigned to:</strong>
         {% if issue.assigned_to %}
@@ -128,80 +159,275 @@
       </p>
       {% endif %}
     </div>
+
+    {% if issue.is_blocked and issue.blocker_note %}
+      <div class="mt-md" style="padding:0.75rem;border-radius:0.5rem;background:#fef2f2;border:1px solid #fecaca;">
+        <strong style="color:#b91c1c;">BLOCKED</strong>
+        <p style="font-size:0.8rem;margin-top:0.35rem;white-space:pre-wrap;">
+          {{ issue.blocker_note }}
+        </p>
+      </div>
+    {% endif %}
   </div>
 
   <div class="card">
-    <div class="card-title">Admin Controls</div>
-    <form method="post" style="margin-top: 0.5rem; font-size: 0.85rem">
-      {% csrf_token %}
-      <label for="status"><strong>Status</strong></label>
-      <select
-        name="status"
-        id="status"
-        style="
-          display: block;
-          width: 100%;
-          margin-top: 0.25rem;
-          margin-bottom: 0.75rem;
-          border-radius: 0.5rem;
-          border: 1px solid #d1d5db;
-          padding: 0.4rem 0.6rem;
-          font-size: 0.85rem;
-        "
-      >
-        {% for value,label in status_choices %}
-        <option
-          value="{{ value }}"
-          {% if issue.status == value %}selected{% endif %}
-        >
-          {{ label }}
-        </option>
-        {% endfor %}
-      </select>
+    {% if is_staff_view %}
+      <div class="card-title">Actions</div>
+      <div style="margin-top:0.5rem;font-size:0.85rem;">
+        {% if issue.status == 'open' %}
+          <form method="post" style="margin-bottom:0.75rem;">
+            {% csrf_token %}
+            <input type="hidden" name="staff_action" value="acknowledge">
+            <button
+              type="submit"
+              style="
+                width: 100%;
+                border-radius: 0.5rem;
+                border: 1px solid #2563eb;
+                background-color: #2563eb;
+                color: white;
+                font-size: 0.85rem;
+                padding: 0.45rem 0.75rem;
+                cursor: pointer;
+              "
+            >
+              Acknowledge Issue
+            </button>
+          </form>
+        {% endif %}
 
-      {% if staff_users %}
-      <label for="assigned_to"><strong>Assign to staff</strong></label>
-      <select
-        name="assigned_to"
-        id="assigned_to"
-        style="
-          display: block;
-          width: 100%;
-          margin-top: 0.25rem;
-          margin-bottom: 0.75rem;
-          border-radius: 0.5rem;
-          border: 1px solid #d1d5db;
-          padding: 0.4rem 0.6rem;
-          font-size: 0.85rem;
-        "
-      >
-        <option value="">Unassigned</option>
-        {% for staff in staff_users %}
-        <option
-          value="{{ staff.id }}"
-          {% if issue.assigned_to and issue.assigned_to.id == staff.id %}selected{% endif %}
+        {% if issue.status == 'in-progress' %}
+          <form method="post" enctype="multipart/form-data" style="margin-bottom:0.75rem;">
+            {% csrf_token %}
+            <input type="hidden" name="staff_action" value="add_progress">
+            <p style="font-size:0.8rem;margin-bottom:0.35rem;"><strong>Add Progress Update</strong></p>
+            {{ progress_form.non_field_errors }}
+            <div style="margin-bottom:0.35rem;">
+              {{ progress_form.log_type.label_tag }}
+              {{ progress_form.log_type }}
+            </div>
+            <div style="margin-bottom:0.35rem;">
+              {{ progress_form.description.label_tag }}
+              {{ progress_form.description }}
+            </div>
+            <div style="margin-bottom:0.35rem;">
+              {{ progress_form.photo.label_tag }}
+              {{ progress_form.photo }}
+            </div>
+            <button
+              type="submit"
+              class="secondary"
+              style="width:100%;border-radius:0.5rem;border:1px solid #d1d5db;background-color:white;color:#374151;font-size:0.85rem;padding:0.4rem 0.75rem;cursor:pointer;"
+            >
+              Post Update
+            </button>
+          </form>
+
+          {% if not issue.is_blocked %}
+            <form method="post" style="margin-bottom:0.75rem;">
+              {% csrf_token %}
+              <input type="hidden" name="staff_action" value="flag_blocked">
+              <p style="font-size:0.8rem;margin-bottom:0.35rem;"><strong>Flag as Blocked</strong></p>
+              {{ blocker_form.non_field_errors }}
+              <div style="margin-bottom:0.35rem;">
+                {{ blocker_form.blocker_note.label_tag }}
+                {{ blocker_form.blocker_note }}
+              </div>
+              <button
+                type="submit"
+                style="width:100%;border-radius:0.5rem;border:1px solid #b91c1c;background-color:#b91c1c;color:white;font-size:0.85rem;padding:0.4rem 0.75rem;cursor:pointer;"
+              >
+                Flag as Blocked
+              </button>
+            </form>
+          {% else %}
+            <form method="post" style="margin-bottom:0.75rem;">
+              {% csrf_token %}
+              <input type="hidden" name="staff_action" value="remove_blocker">
+              <button
+                type="submit"
+                style="width:100%;border-radius:0.5rem;border:1px solid #16a34a;background-color:#16a34a;color:white;font-size:0.85rem;padding:0.4rem 0.75rem;cursor:pointer;"
+              >
+                Remove Blocker
+              </button>
+            </form>
+          {% endif %}
+
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="staff_action" value="mark_resolved">
+            <p style="font-size:0.8rem;margin-bottom:0.35rem;"><strong>Mark as Resolved (Submit for Verification)</strong></p>
+            {{ resolution_form.non_field_errors }}
+            <div style="margin-bottom:0.35rem;">
+              {{ resolution_form.resolution_summary.label_tag }}
+              {{ resolution_form.resolution_summary }}
+            </div>
+            <div style="margin-bottom:0.35rem;">
+              {{ resolution_form.follow_up_recommendations.label_tag }}
+              {{ resolution_form.follow_up_recommendations }}
+            </div>
+            <div style="margin-bottom:0.35rem;">
+              {{ resolution_form.final_photo.label_tag }}
+              {{ resolution_form.final_photo }}
+            </div>
+            <button
+              type="submit"
+              style="width:100%;border-radius:0.5rem;border:1px solid #2563eb;background-color:#2563eb;color:white;font-size:0.85rem;padding:0.45rem 0.75rem;cursor:pointer;"
+            >
+              Submit for Verification
+            </button>
+          </form>
+        {% elif issue.status == 'awaiting_verification' %}
+          <p style="font-size:0.85rem;margin-top:0.25rem;">
+            <strong>Awaiting admin verification.</strong> No further action needed from you at this stage.
+          </p>
+          {% if issue.resolution_summary %}
+            <p style="font-size:0.8rem;margin-top:0.5rem;"><strong>Your resolution summary:</strong></p>
+            <p style="font-size:0.8rem;margin-top:0.25rem;white-space:pre-wrap;">
+              {{ issue.resolution_summary }}
+            </p>
+          {% endif %}
+        {% elif issue.status == 'resolved' %}
+          <p style="font-size:0.85rem;margin-top:0.25rem;">
+            <strong>Issue closed and verified.</strong>
+          </p>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="card-title">Admin Controls</div>
+      <form method="post" style="margin-top: 0.5rem; font-size: 0.85rem">
+        {% csrf_token %}
+        <label for="status"><strong>Status</strong></label>
+        <select
+          name="status"
+          id="status"
+          style="
+            display: block;
+            width: 100%;
+            margin-top: 0.25rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+          "
         >
-          {% if staff.first_name %}{{ staff.first_name }} {{ staff.last_name }}{% else %}{{ staff.email }}{% endif %}
-        </option>
+          {% for value,label in status_choices %}
+          <option
+            value="{{ value }}"
+            {% if issue.status == value %}selected{% endif %}
+          >
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+
+        {% if staff_users %}
+        <label for="assigned_to"><strong>Assign to staff</strong></label>
+        <select
+          name="assigned_to"
+          id="assigned_to"
+          style="
+            display: block;
+            width: 100%;
+            margin-top: 0.25rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+          "
+        >
+          <option value="">Unassigned</option>
+          {% for staff in staff_users %}
+          <option
+            value="{{ staff.id }}"
+            {% if issue.assigned_to and issue.assigned_to.id == staff.id %}selected{% endif %}
+          >
+            {% if staff.first_name %}{{ staff.first_name }} {{ staff.last_name }}{% else %}{{ staff.email }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        {% endif %}
+        <button
+          type="submit"
+          style="
+            width: 100%;
+            border-radius: 0.5rem;
+            border: 1px solid #2563eb;
+            background-color: #2563eb;
+            color: white;
+            font-size: 0.85rem;
+            padding: 0.45rem 0.75rem;
+            cursor: pointer;
+          "
+        >
+          Save Changes
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mt-lg card">
+  <div class="card-title">Progress Log</div>
+  <p class="card-muted" style="margin-top: 0.25rem">
+    Full audit trail of staff activity on this issue, newest first.
+  </p>
+  <div style="margin-top: 0.75rem; font-size: 0.85rem;">
+    {% if progress_logs %}
+      <div style="border-left:2px solid #e5e7eb;padding-left:0.75rem;">
+        {% for log in progress_logs %}
+          <div style="position:relative;margin-bottom:1rem;padding-left:0.5rem;">
+            <div style="position:absolute;left:-0.9rem;top:0.25rem;width:10px;height:10px;border-radius:999px;background:#2563eb;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span class="badge
+                  {% if log.log_type == 'acknowledged' %}badge-blue
+                  {% elif log.log_type == 'on_site' %}badge-blue
+                  {% elif log.log_type == 'diagnosis' %}badge-yellow
+                  {% elif log.log_type == 'in_progress' %}badge-blue
+                  {% elif log.log_type == 'blocked' %}badge-red
+                  {% elif log.log_type == 'completed' %}badge-green
+                  {% elif log.log_type == 'reopened' %}badge-yellow
+                  {% else %}badge-gray{% endif %}
+                ">
+                  {{ log.get_log_type_display }}
+                </span>
+              </div>
+              <span class="text-muted">
+                {{ log.created_at|date:"Y-m-d H:i" }}
+              </span>
+            </div>
+            <div style="margin-top:0.25rem;">
+              <strong>
+                {% if log.staff.first_name %}
+                  {{ log.staff.first_name }} {{ log.staff.last_name }}
+                {% else %}
+                  {{ log.staff.email }}
+                {% endif %}
+              </strong>
+            </div>
+            <p style="margin-top:0.25rem;white-space:pre-wrap;">
+              {{ log.description }}
+            </p>
+            {% if log.photo %}
+              <div style="margin-top:0.25rem;">
+                <a href="{{ log.photo.url }}" target="_blank">
+                  <img
+                    src="{{ log.photo.url }}"
+                    alt="Progress photo"
+                    style="width:140px;height:90px;object-fit:cover;border-radius:0.5rem;border:1px solid #e5e7eb;"
+                  />
+                </a>
+              </div>
+            {% endif %}
+          </div>
         {% endfor %}
-      </select>
-      {% endif %}
-      <button
-        type="submit"
-        style="
-          width: 100%;
-          border-radius: 0.5rem;
-          border: 1px solid #2563eb;
-          background-color: #2563eb;
-          color: white;
-          font-size: 0.85rem;
-          padding: 0.45rem 0.75rem;
-          cursor: pointer;
-        "
-      >
-        Save Changes
-      </button>
-    </form>
+      </div>
+    {% else %}
+      <p class="text-muted">No progress logs have been recorded for this issue yet.</p>
+    {% endif %}
   </div>
 </div>
 

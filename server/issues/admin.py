@@ -1,14 +1,15 @@
 from django.contrib import admin
 from django.db.models import Sum, Q
+from django.utils import timezone
 from django.utils.safestring import mark_safe
-from .models import Issue, Comment, Attachment, Upvote, AdminWorkLog, ResolutionEvidence, ProgressUpdate
+from .models import Issue, Comment, Attachment, Upvote, AdminWorkLog, ResolutionEvidence, ProgressUpdate, IssueProgressLog
 from notifications.services import NotificationService
 
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
     list_display = ['id', 'title', 'category', 'status', 'priority', 'reporter', 'assigned_to', 'created_at', 'upvote_count', 'work_progress', 'evidence_count']
-    list_filter = ['status', 'priority', 'category', 'created_at']
+    list_filter = ['status', 'priority', 'category', 'created_at', 'is_blocked']
     search_fields = ['title', 'description', 'location']
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
@@ -19,7 +20,7 @@ class IssueAdmin(admin.ModelAdmin):
             'fields': ('title', 'description', 'category', 'location', 'visibility')
         }),
         ('Status & Priority', {
-            'fields': ('status', 'priority', 'assigned_to')
+            'fields': ('status', 'priority', 'assigned_to', 'is_blocked', 'blocker_note')
         }),
         ('Reporter Information', {
             'fields': ('reporter',)
@@ -53,8 +54,8 @@ class IssueAdmin(admin.ModelAdmin):
             'fields': ('comments_chat_display',),
             'classes': ('collapse',),
         }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at', 'resolved_at', 'upvote_count', 'progress_display')
+        ('Timestamps & Verification', {
+            'fields': ('created_at', 'updated_at', 'resolved_at', 'verified_by', 'verified_at', 'upvote_count', 'progress_display', 'verification_panel')
         }),
     )
 
@@ -91,6 +92,9 @@ class IssueAdmin(admin.ModelAdmin):
 
         # Fire assignment notification when assigned_to is newly set or changed
         if obj.assigned_to and obj.assigned_to != previous_assigned_to:
+            # Track when the issue was assigned
+            obj.assigned_at = obj.assigned_at or timezone.now()
+            obj.save(update_fields=['assigned_at'])
             NotificationService.notify_issue_assignment(obj, assigned_by=request.user)
     
     def work_progress(self, obj):
@@ -173,6 +177,135 @@ class IssueAdmin(admin.ModelAdmin):
         html += "</div>"
         return mark_safe(html)
     progress_display.short_description = 'Progress Information'
+
+    def verification_panel(self, obj):
+        """
+        Read-only verification panel shown on the issue admin page when
+        an issue is awaiting verification. Provides context and admin actions.
+        """
+        if obj.status != 'awaiting_verification':
+            return "Verification tools become available when the issue is Awaiting Verification."
+
+        logs = obj.progress_logs.all().select_related("staff")
+        latest_completed = logs.filter(log_type=IssueProgressLog.LOG_TYPE_COMPLETED).first()
+
+        html = "<div style='padding: 10px; border-radius: 6px; background: #f0f9ff; border: 1px solid #bae6fd;'>"
+        html += "<h4 style='margin-top: 0; margin-bottom: 8px; color: #0369a1;'>Verification Required</h4>"
+        html += "<p style='margin: 0 0 8px 0; font-size: 13px; color: #0f172a;'>Review the resolution summary and progress log before closing the issue or sending it back to staff.</p>"
+
+        html += "<div style='margin-bottom: 10px; padding: 8px; background: #e0f2fe; border-radius: 4px;'>"
+        html += "<strong>Resolution Summary</strong><br>"
+        html += f"<span style='font-size: 13px;'>{obj.resolution_summary or 'No resolution summary provided.'}</span>"
+        html += "</div>"
+
+        if latest_completed and latest_completed.photo:
+            html += "<div style='margin-bottom: 10px;'>"
+            html += "<strong>Final Photo</strong><br>"
+            html += f"<img src='{latest_completed.photo.url}' style='max-width: 260px; border-radius: 4px; border: 1px solid #e5e7eb; margin-top: 4px;' />"
+            html += "</div>"
+
+        # Compact timeline preview (recent progress logs)
+        if logs.exists():
+            html += "<div style='margin-bottom: 10px;'>"
+            html += "<strong>Recent Progress Log</strong>"
+            html += "<ul style='list-style:none; padding-left:0; margin:6px 0 0 0; max-height: 180px; overflow-y: auto;'>"
+            for log in logs[:5]:
+                staff_name = log.staff.get_full_name() or log.staff.email
+                html += (
+                    "<li style='padding:6px 0; border-bottom:1px solid #e5e7eb;'>"
+                    f"<div style='font-size:12px;'><strong>{log.get_log_type_display()}</strong> "
+                    f"<span style='color:#6b7280;'>· {staff_name}</span></div>"
+                    f"<div style='font-size:12px;color:#6b7280;'>{log.created_at.strftime('%Y-%m-%d %H:%M')}</div>"
+                    f"<div style='font-size:12px;margin-top:2px;'>{log.description[:160]}{'...' if len(log.description) > 160 else ''}</div>"
+                    "</li>"
+                )
+            html += "</ul></div>"
+
+        # Action buttons: verify & close or send back
+        html += "<div style='margin-top: 10px; padding-top: 8px; border-top: 1px dashed #bae6fd;'>"
+        html += "<form method='post' style='display:inline-block; margin-right:8px;'>"
+        html += "{csrf_token_placeholder}"
+        html += "<button type='submit' name='_verify_and_close' value='1' "
+        html += "style='background:#16a34a;color:white;border:none;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer;'>"
+        html += "Verify &amp; Close Issue</button></form>"
+
+        html += "<form method='post' style='display:inline-block; margin-top:6px;'>"
+        html += "{csrf_token_placeholder}"
+        html += "<textarea name='reopen_note' rows='2' "
+        html += "placeholder='Explain what is missing or needs rework...' "
+        html += "style='width:100%;margin-bottom:6px;font-size:12px;'></textarea>"
+        html += "<button type='submit' name='_send_back_to_staff' value='1' "
+        html += "style='background:#f97316;color:white;border:none;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer;'>"
+        html += "Send Back to Staff</button></form>"
+        html += "</div></div>"
+
+        # Django admin will inject CSRF token automatically; we just use the placeholder here
+        return mark_safe(html.replace("{csrf_token_placeholder}", "{{ csrf_token }}"))
+
+    verification_panel.short_description = "Verification & Closure"
+
+    def response_change(self, request, obj):
+        """
+        Handle verification actions from the admin change form:
+        - Verify & Close Issue
+        - Send Back to Staff
+        """
+        if "_verify_and_close" in request.POST and obj.status == "awaiting_verification":
+            old_status = obj.status
+            obj.status = "resolved"
+            obj.verified_by = request.user
+            obj.verified_at = timezone.now()
+            if obj.resolved_at is None:
+                obj.resolved_at = timezone.now()
+            obj.save()
+
+            # Notify the reporting student with a detailed resolution message
+            summary_text = obj.resolution_summary or ""
+            message = f"Your issue '{obj.title}' has been resolved. {summary_text} Please rate your experience."
+            NotificationService.create_notification(
+                user=obj.reporter,
+                title=f"Issue resolved: {obj.title}",
+                message=message,
+                notification_type="resolution",
+                related_issue=obj,
+            )
+
+            self.message_user(request, "Issue verified and marked as resolved.")
+            return super().response_change(request, obj)
+
+        if "_send_back_to_staff" in request.POST and obj.status == "awaiting_verification":
+            note = request.POST.get("reopen_note", "").strip()
+            if not note:
+                note = "Sent back to staff for further work."
+
+            old_status = obj.status
+            obj.status = "in-progress"
+            obj.is_blocked = False
+            obj.save()
+
+            # Log the reopening
+            assignee = obj.assigned_to or request.user
+            IssueProgressLog.objects.create(
+                issue=obj,
+                staff=assignee,
+                log_type=IssueProgressLog.LOG_TYPE_REOPENED,
+                description=note,
+            )
+
+            # Notify assigned staff member if present
+            if obj.assigned_to:
+                NotificationService.create_notification(
+                    user=obj.assigned_to,
+                    title=f"Issue sent back for more work: {obj.title}",
+                    message=note,
+                    notification_type="status_change",
+                    related_issue=obj,
+                )
+
+            self.message_user(request, "Issue sent back to staff for additional work.")
+            return super().response_change(request, obj)
+
+        return super().response_change(request, obj)
     
     def comments_chat_display(self, obj):
         """Display chat/comments interface for admins"""
