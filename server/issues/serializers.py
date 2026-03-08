@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.db.models import Avg
+
 from .models import (
     Issue,
     Comment,
@@ -8,6 +10,7 @@ from .models import (
     ProgressUpdate,
     AdminWorkLog,
     IssueProgressLog,
+    IssueFeedback,
 )
 from accounts.serializers import UserSerializer
 
@@ -154,6 +157,9 @@ class IssueDetailSerializer(serializers.ModelSerializer):
     upvoted_by_user = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     is_anonymous = serializers.BooleanField(read_only=True)
+    my_feedback = serializers.SerializerMethodField()
+    feedback_count = serializers.SerializerMethodField()
+    average_feedback_rating = serializers.SerializerMethodField()
     
     class Meta:
         model = Issue
@@ -168,6 +174,7 @@ class IssueDetailSerializer(serializers.ModelSerializer):
             'resolution_details', 'estimated_resolution_text', 'estimated_completion', 'actual_completion', 
             'work_hours', 'resolution_cost', 'is_anonymous',
             'is_blocked', 'blocker_note', 'verified_by', 'verified_at',
+            'my_feedback', 'feedback_count', 'average_feedback_rating',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
     
@@ -179,6 +186,36 @@ class IssueDetailSerializer(serializers.ModelSerializer):
     
     def get_comment_count(self, obj):
         return obj.comments.count()
+
+    def get_my_feedback(self, obj):
+        """
+        Return the current user's feedback on this issue, if any.
+        """
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return None
+
+        fb = (
+            IssueFeedback.objects.filter(issue=obj, user=user)
+            .order_by("-created_at")
+            .first()
+        )
+        if not fb:
+            return None
+
+        return {
+            "rating": fb.rating,
+            "comment": fb.comment,
+            "created_at": fb.created_at,
+        }
+
+    def get_feedback_count(self, obj):
+        return obj.feedback_entries.count()
+
+    def get_average_feedback_rating(self, obj):
+        agg = obj.feedback_entries.aggregate(avg=Avg("rating"))
+        return agg.get("avg")
 
     def to_representation(self, instance):
         """

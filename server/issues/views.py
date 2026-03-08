@@ -593,3 +593,52 @@ class DashboardStatsView(viewsets.ViewSet):
             'category_stats': list(category_stats),
             'priority_stats': list(priority_stats),
         })
+
+    @action(detail=False, methods=["get"])
+    def leaderboard(self, request):
+        """
+        Reporter leaderboard for the student dashboard.
+
+        Returns top reporters for:
+        - this_month: issues created in the current calendar month
+        - all_time: all issues
+        """
+        today = timezone.localdate()
+        start_of_month = today.replace(day=1)
+
+        base_qs = Issue.objects.select_related("reporter").filter(
+            reporter__isnull=False
+        )
+
+        def _build_qs(qs):
+            return (
+                qs.values(
+                    "reporter_id",
+                    "reporter__first_name",
+                    "reporter__last_name",
+                    "reporter__email",
+                )
+                .annotate(
+                    total_issues=Count("id"),
+                    issues_resolved=Count(
+                        "id",
+                        filter=Q(status__in=["resolved", "closed"]),
+                    ),
+                )
+                .order_by("-total_issues", "-issues_resolved")[:50]
+            )
+
+        this_month_qs = base_qs.filter(
+            created_at__date__gte=start_of_month,
+            created_at__date__lte=today,
+        )
+
+        this_month = list(_build_qs(this_month_qs))
+        all_time = list(_build_qs(base_qs))
+
+        return Response(
+            {
+                "this_month": this_month,
+                "all_time": all_time,
+            }
+        )

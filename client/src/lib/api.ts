@@ -452,6 +452,15 @@ export interface DashboardStats {
   avg_response_time_hours: number;
 }
 
+export interface LeaderboardEntry {
+  reporter_id: number;
+  reporter__first_name: string | null;
+  reporter__last_name: string | null;
+  reporter__email: string;
+  total_issues: number;
+  issues_resolved: number;
+}
+
 // Issues API
 export const issuesApi = {
   getIssues: async (params?: {
@@ -645,6 +654,12 @@ export const dashboardApi = {
   > => {
     return apiFetch("/dashboard/admin_stats/");
   },
+
+  getLeaderboard: async (): Promise<
+    ApiResponse<{ this_month: LeaderboardEntry[]; all_time: LeaderboardEntry[] }>
+  > => {
+    return apiFetch("/dashboard/leaderboard/");
+  },
 };
 
 export { getAccessToken, getRefreshToken, clearTokens, setTokens };
@@ -654,4 +669,5 @@ export type {
   RegisterResponse,
   ApiResponse,
   Announcement,
+  LeaderboardEntry,
 };
