@@ -29,7 +29,9 @@
         {% if issue.is_anonymous and not request.user.is_superuser %}
           Anonymous User
         {% else %}
-          {% if issue.reporter.first_name or issue.reporter.last_name %}
+          {% if issue.reporter.id == request.user.id %}
+            Me
+          {% elif issue.reporter.first_name or issue.reporter.last_name %}
             {% if issue.reporter.first_name %}{{ issue.reporter.first_name }}{% endif %}
             {% if issue.reporter.last_name %} {{ issue.reporter.last_name }}{% endif %}
           {% else %}

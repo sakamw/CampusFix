@@ -32,48 +32,23 @@
     <h2>My Assigned Issues</h2>
     <form method="get" class="filters-row" style="margin: 0">
       <select name="status">
-        <option value="">All statuses</option>
+        <option value="" {% if not status_filter %}selected{% endif %}>
+          All statuses
+        </option>
         {% for value,label in status_choices %}
-        <option
-          value="{{ value }}"
-          {%
-          if
-          status_filter=""
-          ="value"
-          %}selected{%
-          endif
-          %}
-        >
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
           {{ label }}
         </option>
         {% endfor %}
       </select>
       <select name="sort">
-        <option
-          value="priority"
-          {%
-          if
-          sort=""
-          ="priority"
-          %}selected{%
-          endif
-          %}
-        >
+        <option value="priority" {% if sort == "priority" or not sort %}selected{% endif %}>
           Sort: Priority
         </option>
-        <option
-          value="assigned_at"
-          {%
-          if
-          sort=""
-          ="assigned_at"
-          %}selected{%
-          endif
-          %}
-        >
+        <option value="assigned_at" {% if sort == "assigned_at" %}selected{% endif %}>
           Sort: Date Assigned
         </option>
-        <option value="status" {% if sort="" ="status" %}selected{% endif %}>
+        <option value="status" {% if sort == "status" %}selected{% endif %}>
           Sort: Status
         </option>
       </select>
@@ -254,8 +229,12 @@
             {% endif %} {% endwith %}
           </td>
           <td>
-            {% if issue.reporter.first_name %} {{ issue.reporter.first_name }}
-            {{ issue.reporter.last_name }} {% else %} {{ issue.reporter.email }}
+            {% if issue.reporter.id == request.user.id %}
+              Me
+            {% elif issue.reporter.first_name or issue.reporter.last_name %}
+              {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
+            {% else %}
+              {{ issue.reporter.email }}
             {% endif %}
           </td>
           <td>{{ issue.created_at|date:"Y-m-d H:i" }}</td>

@@ -17,58 +17,37 @@
   >
     <div class="filters-row" style="flex: 1">
       <select name="status">
-        <option value="">Status</option>
+        <option value="" {% if not status_filter %}selected{% endif %}>Status</option>
         {% for value,label in status_choices %}
-        <option
-          value="{{ value }}"
-          {%
-          if
-          status_filter=""
-          ="value"
-          %}selected{%
-          endif
-          %}
-        >
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
           {{ label }}
         </option>
         {% endfor %}
       </select>
       <select name="recurring">
-        <option value="">All issues</option>
-        <option value="1" {% if recurring_filter="" ="1" %}selected{% endif %}>
+        <option value="" {% if not recurring_filter %}selected{% endif %}>
+          All issues
+        </option>
+        <option value="1" {% if recurring_filter == "1" %}selected{% endif %}>
           Recurring issues only
         </option>
       </select>
       <select name="category">
-        <option value="">Category</option>
+        <option value="" {% if not category_filter %}selected{% endif %}>
+          Category
+        </option>
         {% for value,label in category_choices %}
-        <option
-          value="{{ value }}"
-          {%
-          if
-          category_filter=""
-          ="value"
-          %}selected{%
-          endif
-          %}
-        >
+        <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>
           {{ label }}
         </option>
         {% endfor %}
       </select>
       <select name="priority">
-        <option value="">Priority</option>
+        <option value="" {% if not priority_filter %}selected{% endif %}>
+          Priority
+        </option>
         {% for value,label in priority_choices %}
-        <option
-          value="{{ value }}"
-          {%
-          if
-          priority_filter=""
-          ="value"
-          %}selected{%
-          endif
-          %}
-        >
+        <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>
           {{ label }}
         </option>
         {% endfor %}
@@ -88,17 +67,10 @@
     </div>
     <div class="filters-row">
       <select name="sort">
-        <option value="">Sort: Newest first</option>
-        <option
-          value="most_upvotes"
-          {%
-          if
-          sort=""
-          ="most_upvotes"
-          %}selected{%
-          endif
-          %}
-        >
+        <option value="" {% if not sort %}selected{% endif %}>
+          Sort: Newest first
+        </option>
+        <option value="most_upvotes" {% if sort == "most_upvotes" %}selected{% endif %}>
           Sort: Most upvotes
         </option>
       </select>
@@ -223,9 +195,16 @@
           <td>{{ issue.get_priority_display }}</td>
           <td>
             {% if issue.is_anonymous and not request.user.is_superuser %}
-            Anonymous User {% else %} {% if issue.reporter.first_name %} {{
-            issue.reporter.first_name }} {{ issue.reporter.last_name }} {% else
-            %} {{ issue.reporter.email }} {% endif %} {% endif %}
+              Anonymous User
+            {% else %}
+              {% if issue.reporter.id == request.user.id %}
+                Me
+              {% elif issue.reporter.first_name or issue.reporter.last_name %}
+                {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
+              {% else %}
+                {{ issue.reporter.email }}
+              {% endif %}
+            {% endif %}
           </td>
           <td>{{ issue.created_at|date:"Y-m-d H:i" }}</td>
           {% if is_staff_view %}
