@@ -53,6 +53,19 @@
             {% endfor %}
         </ul>
     </div>
+    <div class="card">
+        <div class="card-title">Feedback Overview</div>
+        <div class="card-value">
+            {% if feedback_overall_avg %}
+                {{ feedback_overall_avg|floatformat:1 }}★
+            {% else %}
+                N/A
+            {% endif %}
+        </div>
+        <div class="card-muted">
+            {{ feedback_total }} ratings submitted by reporters
+        </div>
+    </div>
 </div>
 
 <div class="mt-lg" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem;">
@@ -72,6 +85,53 @@
     <p class="card-muted" style="margin-top:0.5rem;font-size:0.8rem;">
         Only includes issues that have been resolved and have an associated resolution time.
     </p>
+</div>
+
+<div class="card mt-lg">
+    <div class="card-title">Staff Satisfaction Ratings</div>
+    <p class="card-muted" style="margin-top:0.25rem;font-size:0.85rem;">
+        Average post-resolution ratings from students for issues assigned to each staff member.
+    </p>
+    <div style="overflow-x:auto;margin-top:0.75rem;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Staff</th>
+                    <th>Email</th>
+                    <th>Average Rating</th>
+                    <th>Ratings Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in feedback_staff_ratings %}
+                    <tr>
+                        <td>
+                            {% if row.issue__assigned_to__first_name or row.issue__assigned_to__last_name %}
+                                {{ row.issue__assigned_to__first_name }} {{ row.issue__assigned_to__last_name }}
+                            {% else %}
+                                <span class="text-muted">Unknown</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.issue__assigned_to__email }}</td>
+                        <td>
+                            {% if row.avg_rating %}
+                                {{ row.avg_rating|floatformat:2 }}★
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>{{ row.rating_count }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-muted">
+                            No feedback has been submitted yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

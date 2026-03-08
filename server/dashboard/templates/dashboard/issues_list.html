@@ -1,290 +1,378 @@
-{% extends "dashboard/base.html" %}
-
-{% block content %}
+{% extends "dashboard/base.html" %} {% block content %}
 <div class="page-header">
-    <div class="page-title">Issues</div>
-    <div class="page-subtitle">
-        {% if is_staff_view %}
-            View and work on issues that have been assigned to you by an administrator.
-        {% else %}
-            Search, filter, and manage all CampusFix issues.
-        {% endif %}
-    </div>
+  <div class="page-title">Issues</div>
+  <div class="page-subtitle">
+    {% if is_staff_view %} View and work on issues that have been assigned to
+    you by an administrator. {% else %} Search, filter, and manage all CampusFix
+    issues. {% endif %}
+  </div>
 </div>
 
 <div class="card mt-md">
-    <form id="issues-filter-form" method="get" class="filters-row" style="align-items:center; justify-content:space-between; gap:0.75rem;">
-        <div class="filters-row" style="flex:1;">
-            <select name="status">
-                <option value="">Status</option>
-                {% for value,label in status_choices %}
-                    <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-            <select name="recurring">
-                <option value="">All issues</option>
-                <option value="1" {% if recurring_filter == "1" %}selected{% endif %}>
-                    Recurring issues only
-                </option>
-            </select>
-            <select name="category">
-                <option value="">Category</option>
-                {% for value,label in category_choices %}
-                    <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-            <select name="priority">
-                <option value="">Priority</option>
-                {% for value,label in priority_choices %}
-                    <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-            <input type="date" name="date_from" value="{{ date_from }}" placeholder="From">
-            <input type="date" name="date_to" value="{{ date_to }}" placeholder="To">
-        </div>
-        <div class="filters-row">
-            <select name="sort">
-                <option value="">Sort: Newest first</option>
-                <option value="most_upvotes" {% if sort == "most_upvotes" %}selected{% endif %}>
-                    Sort: Most upvotes
-                </option>
-            </select>
-            <input type="text" name="q" value="{{ search_query }}" placeholder="Search title, location, reporter...">
-            <a href="{% url 'dashboard:issues_list' %}" class="filters-row" style="text-decoration:none;">
-                <button type="button" class="secondary">Reset</button>
-            </a>
-        </div>
-    </form>
+  <form
+    id="issues-filter-form"
+    method="get"
+    class="filters-row"
+    style="align-items: center; justify-content: space-between; gap: 0.75rem"
+  >
+    <div class="filters-row" style="flex: 1">
+      <select name="status">
+        <option value="">Status</option>
+        {% for value,label in status_choices %}
+        <option
+          value="{{ value }}"
+          {%
+          if
+          status_filter=""
+          ="value"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+      <select name="recurring">
+        <option value="">All issues</option>
+        <option value="1" {% if recurring_filter="" ="1" %}selected{% endif %}>
+          Recurring issues only
+        </option>
+      </select>
+      <select name="category">
+        <option value="">Category</option>
+        {% for value,label in category_choices %}
+        <option
+          value="{{ value }}"
+          {%
+          if
+          category_filter=""
+          ="value"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+      <select name="priority">
+        <option value="">Priority</option>
+        {% for value,label in priority_choices %}
+        <option
+          value="{{ value }}"
+          {%
+          if
+          priority_filter=""
+          ="value"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+      <input
+        type="date"
+        name="date_from"
+        value="{{ date_from }}"
+        placeholder="From"
+      />
+      <input
+        type="date"
+        name="date_to"
+        value="{{ date_to }}"
+        placeholder="To"
+      />
+    </div>
+    <div class="filters-row">
+      <select name="sort">
+        <option value="">Sort: Newest first</option>
+        <option
+          value="most_upvotes"
+          {%
+          if
+          sort=""
+          ="most_upvotes"
+          %}selected{%
+          endif
+          %}
+        >
+          Sort: Most upvotes
+        </option>
+      </select>
+      <input
+        type="text"
+        name="q"
+        value="{{ search_query }}"
+        placeholder="Search title, location, reporter..."
+      />
+      <a
+        href="{% url 'dashboard:issues_list' %}"
+        class="filters-row"
+        style="text-decoration: none"
+      >
+        <button type="button" class="secondary">Reset</button>
+      </a>
+    </div>
+  </form>
 </div>
 
 <form method="post" id="issues-table-form" class="table-wrapper mt-md">
-    {% csrf_token %}
-    <div class="table-header">
-        <h2>Issues</h2>
-        <div class="filters-row">
-            <span class="text-muted" style="margin-right:0.5rem;">With selected:</span>
-            <input type="hidden" name="action" id="bulk-action-input">
-            <button type="button" class="secondary" onclick="handleBulkAction('mark_in_progress')">
-                Start work
-            </button>
-            <button type="button" class="secondary" onclick="handleBulkAction('mark_resolved')">
-                Mark resolved
-            </button>
-            {% if not is_staff_view %}
-                <button type="button" class="danger" onclick="handleBulkAction('delete')">
-                    Delete
-                </button>
+  {% csrf_token %}
+  <div class="table-header">
+    <h2>Issues</h2>
+    <div class="filters-row">
+      <span class="text-muted" style="margin-right: 0.5rem"
+        >With selected:</span
+      >
+      <input type="hidden" name="action" id="bulk-action-input" />
+      <button
+        type="button"
+        class="secondary"
+        onclick="handleBulkAction('mark_in_progress')"
+      >
+        Start work
+      </button>
+      <button
+        type="button"
+        class="secondary"
+        onclick="handleBulkAction('mark_resolved')"
+      >
+        Mark resolved
+      </button>
+      {% if not is_staff_view %}
+      <button type="button" class="danger" onclick="handleBulkAction('delete')">
+        Delete
+      </button>
+      {% endif %}
+    </div>
+  </div>
+  <div style="overflow-x: auto">
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox" onclick="toggleSelectAll(this)" /></th>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Upvotes</th>
+          <th>Category</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>SLA</th>
+          <th>Priority</th>
+          <th>Reporter</th>
+          <th>Date Submitted</th>
+          {% if is_staff_view %}
+          <th>Actions</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for issue in page_obj.object_list %}
+        <tr>
+          <td>
+            <input type="checkbox" name="selected" value="{{ issue.id }}" />
+          </td>
+          <td>#{{ issue.id }}</td>
+          <td>
+            <a
+              href="{% url 'dashboard:issue_detail' issue.id %}"
+              style="color: #2563eb"
+            >
+              {{ issue.title }}
+            </a>
+            {% if issue.is_recurring %}
+            <span class="badge badge-blue" style="margin-left: 0.25rem"
+              >Recurring Issue</span
+            >
+            {% endif %} {% if issue.upvote_count|default:0 >= 10 %}
+            <span class="badge badge-red" style="margin-left: 0.25rem"
+              >High Demand</span
+            >
             {% endif %}
-        </div>
-    </div>
-    <div style="overflow-x: auto;">
-        <table>
-            <thead>
-            <tr>
-                <th><input type="checkbox" onclick="toggleSelectAll(this)"></th>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Upvotes</th>
-                <th>Category</th>
-                <th>Location</th>
-                <th>Status</th>
-                <th>SLA</th>
-                <th>Priority</th>
-                <th>Reporter</th>
-                <th>Date Submitted</th>
-                {% if is_staff_view %}
-                    <th>Actions</th>
-                {% endif %}
-            </tr>
-            </thead>
-            <tbody>
-            {% for issue in page_obj.object_list %}
-                <tr>
-                    <td><input type="checkbox" name="selected" value="{{ issue.id }}"></td>
-                    <td>#{{ issue.id }}</td>
-                    <td>
-                        <a href="{% url 'dashboard:issue_detail' issue.id %}" style="color:#2563eb;">
-                            {{ issue.title }}
-                        </a>
-                        {% if issue.is_recurring %}
-                            <span class="badge badge-blue" style="margin-left:0.25rem;">Recurring Issue</span>
-                        {% endif %}
-                        {% if issue.upvote_count|default:0 >= 10 %}
-                            <span class="badge badge-red" style="margin-left:0.25rem;">High Demand</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {{ issue.upvote_count|default:0 }}
-                    </td>
-                    <td>{{ issue.get_category_display }}</td>
-                    <td>{{ issue.location }}</td>
-                    <td>
-                        {% with status=issue.status %}
-                            {% if status == 'open' %}
-                                <span class="badge badge-yellow">Pending</span>
-                            {% elif status == 'in-progress' %}
-                                <span class="badge badge-blue">In Progress</span>
-                            {% elif status == 'resolved' %}
-                                <span class="badge badge-green">Resolved</span>
-                            {% elif status == 'closed' %}
-                                <span class="badge badge-gray">Closed</span>
-                            {% else %}
-                                <span class="badge badge-gray">{{ issue.get_status_display }}</span>
-                            {% endif %}
-                        {% endwith %}
-                    </td>
-                    <td>
-                        {% if issue.is_overdue %}
-                            <span class="badge badge-red">OVERDUE</span>
-                        {% elif issue.sla_due_at %}
-                            <span class="badge badge-gray">
-                                Due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
-                            </span>
-                        {% else %}
-                            <span class="text-muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ issue.get_priority_display }}</td>
-                    <td>
-                        {% if issue.is_anonymous and not request.user.is_superuser %}
-                            Anonymous User
-                        {% else %}
-                            {% if issue.reporter.first_name %}
-                                {{ issue.reporter.first_name }} {{ issue.reporter.last_name }}
-                            {% else %}
-                                {{ issue.reporter.email }}
-                            {% endif %}
-                        {% endif %}
-                    </td>
-                    <td>{{ issue.created_at|date:"Y-m-d H:i" }}</td>
-                    {% if is_staff_view %}
-                        <td>
-                            <div class="filters-row" style="gap:0.25rem; flex-wrap:wrap;">
-                                <a href="{% url 'dashboard:issue_detail' issue.id %}" class="secondary">
-                                    View
-                                </a>
-                                {% if issue.status == 'open' %}
-                                    <button
-                                        type="button"
-                                        class="secondary"
-                                        onclick="quickUpdateIssue('{% url 'dashboard:issue_quick_update' issue.id %}', 'in-progress')"
-                                    >
-                                        Start work
-                                    </button>
-                                {% elif issue.status == 'in-progress' %}
-                                    <button
-                                        type="button"
-                                        class="secondary"
-                                        onclick="quickUpdateIssue('{% url 'dashboard:issue_quick_update' issue.id %}', 'resolved')"
-                                    >
-                                        Mark resolved
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </td>
-                    {% endif %}
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="9" class="text-muted">
-                        {% if is_staff_view %}
-                            You don't have any assigned issues yet. Once an administrator assigns an issue to you, it will appear here.
-                        {% else %}
-                            No issues found.
-                        {% endif %}
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="pagination">
-        {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode|cut:'page='|cut:page_obj.number|stringformat:'s' }}{% endif %}">Prev</a>
-        {% endif %}
-        <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode|cut:'page='|cut:page_obj.number|stringformat:'s' }}{% endif %}">Next</a>
-        {% endif %}
-    </div>
+          </td>
+          <td>{{ issue.upvote_count|default:0 }}</td>
+          <td>{{ issue.get_category_display }}</td>
+          <td>{{ issue.location }}</td>
+          <td>
+            {% with status=issue.status %} {% if status == 'open' %}
+            <span class="badge badge-yellow">Pending</span>
+            {% elif status == 'in-progress' %}
+            <span class="badge badge-blue">In Progress</span>
+            {% elif status == 'resolved' %}
+            <span class="badge badge-green">Resolved</span>
+            {% elif status == 'closed' %}
+            <span class="badge badge-gray">Closed</span>
+            {% else %}
+            <span class="badge badge-gray">{{ issue.get_status_display }}</span>
+            {% endif %} {% endwith %}
+          </td>
+          <td>
+            {% if issue.is_overdue %}
+            <span class="badge badge-red">OVERDUE</span>
+            {% elif issue.sla_due_at %}
+            <span class="badge badge-gray">
+              Due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
+            </span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>{{ issue.get_priority_display }}</td>
+          <td>
+            {% if issue.is_anonymous and not request.user.is_superuser %}
+            Anonymous User {% else %} {% if issue.reporter.first_name %} {{
+            issue.reporter.first_name }} {{ issue.reporter.last_name }} {% else
+            %} {{ issue.reporter.email }} {% endif %} {% endif %}
+          </td>
+          <td>{{ issue.created_at|date:"Y-m-d H:i" }}</td>
+          {% if is_staff_view %}
+          <td>
+            <div class="filters-row" style="gap: 0.25rem; flex-wrap: wrap">
+              <a
+                href="{% url 'dashboard:issue_detail' issue.id %}"
+                class="secondary"
+              >
+                View
+              </a>
+              {% if issue.status == 'open' %}
+              <button
+                type="button"
+                class="secondary"
+                onclick="quickUpdateIssue('{% url 'dashboard:issue_quick_update' issue.id %}', 'in-progress')"
+              >
+                Start work
+              </button>
+              {% elif issue.status == 'in-progress' %}
+              <button
+                type="button"
+                class="secondary"
+                onclick="quickUpdateIssue('{% url 'dashboard:issue_quick_update' issue.id %}', 'resolved')"
+              >
+                Mark resolved
+              </button>
+              {% endif %}
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-muted">
+            {% if is_staff_view %} You don't have any assigned issues yet. Once
+            an administrator assigns an issue to you, it will appear here. {%
+            else %} No issues found. {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    {% if page_obj.has_previous %}
+    <a
+      href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode|cut:'page='|cut:page_obj.number|stringformat:'s' }}{% endif %}"
+      >Prev</a
+    >
+    {% endif %}
+    <span class="current"
+      >{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span
+    >
+    {% if page_obj.has_next %}
+    <a
+      href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode|cut:'page='|cut:page_obj.number|stringformat:'s' }}{% endif %}"
+      >Next</a
+    >
+    {% endif %}
+  </div>
 </form>
 
-<form id="quick-update-form" method="post" style="display:none;">
-    {% csrf_token %}
-    <input type="hidden" name="status" id="quick-status-input">
-    <input type="hidden" name="return_url" id="quick-return-url-input" value="{{ request.get_full_path }}">
+<form id="quick-update-form" method="post" style="display: none">
+  {% csrf_token %}
+  <input type="hidden" name="status" id="quick-status-input" />
+  <input
+    type="hidden"
+    name="return_url"
+    id="quick-return-url-input"
+    value="{{ request.get_full_path }}"
+  />
 </form>
 
 <script>
-    function toggleSelectAll(master) {
-        const checkboxes = document.querySelectorAll('input[name="selected"]');
-        checkboxes.forEach(cb => cb.checked = master.checked);
+  function toggleSelectAll(master) {
+    const checkboxes = document.querySelectorAll('input[name="selected"]');
+    checkboxes.forEach((cb) => (cb.checked = master.checked));
+  }
+
+  function handleBulkAction(action) {
+    const form = document.getElementById("issues-table-form");
+    if (!form) return;
+
+    const selected = form.querySelectorAll('input[name="selected"]:checked');
+    if (!selected.length) {
+      alert("Please select at least one issue first.");
+      return;
     }
 
-    function handleBulkAction(action) {
-        const form = document.getElementById('issues-table-form');
-        if (!form) return;
-
-        const selected = form.querySelectorAll('input[name="selected"]:checked');
-        if (!selected.length) {
-            alert('Please select at least one issue first.');
-            return;
-        }
-
-        if (action === 'delete') {
-            const confirmed = confirm('Are you sure you want to delete the selected issues? This cannot be undone.');
-            if (!confirmed) {
-                return;
-            }
-        }
-
-        const actionInput = document.getElementById('bulk-action-input');
-        if (actionInput) {
-            actionInput.value = action;
-        }
-
-        form.submit();
+    if (action === "delete") {
+      const confirmed = confirm(
+        "Are you sure you want to delete the selected issues? This cannot be undone.",
+      );
+      if (!confirmed) {
+        return;
+      }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const filterForm = document.getElementById('issues-filter-form');
-        if (!filterForm) return;
+    const actionInput = document.getElementById("bulk-action-input");
+    if (actionInput) {
+      actionInput.value = action;
+    }
 
-        const autoSubmitInputs = filterForm.querySelectorAll('select, input[type="date"]');
-        autoSubmitInputs.forEach(function (el) {
-            el.addEventListener('change', function () {
-                filterForm.submit();
-            });
-        });
+    form.submit();
+  }
 
-        const searchInput = filterForm.querySelector('input[name="q"]');
-        if (searchInput) {
-            searchInput.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    filterForm.submit();
-                }
-            });
-        }
+  document.addEventListener("DOMContentLoaded", function () {
+    const filterForm = document.getElementById("issues-filter-form");
+    if (!filterForm) return;
+
+    const autoSubmitInputs = filterForm.querySelectorAll(
+      'select, input[type="date"]',
+    );
+    autoSubmitInputs.forEach(function (el) {
+      el.addEventListener("change", function () {
+        filterForm.submit();
+      });
     });
 
-    function quickUpdateIssue(url, status) {
-        const form = document.getElementById('quick-update-form');
-        if (!form) return;
-
-        const statusInput = document.getElementById('quick-status-input');
-        if (statusInput) {
-            statusInput.value = status;
+    const searchInput = filterForm.querySelector('input[name="q"]');
+    if (searchInput) {
+      searchInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          filterForm.submit();
         }
-
-        const returnUrlInput = document.getElementById('quick-return-url-input');
-        if (returnUrlInput && !returnUrlInput.value) {
-            returnUrlInput.value = window.location.href;
-        }
-
-        form.action = url;
-        form.submit();
+      });
     }
+  });
+
+  function quickUpdateIssue(url, status) {
+    const form = document.getElementById("quick-update-form");
+    if (!form) return;
+
+    const statusInput = document.getElementById("quick-status-input");
+    if (statusInput) {
+      statusInput.value = status;
+    }
+
+    const returnUrlInput = document.getElementById("quick-return-url-input");
+    if (returnUrlInput && !returnUrlInput.value) {
+      returnUrlInput.value = window.location.href;
+    }
+
+    form.action = url;
+    form.submit();
+  }
 </script>
 {% endblock %}
-

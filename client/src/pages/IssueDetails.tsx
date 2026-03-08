@@ -78,6 +78,9 @@ export default function IssueDetails() {
     estimated_resolution_text: string;
     estimated_completion_date: string; // YYYY-MM-DD
   } | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const isAdmin = user?.is_superuser || user?.role === "admin";
 
@@ -107,6 +110,15 @@ export default function IssueDetails() {
       estimated_resolution_text: issue.estimated_resolution_text || "",
       estimated_completion_date: dateOnly,
     });
+
+    // Initialize feedback state from server, if present
+    if (issue.my_feedback) {
+      setFeedbackRating(issue.my_feedback.rating);
+      setFeedbackComment(issue.my_feedback.comment || "");
+    } else {
+      setFeedbackRating(null);
+      setFeedbackComment("");
+    }
   }, [issue]);
 
   useEffect(() => {
@@ -183,6 +195,47 @@ export default function IssueDetails() {
     if (r === "admin") return { label: "Admin", variant: "default" as const };
     if (r === "staff") return { label: "Staff", variant: "info" as const };
     return { label: "Student", variant: "secondary" as const };
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!issue || !isReporter || submittingFeedback || !feedbackRating) return;
+    setSubmittingFeedback(true);
+    try {
+      const res = await issuesApi.submitFeedback(issue.id, {
+        rating: feedbackRating,
+        comment: feedbackComment.trim() || undefined,
+      });
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      toast({
+        title: "Thank you!",
+        description: "Your feedback has been recorded.",
+      });
+      // Optimistically update local issue state
+      setIssue((prev) =>
+        prev
+          ? {
+              ...prev,
+              my_feedback: {
+                rating: feedbackRating,
+                comment: feedbackComment,
+                created_at: new Date().toISOString(),
+              },
+              feedback_count: (prev.feedback_count || 0) + (prev.my_feedback ? 0 : 1),
+            }
+          : prev,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to submit feedback.";
+      toast({
+        title: "Error",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingFeedback(false);
+    }
   };
 
   if (loading) {
@@ -433,20 +486,20 @@ export default function IssueDetails() {
                 {issue.progress_logs.map((log) => (
                   <div
                     key={log.id}
-                    className="rounded-lg border bg-muted/30 p-4 space-y-2"
+                    className="rounded-lg border-2 border-gray-300 bg-gray-50 p-4 space-y-3"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="secondary">{log.log_type}</Badge>
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-bold text-gray-900">
                           {log.staff.first_name} {log.staff.last_name}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-gray-600">
                         {new Date(log.created_at).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-sm whitespace-pre-wrap">
+                    <p className="text-base font-medium text-black whitespace-pre-wrap">
                       {log.description}
                     </p>
                     {log.photo && (
@@ -770,36 +823,54 @@ export default function IssueDetails() {
             </div>
           )}
 
-          {/* Rate This Resolution (UI only) */}
+          {/* Rate This Resolution */}
           {isReporter &&
             (issue.status === "resolved" || issue.status === "closed") && (
               <div className="rounded-xl border bg-card p-6 space-y-4">
-                <h3 className="font-semibold">Rate This Resolution</h3>
+                <h3 className="font-semibold">How was your experience?</h3>
                 <p className="text-sm text-muted-foreground">
-                  This will be fully submitted in a later phase.
+                  Rate the resolution so campus staff can keep improving.
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <Button
                       key={n}
-                      variant="outline"
+                      type="button"
+                      variant={feedbackRating === n ? "default" : "outline"}
                       size="sm"
-                      onClick={() =>
-                        toast({
-                          title: "Thanks!",
-                          description:
-                            "Rating captured locally (submission coming in Phase 4).",
-                        })
-                      }
+                      onClick={() => setFeedbackRating(n)}
+                      disabled={submittingFeedback}
                     >
                       {n}★
                     </Button>
                   ))}
                 </div>
                 <Textarea
-                  placeholder="Optional comment (Phase 4 submission)"
-                  disabled
+                  placeholder="Optional feedback about the resolution"
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  className="input-focus"
+                  disabled={submittingFeedback}
                 />
+                <Button
+                  type="button"
+                  className="w-full md:w-auto"
+                  disabled={!feedbackRating || submittingFeedback}
+                  onClick={handleSubmitFeedback}
+                >
+                  {submittingFeedback ? "Submitting..." : "Submit Feedback"}
+                </Button>
+                {typeof issue.average_feedback_rating === "number" &&
+                  (issue.feedback_count || 0) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Current average rating for this issue:{" "}
+                      <span className="font-medium">
+                        {issue.average_feedback_rating.toFixed(1)}★
+                      </span>{" "}
+                      based on {issue.feedback_count} rating
+                      {issue.feedback_count === 1 ? "" : "s"}.
+                    </p>
+                  )}
               </div>
             )}
 

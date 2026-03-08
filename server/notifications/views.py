@@ -2,10 +2,21 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
+from django.utils import timezone
 
-from .models import Notification, NotificationPreference
-from .serializers import NotificationSerializer, NotificationPreferenceSerializer
+from .models import (
+    Notification,
+    NotificationPreference,
+    Announcement,
+    AnnouncementDismissal,
+)
+from .serializers import (
+    NotificationSerializer,
+    NotificationPreferenceSerializer,
+    AnnouncementSerializer,
+)
 
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -73,3 +84,57 @@ class NotificationPreferenceViewSet(viewsets.ModelViewSet):
             user=self.request.user
         )
         return preferences
+
+
+class AnnouncementViewSet(viewsets.ModelViewSet):
+    """
+    Announcements visible in the student dashboard and manageable by admins.
+    """
+
+    serializer_class = AnnouncementSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Announcement.objects.filter(is_active=True)
+        now = timezone.now()
+        qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+
+        # When listing for students, hide announcements they have dismissed
+        if self.action == "list":
+            qs = qs.exclude(dismissals__user=self.request.user)
+
+        return qs.order_by("-created_at")
+
+    def _ensure_admin(self, request):
+        user = request.user
+        role = getattr(user, "role", None)
+        if not (user.is_superuser or role == "admin"):
+            raise PermissionDenied("Admin access is required to manage announcements.")
+
+    def perform_create(self, serializer):
+        self._ensure_admin(self.request)
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        self._ensure_admin(self.request)
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        self._ensure_admin(request)
+        # Soft-delete via is_active flag to keep history intact
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save(update_fields=["is_active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def dismiss(self, request, pk=None):
+        """
+        Mark an announcement as dismissed for the current user so it no longer appears.
+        """
+        announcement = self.get_object()
+        AnnouncementDismissal.objects.get_or_create(
+            announcement=announcement,
+            user=request.user,
+        )
+        return Response({"success": True})

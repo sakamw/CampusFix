@@ -13,7 +13,7 @@ import {
 import { Button } from "../components/ui/button";
 import { StatCard } from "../components/dashboard/StatCard";
 import { IssueTable } from "../components/dashboard/IssueTable";
-import { dashboardApi, Issue, DashboardStats } from "../lib/api";
+import { dashboardApi, issuesApi, Issue, DashboardStats } from "../lib/api";
 import { useToast } from "../hooks/use-toast";
 
 export default function Dashboard() {
@@ -45,7 +45,9 @@ export default function Dashboard() {
       // Fetch stats and recent issues in parallel
       const [statsResult, issuesResult] = await Promise.all([
         dashboardApi.getStats(),
-        dashboardApi.getRecentIssues(5),
+        searchQuery
+          ? issuesApi.getIssues({ search: searchQuery })
+          : dashboardApi.getRecentIssues(5),
       ]);
 
       if (statsResult.error) {
@@ -179,7 +181,9 @@ export default function Dashboard() {
       {/* Recent Issues */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Recent Issues</h2>
+          <h2 className="text-xl font-semibold">
+            {searchQuery ? "Search Results" : "Recent Issues"}
+          </h2>
           <Button variant="ghost" asChild>
             <Link to="/issues">View all issues</Link>
           </Button>
@@ -189,7 +193,9 @@ export default function Dashboard() {
         ) : (
           <div className="rounded-lg border bg-card p-8 text-center">
             <p className="text-muted-foreground">
-              No issues reported yet. Click "Report New Issue" to get started.
+              {searchQuery
+                ? `No issues found matching "${searchQuery}". Try a different search.`
+                : "No issues reported yet. Click \"Report New Issue\" to get started."}
             </p>
           </div>
         )}

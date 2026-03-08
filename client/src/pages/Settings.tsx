@@ -19,6 +19,7 @@ import {
 } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Badge } from "../components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ import { useToast } from "../hooks/use-toast";
 import { useTheme } from "../contexts/ThemeContext";
 import { useUserSettings } from "../contexts/UserSettingsContext";
 import { TwoFactorSetup } from "../components/TwoFactorSetup";
+import { dashboardApi } from "../lib/api";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -38,6 +40,8 @@ export default function Settings() {
     useUserSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showTwoFactorSetup, setShowTwoFactorSetup] = useState(false);
+
+  const [reportCount, setReportCount] = useState<number | null>(null);
 
   // Local state for form fields (to allow editing before saving)
   const [firstName, setFirstName] = useState(settings.profile.firstName);
@@ -54,6 +58,21 @@ export default function Settings() {
     settings.profile.lastName,
     settings.profile.phone,
   ]);
+
+  // Fetch reporting stats for milestone badges
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const res = await dashboardApi.getStats();
+        if (res.data) {
+          setReportCount(res.data.total_issues);
+        }
+      } catch {
+        // Non-fatal; just omit badges if stats fail to load
+      }
+    };
+    loadStats();
+  }, []);
 
   // Security settings - local password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -292,6 +311,35 @@ export default function Settings() {
               <CardDescription>
                 Update your personal information and contact details
               </CardDescription>
+              {reportCount !== null && reportCount > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Reporting milestones:
+                  </span>
+                  {reportCount >= 10 && (
+                    <Badge variant="secondary" className="text-[0.7rem]">
+                      10 Reports
+                    </Badge>
+                  )}
+                  {reportCount >= 50 && (
+                    <Badge variant="secondary" className="text-[0.7rem]">
+                      50 Reports
+                    </Badge>
+                  )}
+                  {reportCount >= 100 && (
+                    <Badge variant="secondary" className="text-[0.7rem]">
+                      100 Reports
+                    </Badge>
+                  )}
+                  {reportCount < 10 && (
+                    <span className="text-xs text-muted-foreground">
+                      Submit {10 - reportCount} more issue
+                      {10 - reportCount === 1 ? "" : "s"} to unlock your first
+                      badge.
+                    </span>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Avatar Section */}

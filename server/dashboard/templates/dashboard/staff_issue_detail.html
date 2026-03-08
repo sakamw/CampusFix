@@ -176,17 +176,17 @@
         {% for log in progress_logs %}
           <div style="position:relative;margin-bottom:0.9rem;">
             <div style="position:absolute;left:-0.05rem;top:0.55rem;width:10px;height:10px;border-radius:999px;background:#2563eb;border:2px solid white;"></div>
-            <div style="border:1px solid #e5e7eb;border-radius:0.75rem;background:white;padding:0.85rem 0.9rem;">
-              <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+            <div style="border:1px solid #d1d5db;border-radius:0.75rem;background:#f9fafb;padding:1rem;">
+              <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem;">
                 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
                   <span class="badge badge-gray">{{ log.get_log_type_display }}</span>
-                  <span style="font-size:0.85rem;font-weight:600;">
+                  <span style="font-size:0.9rem;font-weight:700;color:#1f2937;">
                     {% if log.staff.first_name %}{{ log.staff.first_name }} {{ log.staff.last_name }}{% else %}{{ log.staff.email }}{% endif %}
                   </span>
                 </div>
-                <span class="text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</span>
+                <span style="font-size:0.8rem;color:#6b7280;">{{ log.created_at|date:"Y-m-d H:i" }}</span>
               </div>
-              <p style="margin-top:0.5rem;white-space:pre-wrap;font-size:0.85rem;line-height:1.4;">{{ log.description }}</p>
+              <p style="margin:0;white-space:pre-wrap;font-size:0.9rem;line-height:1.5;color:#000000;">{{ log.description }}</p>
               {% if log.photo %}
                 <div style="margin-top:0.6rem;">
                   <a href="{{ log.photo.url }}" target="_blank" style="text-decoration:none;">

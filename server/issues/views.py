@@ -8,7 +8,16 @@ from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Issue, Comment, Attachment, Upvote, ResolutionEvidence, ProgressUpdate, AdminWorkLog
+from .models import (
+    Issue,
+    Comment,
+    Attachment,
+    Upvote,
+    ResolutionEvidence,
+    ProgressUpdate,
+    AdminWorkLog,
+    IssueFeedback,
+)
 from .serializers import (
     IssueListSerializer,
     IssueDetailSerializer,
@@ -360,7 +369,79 @@ class IssueViewSet(viewsets.ModelViewSet):
         events.sort(key=lambda x: x['timestamp'])
         
         return Response(events)
-    
+
+    @action(detail=True, methods=["post"])
+    def submit_feedback(self, request, pk=None):
+        """
+        Submit or update post-resolution feedback for an issue by its reporter.
+
+        Expected payload:
+        {
+            "rating": 1-5,
+            "comment": "optional text"
+        }
+        """
+        issue = self.get_object()
+        user = request.user
+
+        # Only the original reporter can submit feedback
+        if issue.reporter_id != user.id:
+            return Response(
+                {
+                    "error": "Only the original reporter can submit feedback for this issue."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Only allow feedback once the issue is resolved/closed
+        if issue.status not in ["resolved", "closed"]:
+            return Response(
+                {
+                    "error": "Feedback can only be submitted after the issue is resolved or closed."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = request.data or {}
+        try:
+            rating = int(data.get("rating", 0))
+        except (TypeError, ValueError):
+            rating = 0
+
+        if rating < 1 or rating > 5:
+            return Response(
+                {"error": "Rating must be an integer between 1 and 5."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        comment = (data.get("comment") or "").strip()
+
+        feedback, _created = IssueFeedback.objects.update_or_create(
+            issue=issue,
+            user=user,
+            defaults={
+                "rating": rating,
+                "comment": comment,
+            },
+        )
+
+        # Optionally return simple aggregates for UI (not strictly required by client)
+        agg = IssueFeedback.objects.filter(issue=issue).aggregate(
+            avg_rating=Avg("rating"),
+            count=Count("id"),
+        )
+
+        return Response(
+            {
+                "success": True,
+                "rating": feedback.rating,
+                "comment": feedback.comment,
+                "created_at": feedback.created_at,
+                "feedback_count": agg.get("count") or 0,
+                "average_rating": agg.get("avg_rating"),
+            }
+        )
+
     @action(detail=True, methods=['get', 'post'])
     def work_logs(self, request, pk=None):
         """Get or add work logs for an issue."""

@@ -18,6 +18,8 @@
                 <th>Email</th>
                 <th>Role</th>
                 <th>Open Assigned Issues</th>
+                <th>Avg Rating</th>
+                <th>Ratings</th>
             </tr>
             </thead>
             <tbody>
@@ -33,10 +35,18 @@
                     <td>{{ row.user.email }}</td>
                     <td style="font-size:0.8rem;text-transform:capitalize;">{{ row.user.role }}</td>
                     <td>{{ row.open_assigned_count }}</td>
+                    <td>
+                        {% if row.avg_rating %}
+                            {{ row.avg_rating|floatformat:2 }}★
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.rating_count }}</td>
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="4" class="text-muted">No staff or admin users found.</td>
+                    <td colspan="6" class="text-muted">No staff or admin users found.</td>
                 </tr>
             {% endfor %}
             </tbody>

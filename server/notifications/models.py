@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+from security.validators import NoMaliciousContentValidator
 
 
 class Notification(models.Model):
@@ -68,3 +70,67 @@ class NotificationPreference(models.Model):
     
     def __str__(self):
         return f"Notification Preferences - {self.user.email}"
+
+
+class Announcement(models.Model):
+    """
+    Admin-authored campus-wide announcements shown in the student dashboard.
+    """
+
+    title = models.CharField(
+        max_length=255,
+        validators=[NoMaliciousContentValidator()],
+    )
+    body = models.TextField(
+        validators=[NoMaliciousContentValidator()],
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_announcements",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="If set, the announcement will stop showing after this date.",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_expired(self) -> bool:
+        return bool(self.expires_at and timezone.now() > self.expires_at)
+
+
+class AnnouncementDismissal(models.Model):
+    """
+    Tracks when a user has dismissed a given announcement so it no longer appears.
+    """
+
+    announcement = models.ForeignKey(
+        Announcement,
+        on_delete=models.CASCADE,
+        related_name="dismissals",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="dismissed_announcements",
+    )
+    dismissed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("announcement", "user")
+        ordering = ["-dismissed_at"]
+
+    def __str__(self):
+        return f"{self.user.email} dismissed '{self.announcement.title}'"

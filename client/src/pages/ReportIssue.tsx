@@ -145,7 +145,10 @@ export default function ReportIssue() {
 
       // Upload attachments if any
       if (createdId && files.length > 0) {
-        const uploadResult = await issuesApi.uploadAttachments(createdId, files);
+        const uploadResult = await issuesApi.uploadAttachments(
+          createdId,
+          files,
+        );
         if (uploadResult.error) {
           toast({
             title: "Issue Submitted (Attachments Failed)",
@@ -301,9 +304,9 @@ export default function ReportIssue() {
               <div className="space-y-0.5">
                 <p className="text-sm font-medium">Report Anonymously</p>
                 <p className="text-xs text-muted-foreground max-w-md">
-                  When enabled, your identity will be hidden from other users and
-                  staff. Super admins can still see who reported the issue for
-                  security and follow-up.
+                  When enabled, your identity will be hidden from other users
+                  and staff. Super admins can still see who reported the issue
+                  for security and follow-up.
                 </p>
               </div>
               <Switch

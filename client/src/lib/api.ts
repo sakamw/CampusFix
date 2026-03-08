@@ -284,13 +284,7 @@ export interface Issue {
   title: string;
   description: string;
   category: string;
-  status:
-    | "open"
-    | "in-progress"
-    | "awaiting_verification"
-    | "resolved"
-    | "reopened"
-    | "closed";
+  status: "open" | "in-progress" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "critical";
   location: string;
   reporter: UserData;
@@ -316,11 +310,12 @@ export interface Issue {
   progress_status?: string;
   progress_notes?: string;
   progress_updated_at?: string;
-  // Staff progress workflow
-  is_blocked?: boolean;
-  blocker_note?: string | null;
-  verified_by?: UserData | null;
-  verified_at?: string | null;
+}
+
+export interface IssueFeedbackSummary {
+  rating: number;
+  comment?: string;
+  created_at: string;
 }
 
 export interface IssueDetail extends Issue {
@@ -328,8 +323,10 @@ export interface IssueDetail extends Issue {
   attachments: Attachment[];
   evidence_files: ResolutionEvidence[];
   progress_updates: ProgressUpdate[];
-  progress_logs?: IssueProgressLog[];
   comment_count: number;
+  my_feedback?: IssueFeedbackSummary;
+  feedback_count?: number;
+  average_feedback_rating?: number;
 }
 
 export interface Comment {
@@ -383,23 +380,6 @@ export interface ProgressUpdate {
   created_at: string;
 }
 
-export interface IssueProgressLog {
-  id: number;
-  issue: number;
-  staff: UserData;
-  log_type:
-    | "acknowledged"
-    | "on_site"
-    | "diagnosis"
-    | "in_progress"
-    | "blocked"
-    | "completed"
-    | "reopened";
-  description: string;
-  photo: string | null;
-  created_at: string;
-}
-
 export interface TimelineEvent {
   id: string;
   type:
@@ -432,6 +412,15 @@ export interface TimelineEvent {
     file_size?: number;
     final_status?: string;
   };
+}
+
+export interface Announcement {
+  id: number;
+  title: string;
+  body: string;
+  created_at: string;
+  expires_at: string | null;
+  is_active: boolean;
 }
 
 export interface Notification {
@@ -581,6 +570,16 @@ export const issuesApi = {
   ): Promise<ApiResponse<TimelineEvent[]>> => {
     return apiFetch<TimelineEvent[]>(`/issues/${issueId}/timeline/`);
   },
+
+  submitFeedback: async (
+    issueId: number,
+    data: { rating: number; comment?: string },
+  ): Promise<ApiResponse<{ success: boolean }>> => {
+    return apiFetch(`/issues/${issueId}/submit_feedback/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Notifications API
@@ -611,6 +610,21 @@ export const notificationsApi = {
   },
 };
 
+// Announcements API
+export const announcementsApi = {
+  getAnnouncements: async (): Promise<ApiResponse<Announcement[]>> => {
+    return apiFetch<Announcement[]>("/announcements/");
+  },
+
+  dismissAnnouncement: async (
+    id: number,
+  ): Promise<ApiResponse<{ success: boolean }>> => {
+    return apiFetch(`/announcements/${id}/dismiss/`, {
+      method: "POST",
+    });
+  },
+};
+
 // Dashboard API
 export const dashboardApi = {
   getStats: async (): Promise<ApiResponse<DashboardStats>> => {
@@ -634,4 +648,10 @@ export const dashboardApi = {
 };
 
 export { getAccessToken, getRefreshToken, clearTokens, setTokens };
-export type { UserData, LoginResponse, RegisterResponse, ApiResponse };
+export type {
+  UserData,
+  LoginResponse,
+  RegisterResponse,
+  ApiResponse,
+  Announcement,
+};

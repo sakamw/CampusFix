@@ -20,6 +20,7 @@ import EditIssue from "./pages/EditIssue";
 import Settings from "./pages/Settings";
 import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import Notifications from "./pages/Notifications";
+import Leaderboard from "./pages/Leaderboard";
 
 import NotFound from "./pages/NotFound";
 
@@ -88,6 +89,14 @@ const App = () => (
                         <Suspense fallback={<div>Loading...</div>}>
                           <EditIssue />
                         </Suspense>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/leaderboard"
+                    element={
+                      <ProtectedRoute>
+                        <Leaderboard />
                       </ProtectedRoute>
                     }
                   />

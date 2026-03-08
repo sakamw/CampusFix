@@ -2,11 +2,11 @@
 Analytics and metrics for the admin dashboard.
 """
 
-from django.db.models import Count, Avg, Q, F, ExpressionWrapper, DurationField
+from django.db.models import Count, Avg, Q, F, ExpressionWrapper, DurationField, Sum
 from django.db.models.functions import TruncDate, TruncHour, ExtractHour
 from django.utils import timezone
 from datetime import timedelta, date
-from .models import Issue, Comment, Upvote, AdminWorkLog, ProgressUpdate
+from .models import Issue, Comment, Upvote, AdminWorkLog, ProgressUpdate, IssueFeedback
 from accounts.models import User
 
 
@@ -226,6 +226,36 @@ class AnalyticsService:
             'daily_issues': list(daily_issues),
             'hourly_activity': list(hourly_activity),
             'weekly_trends': list(weekly_trends),
+        }
+
+    @staticmethod
+    def get_feedback_analytics():
+        """
+        Get aggregate analytics for post-resolution feedback and staff ratings.
+        """
+        feedback_qs = IssueFeedback.objects.all()
+        total_feedback = feedback_qs.count()
+        overall_avg = feedback_qs.aggregate(avg=Avg("rating"))["avg"]
+
+        staff_ratings = (
+            IssueFeedback.objects.filter(issue__assigned_to__isnull=False)
+            .values(
+                "issue__assigned_to__id",
+                "issue__assigned_to__first_name",
+                "issue__assigned_to__last_name",
+                "issue__assigned_to__email",
+            )
+            .annotate(
+                avg_rating=Avg("rating"),
+                rating_count=Count("id"),
+            )
+            .order_by("-avg_rating", "-rating_count")
+        )
+
+        return {
+            "total_feedback": total_feedback,
+            "overall_average": overall_avg,
+            "staff_ratings": list(staff_ratings),
         }
 
 

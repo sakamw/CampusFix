@@ -457,3 +457,45 @@ class MaintenanceTask(models.Model):
 
     def __str__(self):
         return f"{self.title} @ {self.location} on {self.scheduled_for}"
+
+
+class IssueFeedback(models.Model):
+    """
+    Post-resolution feedback from the original reporter about their experience.
+
+    Stored separately from Issue so we can track per-user feedback and
+    aggregate ratings for staff performance analytics.
+    """
+
+    issue = models.ForeignKey(
+        Issue,
+        on_delete=models.CASCADE,
+        related_name="feedback_entries",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="issue_feedback",
+    )
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Rating from 1 (worst) to 5 (best)",
+    )
+    comment = models.TextField(
+        blank=True,
+        help_text="Optional written feedback about the resolution experience",
+        validators=[NoMaliciousContentValidator()],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("issue", "user")
+        indexes = [
+            models.Index(fields=["issue"]),
+            models.Index(fields=["user"]),
+        ]
+
+    def __str__(self):
+        return f"Feedback {self.rating}/5 by {self.user.email} on issue #{self.issue_id}"

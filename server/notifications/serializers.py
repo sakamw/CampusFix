@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Notification, NotificationPreference
+from .models import Notification, NotificationPreference, Announcement
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -27,3 +27,10 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
             'email_on_upvote', 'email_on_resolution', 'real_time_notifications',
             'daily_digest'
         ]
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+  class Meta:
+      model = Announcement
+      fields = ["id", "title", "body", "created_at", "expires_at", "is_active"]
+      read_only_fields = ["id", "created_at", "is_active"]
