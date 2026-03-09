@@ -332,15 +332,18 @@
           resultDiv.innerHTML = `
                     <div style="border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; background: #f9fafb;">
                         <h4 style="margin: 0 0 1rem 0; color: #111827;">AI Monthly Report</h4>
-                        <div style="white-space: pre-wrap; line-height: 1.6;">${data.report}</div>
+                        <div id="aiReportContent" style="white-space: pre-wrap; line-height: 1.6;"></div>
                         <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-                            <button onclick="downloadReport('${data.report.replace(/'/g, "\\'").replace(/\n/g, "\\n")}')" 
+                            <button id="downloadAiReportBtn" 
                                     style="background: #059669; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">
-                                Download PDF
+                                Download Report (.txt)
                             </button>
                         </div>
                     </div>
                 `;
+          document.getElementById("aiReportContent").textContent = data.report;
+          document.getElementById("downloadAiReportBtn").onclick = () => downloadReport(data.report);
+          
           loadingDiv.style.display = "none";
           resultDiv.style.display = "block";
         } else {
