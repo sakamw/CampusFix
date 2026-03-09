@@ -787,6 +787,76 @@ def analytics(request):
 
 
 @admin_required
+@require_http_methods(["POST"])
+def generate_ai_report(request):
+    """Dashboard-native endpoint for AI monthly report generation.
+
+    Lives under /dashboard/ so the dashboard session cookie is sent
+    automatically, avoiding cross-path cookie issues with /api/.
+    """
+    from django.http import JsonResponse
+    from issues.ai_services import ai_service
+    from issues.models import IssueFeedback
+
+    if not ai_service.is_available():
+        return JsonResponse(
+            {"error": "AI service is currently unavailable"}, status=503
+        )
+
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    recent_issues = Issue.objects.filter(created_at__gte=thirty_days_ago)
+
+    stats = {
+        "total_issues": recent_issues.count(),
+        "issues_by_category": list(
+            recent_issues.values("category").annotate(count=Count("id"))
+        ),
+        "issues_by_status": list(
+            recent_issues.values("status").annotate(count=Count("id"))
+        ),
+        "resolution_times": [],
+        "top_locations": list(
+            recent_issues.values("location")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:5]
+        ),
+        "average_rating": IssueFeedback.objects.filter(
+            created_at__gte=thirty_days_ago
+        ).aggregate(avg=Avg("rating"))["avg"]
+        or 0,
+    }
+
+    resolved_issues = recent_issues.filter(
+        status__in=["resolved", "closed"], resolved_at__isnull=False
+    )
+    if resolved_issues.exists():
+        total_hours = sum(
+            (issue.resolved_at - issue.created_at).total_seconds() / 3600
+            for issue in resolved_issues
+        )
+        stats["average_resolution_time_hours"] = total_hours / resolved_issues.count()
+    else:
+        stats["average_resolution_time_hours"] = 0
+
+    high_priority = recent_issues.filter(priority="high")
+    other_priority = recent_issues.exclude(priority="high")
+    sla_compliant = 0
+    total_sla_tracked = 0
+    for issue in list(high_priority) + list(other_priority):
+        if issue.sla_due_at:
+            total_sla_tracked += 1
+            if issue.resolved_at and issue.resolved_at <= issue.sla_due_at:
+                sla_compliant += 1
+
+    stats["sla_compliance_rate"] = (
+        (sla_compliant / total_sla_tracked * 100) if total_sla_tracked > 0 else 0
+    )
+
+    report = ai_service.generate_monthly_report(stats)
+    return JsonResponse({"report": report, "stats": stats})
+
+
+@admin_required
 def calendar(request):
     """
     Admin maintenance scheduling calendar.

@@ -1,4 +1,5 @@
 {% extends "dashboard/base.html" %} {% block content %}
+{% csrf_token %}
 <div class="page-header">
   <div class="page-title">Analytics</div>
   <div class="page-subtitle">
@@ -306,12 +307,20 @@
       resultDiv.innerHTML = "";
 
       try {
-        const response = await fetch("/api/ai/generate_monthly_report/", {
+        // Get CSRF token from hidden input or cookie
+        const csrfToken =
+          document.querySelector("[name=csrfmiddlewaretoken]")?.value ||
+          document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("dashboard_csrftoken="))
+            ?.split("=")[1] ||
+          "";
+
+        const response = await fetch("/dashboard/generate-ai-report/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-CSRFToken":
-              document.querySelector("[name=csrfmiddlewaretoken]")?.value || "",
+            "X-CSRFToken": csrfToken,
           },
           body: JSON.stringify({}),
         });
@@ -335,7 +344,10 @@
           loadingDiv.style.display = "none";
           resultDiv.style.display = "block";
         } else {
-          throw new Error(data.error || "Failed to generate report");
+          const errorMsg = data.error || data.detail || "Failed to generate report";
+          throw new Error(
+            `Server error (${response.status}): ${errorMsg}`
+          );
         }
       } catch (error) {
         resultDiv.innerHTML = `

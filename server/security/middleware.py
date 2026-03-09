@@ -28,7 +28,7 @@ class SecurityHeadersMiddleware:
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self'; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://cdn.jsdelivr.net; "
             "frame-ancestors 'none';"
         )
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
@@ -203,6 +203,20 @@ class PathBasedSessionMiddleware:
             if desired_csrf_cookie in request.COOKIES:
                 request.COOKIES[settings.CSRF_COOKIE_NAME] = request.COOKIES[desired_csrf_cookie]
 
+        # For /api/ paths: if the default session cookie is absent but a
+        # dashboard session cookie is present, the request likely originates
+        # from the server-rendered dashboard.  Remap so Django recognises it.
+        elif (request.path or "").startswith("/api/"):
+            dashboard_session = getattr(settings, "DASHBOARD_SESSION_COOKIE_NAME", "dashboard_sessionid")
+            dashboard_csrf = getattr(settings, "DASHBOARD_CSRF_COOKIE_NAME", "dashboard_csrftoken")
+            request.COOKIES = dict(request.COOKIES)
+
+            if settings.SESSION_COOKIE_NAME not in request.COOKIES and dashboard_session in request.COOKIES:
+                request.COOKIES[settings.SESSION_COOKIE_NAME] = request.COOKIES[dashboard_session]
+
+            if settings.CSRF_COOKIE_NAME not in request.COOKIES and dashboard_csrf in request.COOKIES:
+                request.COOKIES[settings.CSRF_COOKIE_NAME] = request.COOKIES[dashboard_csrf]
+
         response = self.get_response(request)
 
         # Rename any Set-Cookie made by SessionMiddleware from the default name
@@ -219,8 +233,6 @@ class PathBasedSessionMiddleware:
             # Scope cookie to its area (defense in depth).
             if (request.path or "").startswith("/admin/"):
                 new["path"] = "/admin/"
-            elif (request.path or "").startswith("/dashboard/"):
-                new["path"] = "/dashboard/"
 
         # Rename any Set-Cookie made by CsrfViewMiddleware from the default name
         # to the path-specific cookie name and scope it to the matching path.
@@ -235,7 +247,5 @@ class PathBasedSessionMiddleware:
 
             if (request.path or "").startswith("/admin/"):
                 new["path"] = "/admin/"
-            elif (request.path or "").startswith("/dashboard/"):
-                new["path"] = "/dashboard/"
 
         return response

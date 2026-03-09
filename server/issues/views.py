@@ -1,4 +1,6 @@
 from rest_framework import viewsets, status, filters
+from rest_framework.authentication import SessionAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
@@ -646,6 +648,7 @@ class DashboardStatsView(viewsets.ViewSet):
 
 class AIAssistantViewSet(viewsets.ViewSet):
     """ViewSet for AI-powered features."""
+    authentication_classes = [SessionAuthentication, JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=['post'])
