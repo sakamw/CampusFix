@@ -12,6 +12,7 @@ import {
   Paperclip,
   Download,
   Wrench,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -81,6 +82,7 @@ export default function IssueDetails() {
   const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
 
   const isAdmin = user?.is_superuser || user?.role === "admin";
 
@@ -174,6 +176,48 @@ export default function IssueDetails() {
     setPostingComment(false);
   };
 
+  const handleGenerateDraft = async () => {
+    if (!issue || generatingDraft) return;
+    setGeneratingDraft(true);
+
+    try {
+      const response = await fetch(`/api/ai/generate_response_draft/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({
+          issue_id: issue.id,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 503) {
+          throw new Error("AI service is currently unavailable");
+        }
+        throw new Error("Failed to generate draft");
+      }
+
+      const data = await response.json();
+      setComment(data.draft);
+      toast({
+        title: "AI Draft Generated",
+        description: "The draft response has been added to the comment box.",
+      });
+    } catch (error) {
+      console.error("Draft generation error:", error);
+      toast({
+        title: "AI Unavailable",
+        description:
+          "AI draft generation is temporarily unavailable. Please write your response manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingDraft(false);
+    }
+  };
+
   const handleContactSupport = () => {
     toast({
       title: "Contact Support",
@@ -222,12 +266,14 @@ export default function IssueDetails() {
                 comment: feedbackComment,
                 created_at: new Date().toISOString(),
               },
-              feedback_count: (prev.feedback_count || 0) + (prev.my_feedback ? 0 : 1),
+              feedback_count:
+                (prev.feedback_count || 0) + (prev.my_feedback ? 0 : 1),
             }
           : prev,
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to submit feedback.";
+      const msg =
+        err instanceof Error ? err.message : "Failed to submit feedback.";
       toast({
         title: "Error",
         description: msg,
@@ -583,7 +629,22 @@ export default function IssueDetails() {
                     className="input-focus"
                     disabled={postingComment}
                   />
-                  <div className="flex justify-end">
+                  <div className="flex justify-between items-center">
+                    {isAdmin && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateDraft}
+                        disabled={generatingDraft}
+                        className="gap-2"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        {generatingDraft
+                          ? "Generating..."
+                          : "✨ Draft Response"}
+                      </Button>
+                    )}
                     <Button
                       disabled={!comment.trim() || postingComment}
                       onClick={handlePostComment}

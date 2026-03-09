@@ -642,3 +642,170 @@ class DashboardStatsView(viewsets.ViewSet):
                 "all_time": all_time,
             }
         )
+
+
+class AIAssistantViewSet(viewsets.ViewSet):
+    """ViewSet for AI-powered features."""
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'])
+    def chatbot_message(self, request):
+        """Send a message to the AI complaint assistant chatbot."""
+        user_message = request.data.get('message', '').strip()
+        conversation_history = request.data.get('history', [])
+
+        if not user_message:
+            return Response(
+                {'error': 'Message is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from .ai_services import ai_service
+
+        if not ai_service.is_available():
+            return Response(
+                {'error': 'AI assistant is currently unavailable'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        response = ai_service.generate_chatbot_response(conversation_history, user_message)
+
+        # Check if it's a JSON completion response
+        try:
+            import json
+            completion_data = json.loads(response)
+            if completion_data.get('complete'):
+                return Response({
+                    'type': 'completion',
+                    'data': completion_data
+                })
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        return Response({
+            'type': 'message',
+            'message': response
+        })
+
+    @action(detail=False, methods=['post'])
+    def generate_response_draft(self, request):
+        """Generate an AI draft response for admin to use."""
+        issue_id = request.data.get('issue_id')
+
+        if not issue_id:
+            return Response(
+                {'error': 'issue_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            issue = Issue.objects.get(id=issue_id)
+        except Issue.DoesNotExist:
+            return Response(
+                {'error': 'Issue not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check permissions - only staff can generate drafts
+        if not request.user.is_staff:
+            return Response(
+                {'error': 'Staff access required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from .ai_services import ai_service
+
+        if not ai_service.is_available():
+            return Response(
+                {'error': 'AI service is currently unavailable'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        issue_data = {
+            'title': issue.title,
+            'category': issue.get_category_display(),
+            'status': issue.get_status_display(),
+            'description': issue.description,
+        }
+
+        draft = ai_service.generate_admin_response_draft(issue_data)
+
+        return Response({
+            'draft': draft,
+            'issue_id': issue_id
+        })
+
+    @action(detail=False, methods=['post'])
+    def generate_monthly_report(self, request):
+        """Generate a monthly AI performance report."""
+        # Only admins can generate reports
+        role = getattr(request.user, "role", None)
+        if not (request.user.is_superuser or role == "admin"):
+            return Response(
+                {'error': 'Admin access required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from .ai_services import ai_service
+
+        if not ai_service.is_available():
+            return Response(
+                {'error': 'AI service is currently unavailable'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        # Gather statistics
+        from django.db.models import Count, Avg, Q
+        from datetime import timedelta
+
+        # Get issues from the last 30 days
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_issues = Issue.objects.filter(created_at__gte=thirty_days_ago)
+
+        stats = {
+            'total_issues': recent_issues.count(),
+            'issues_by_category': list(recent_issues.values('category').annotate(count=Count('id'))),
+            'issues_by_status': list(recent_issues.values('status').annotate(count=Count('id'))),
+            'resolution_times': [],  # Would need more complex calculation
+            'top_locations': list(recent_issues.values('location').annotate(count=Count('id')).order_by('-count')[:5]),
+            'average_rating': IssueFeedback.objects.filter(created_at__gte=thirty_days_ago).aggregate(avg=Avg('rating'))['avg'] or 0,
+        }
+
+        # Calculate resolution times for resolved issues
+        resolved_issues = recent_issues.filter(status__in=['resolved', 'closed'], resolved_at__isnull=False)
+        if resolved_issues.exists():
+            total_resolution_time = sum([
+                (issue.resolved_at - issue.created_at).total_seconds() / 3600  # hours
+                for issue in resolved_issues
+            ])
+            stats['average_resolution_time_hours'] = total_resolution_time / resolved_issues.count()
+        else:
+            stats['average_resolution_time_hours'] = 0
+
+        # SLA compliance (assuming 24 hours for high priority, 72 for others)
+        high_priority_issues = recent_issues.filter(priority='high')
+        other_issues = recent_issues.exclude(priority='high')
+
+        sla_compliant = 0
+        total_sla_tracked = 0
+
+        for issue in high_priority_issues:
+            if issue.sla_due_at and issue.resolved_at and issue.resolved_at <= issue.sla_due_at:
+                sla_compliant += 1
+            if issue.sla_due_at:
+                total_sla_tracked += 1
+
+        for issue in other_issues:
+            if issue.sla_due_at and issue.resolved_at and issue.resolved_at <= issue.sla_due_at:
+                sla_compliant += 1
+            if issue.sla_due_at:
+                total_sla_tracked += 1
+
+        stats['sla_compliance_rate'] = (sla_compliant / total_sla_tracked * 100) if total_sla_tracked > 0 else 0
+
+        report = ai_service.generate_monthly_report(stats)
+
+        return Response({
+            'report': report,
+            'stats': stats
+        })

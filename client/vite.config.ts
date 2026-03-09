@@ -5,8 +5,13 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
-    host: "::",
+    host: "localhost",
     port: 5173,
+    hmr: {
+      host: "localhost",
+      port: 5173,
+      protocol: "ws",
+    },
   },
   plugins: [react()],
   resolve: {

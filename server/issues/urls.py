@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import IssueViewSet, CommentViewSet, DashboardStatsView
+from .views import IssueViewSet, CommentViewSet, DashboardStatsView, AIAssistantViewSet
 from .admin_views import (
     admin_dashboard_api, resolution_analytics, 
     campus_hotspots, performance_metrics
@@ -10,6 +10,7 @@ router = DefaultRouter()
 router.register(r'issues', IssueViewSet, basename='issue')
 router.register(r'comments', CommentViewSet, basename='comment')
 router.register(r'dashboard', DashboardStatsView, basename='dashboard')
+router.register(r'ai', AIAssistantViewSet, basename='ai')
 
 urlpatterns = [
     path('', include(router.urls)),

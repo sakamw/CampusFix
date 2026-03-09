@@ -68,7 +68,7 @@ class CommentSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Comment
-        fields = ['id', 'issue', 'user', 'content', 'created_at', 'updated_at']
+        fields = ['id', 'issue', 'user', 'content', 'created_at', 'updated_at', 'sentiment', 'frustration_score', 'needs_escalation', 'ai_analyzed_at']
         read_only_fields = ['id', 'user', 'issue', 'created_at', 'updated_at']
     
     def validate_content(self, value):
@@ -108,7 +108,8 @@ class IssueListSerializer(serializers.ModelSerializer):
             'resolved_at', 'upvote_count', 'upvoted_by_user', 'visibility',
             'is_anonymous',
             'progress_percentage', 'progress_status', 'progress_updated_at',
-            'is_blocked', 'blocker_note', 'verified_at', 'verified_by'
+            'is_blocked', 'blocker_note', 'verified_at', 'verified_by',
+            'sentiment', 'frustration_score', 'needs_escalation', 'ai_analyzed_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
         extra_kwargs = {
@@ -175,6 +176,7 @@ class IssueDetailSerializer(serializers.ModelSerializer):
             'work_hours', 'resolution_cost', 'is_anonymous',
             'is_blocked', 'blocker_note', 'verified_by', 'verified_at',
             'my_feedback', 'feedback_count', 'average_feedback_rating',
+            'sentiment', 'frustration_score', 'needs_escalation', 'ai_analyzed_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'upvote_count', 'progress_updated_at']
     

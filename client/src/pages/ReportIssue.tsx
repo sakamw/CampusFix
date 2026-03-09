@@ -23,6 +23,7 @@ import {
 import { Switch } from "../components/ui/switch";
 import { useToast } from "../hooks/use-toast";
 import { issuesApi } from "../lib/api";
+import ChatWidget from "../components/ChatWidget";
 
 const categories = [
   { value: "facilities", label: "Facilities" },
@@ -73,6 +74,37 @@ export default function ReportIssue() {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleChatFormFill = useCallback(
+    (data: {
+      location?: string;
+      category?: string;
+      description?: string;
+      urgency?: string;
+    }) => {
+      setFormData((prev) => ({
+        ...prev,
+        location: data.location || prev.location,
+        category: data.category || prev.category,
+        description: data.description || prev.description,
+        priority:
+          data.urgency === "critical"
+            ? "critical"
+            : data.urgency === "high"
+              ? "high"
+              : data.urgency === "medium"
+                ? "medium"
+                : "low",
+      }));
+
+      toast({
+        title: "Form Updated",
+        description:
+          "The AI assistant has filled out some form fields for you. Please review before submitting.",
+      });
+    },
+    [toast],
+  );
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -432,6 +464,9 @@ export default function ReportIssue() {
           </Button>
         </div>
       </form>
+
+      {/* AI Chat Widget */}
+      <ChatWidget onFormFill={handleChatFormFill} />
     </div>
   );
 }

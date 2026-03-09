@@ -138,6 +138,32 @@ class Issue(models.Model):
         help_text="Whether this issue is part of a recurring pattern for the same location and category",
     )
     
+    # AI Analysis Fields
+    sentiment = models.CharField(
+        max_length=20,
+        choices=[
+            ('positive', 'Positive'),
+            ('neutral', 'Neutral'),
+            ('frustrated', 'Frustrated'),
+            ('angry', 'Angry'),
+        ],
+        default='neutral',
+        help_text="AI-detected sentiment from the issue description",
+    )
+    frustration_score = models.IntegerField(
+        default=0,
+        help_text="AI-calculated frustration score (0-10)",
+    )
+    needs_escalation = models.BooleanField(
+        default=False,
+        help_text="Whether this issue needs priority escalation based on AI analysis",
+    )
+    ai_analyzed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this issue was last analyzed by AI",
+    )
+    
     upvote_count = models.IntegerField(default=0)
     
     class Meta:
@@ -257,6 +283,32 @@ class Comment(models.Model):
     content = models.TextField(validators=[NoMaliciousContentValidator()])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # AI Analysis Fields
+    sentiment = models.CharField(
+        max_length=20,
+        choices=[
+            ('positive', 'Positive'),
+            ('neutral', 'Neutral'),
+            ('frustrated', 'Frustrated'),
+            ('angry', 'Angry'),
+        ],
+        default='neutral',
+        help_text="AI-detected sentiment from the comment",
+    )
+    frustration_score = models.IntegerField(
+        default=0,
+        help_text="AI-calculated frustration score (0-10)",
+    )
+    needs_escalation = models.BooleanField(
+        default=False,
+        help_text="Whether this comment indicates need for escalation",
+    )
+    ai_analyzed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this comment was last analyzed by AI",
+    )
     
     class Meta:
         ordering = ['created_at']
