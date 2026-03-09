@@ -212,7 +212,7 @@ LOGGING = {
 # provided via environment variable and is optional – if missing, AI
 # features gracefully degrade and the application continues to function.
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL_ISSUES = os.environ.get("GEMINI_MODEL_ISSUES", "models/gemini-1.5-flash")
+GEMINI_MODEL_ISSUES = os.environ.get("GEMINI_MODEL_ISSUES", "models/gemini-flash-latest")
 
 USE_REDIS = os.environ.get("CAMPUSFIX_USE_REDIS", "0") == "1"
 

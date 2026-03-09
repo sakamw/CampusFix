@@ -89,7 +89,7 @@ Flag for escalation if frustrationScore >= 7."""
             }
 
         except Exception as e:
-            logger.error(f"Error analyzing sentiment: {e}")
+            logger.exception(f"Error analyzing sentiment for text: {text[:100]}...")
             return {
                 'sentiment': 'neutral',
                 'frustration_score': 0,
@@ -154,7 +154,7 @@ Otherwise, ask one question at a time."""
             return result_text
 
         except Exception as e:
-            logger.error(f"Error generating chatbot response: {e}")
+            logger.exception(f"Error generating chatbot response for user message: {user_message}")
             return "I apologize, but I'm having trouble responding right now. Please continue filling out the form manually."
 
     def generate_admin_response_draft(self, issue_data: Dict[str, Any]) -> str:
@@ -187,8 +187,8 @@ Write 2-3 sentences. Be clear about next steps."""
             return response.text.strip()
 
         except Exception as e:
-            logger.error(f"Error generating admin response draft: {e}")
-            return "AI draft unavailable - please write your response manually."
+            logger.exception(f"Error generating admin response draft for issue: {issue_data.get('title')}")
+            return f"AI draft unavailable due to an error: {str(e)}. Please write your response manually."
 
     def generate_monthly_report(self, stats: Dict[str, Any]) -> str:
         """
@@ -224,8 +224,8 @@ Use clear headings and be professional."""
             return response.text.strip()
 
         except Exception as e:
-            logger.error(f"Error generating monthly report: {e}")
-            return "AI report generation failed."
+            logger.exception("Error generating monthly report")
+            return f"AI report generation failed: {str(e)}. Please try again later or contact support."
 
 
 # Global instance
