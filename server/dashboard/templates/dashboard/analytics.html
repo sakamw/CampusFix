@@ -198,6 +198,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  #aiReportContent h3 { margin-top: 1.25rem; margin-bottom: 0.5rem; color: #111827; font-size: 1.1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; }
+  #aiReportContent p { margin-bottom: 0.75rem; }
+  #aiReportContent ul { margin-bottom: 1rem; padding-left: 1.5rem; list-style-type: disc; }
+  #aiReportContent li { margin-bottom: 0.25rem; }
+  #aiReportContent strong { color: #111827; font-weight: 600; }
+  #aiReportContent blockquote { border-left: 4px solid #e5e7eb; padding-left: 1rem; margin-left: 0; color: #4b5563; font-style: italic; }
+</style>
 <script>
   (function () {
     const statusData = JSON.parse("{{ status_chart_data|escapejs }}");
@@ -342,7 +351,7 @@
                         </div>
                     </div>
                 `;
-          document.getElementById("aiReportContent").textContent = data.report;
+          document.getElementById("aiReportContent").innerHTML = marked.parse(data.report);
           document.getElementById("downloadAiReportBtn").onclick = () => downloadReport(data.report);
           
           loadingDiv.style.display = "none";
