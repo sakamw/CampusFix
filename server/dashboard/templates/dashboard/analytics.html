@@ -109,8 +109,7 @@
   <div class="card">
     <div class="card-title">Feedback Overview</div>
     <div class="card-value">
-      {% if feedback_overall_avg %} {{ feedback_overall_avg|floatformat:1 }}★ {%
-      else %} N/A {% endif %}
+      {% if feedback_overall_avg %}{{ feedback_overall_avg|floatformat:1 }}★{% else %}N/A{% endif %}
     </div>
     <div class="card-muted">
       {{ feedback_total }} ratings submitted by reporters
@@ -179,8 +178,7 @@
           </td>
           <td>{{ row.issue__assigned_to__email }}</td>
           <td>
-            {% if row.avg_rating %} {{ row.avg_rating|floatformat:2 }}★ {% else
-            %} N/A {% endif %}
+            {% if row.avg_rating %}{{ row.avg_rating|floatformat:2 }}★{% else %}N/A{% endif %}
           </td>
           <td>{{ row.rating_count }}</td>
         </tr>

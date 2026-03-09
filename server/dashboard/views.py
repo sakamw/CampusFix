@@ -23,7 +23,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.decorators import admin_required, superuser_required
 from accounts.models import User
-from issues.models import Issue, IssueProgressLog, SLARule, MaintenanceTask
+from issues.models import Issue, IssueProgressLog, SLARule, MaintenanceTask, IssueFeedback
 from issues.analytics import AnalyticsService
 from notifications.models import Notification
 from notifications.services import NotificationService
@@ -771,6 +771,30 @@ def analytics(request):
             (resolved_within_sla / total_resolved_with_sla) * 100, 1
         )
 
+    # Feedback Analytics
+    feedback_qs = IssueFeedback.objects.filter(
+        created_at__date__gte=date_from,
+        created_at__date__lte=date_to,
+    )
+
+    feedback_total = feedback_qs.count()
+    feedback_overall_avg_dict = feedback_qs.aggregate(avg=Avg("rating"))
+    feedback_overall_avg = feedback_overall_avg_dict["avg"]
+
+    feedback_staff_ratings = (
+        feedback_qs.filter(issue__assigned_to__isnull=False)
+        .values(
+            "issue__assigned_to__first_name",
+            "issue__assigned_to__last_name",
+            "issue__assigned_to__email",
+        )
+        .annotate(
+            avg_rating=Avg("rating"),
+            rating_count=Count("id")
+        )
+        .order_by("-rating_count", "-avg_rating")
+    )
+
     context = {
         **_get_active_context(request, "analytics"),
         "range": range_param,
@@ -782,6 +806,9 @@ def analytics(request):
         "top_locations": top_locations,
         "sla_compliance_rate": sla_compliance_rate,
         "total_resolved_with_sla": total_resolved_with_sla,
+        "feedback_total": feedback_total,
+        "feedback_overall_avg": feedback_overall_avg,
+        "feedback_staff_ratings": feedback_staff_ratings,
     }
     return render(request, "dashboard/analytics.html", context)
 
