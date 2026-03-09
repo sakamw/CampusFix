@@ -13,6 +13,9 @@ class GeminiAIService:
     def __init__(self):
         self.api_key = getattr(settings, 'GEMINI_API_KEY', '')
         self.model = getattr(settings, 'GEMINI_MODEL_ISSUES', 'models/gemini-1.5-flash')
+        # a fallback free-tier model to use when quota is exceeded
+        # default to `assistant-lite` which supports generate_content
+        self.free_model = getattr(settings, 'GEMINI_FREE_MODEL', 'models/assistant-lite')
 
         if self.api_key:
             genai.configure(api_key=self.api_key)
@@ -22,6 +25,60 @@ class GeminiAIService:
     def is_available(self) -> bool:
         """Check if the AI service is available."""
         return bool(self.api_key)
+
+    def _generate_with_fallback(self, prompt: str) -> str:
+        """Attempt to generate content using the configured model.
+
+        If a quota/rate-limit error is detected, retry once with the
+        `free_model` to avoid failing entirely. Exceptions are re-raised
+        when both attempts fail.
+        """
+        try:
+            model = genai.GenerativeModel(self.model)
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            msg = str(e)
+            # look for common quota-related indicators
+            if 'quota' in msg.lower() or 'rate limit' in msg.lower() or '429' in msg:
+                logger.warning(
+                    "Primary AI model '%s' failed due to quota/rate limit: %s. "
+                    "Retrying with free model '%s'.",
+                    self.model,
+                    msg,
+                    self.free_model,
+                )
+                try:
+                    alt_model = genai.GenerativeModel(self.free_model)
+                    response = alt_model.generate_content(prompt)
+                    text = response.text.strip()
+                    # annotate so callers know we switched models
+                    return text + "\n\n(Note: AI quota exceeded on the primary model, so a free-tier model was used.)"
+                except Exception as e2:
+                    logger.exception("Fallback AI model also failed")
+                    msg2 = str(e2).lower()
+                    # if the configured free model itself was unavailable, try a known-good
+                    if ('not found' in msg2 or 'unsupported' in msg2 or '404' in msg2) and self.free_model != 'models/assistant-lite':
+                        logger.warning(
+                            "Configured free model '%s' unavailable (%s); trying secondary fallback 'models/assistant-lite'",
+                            self.free_model,
+                            msg2,
+                        )
+                        try:
+                            alt2 = genai.GenerativeModel('models/assistant-lite')
+                            response2 = alt2.generate_content(prompt)
+                            text2 = response2.text.strip()
+                            return text2 + (
+                                "\n\n(Note: AI quota exceeded and configured free model '%s' "
+                                "was unavailable; used 'models/assistant-lite' instead.)" %
+                                self.free_model
+                            )
+                        except Exception:
+                            logger.exception("Secondary fallback also failed")
+                    # raise original exception to preserve context
+                    raise
+            # not a quota issue; re-raise
+            raise
 
     def analyze_sentiment(self, text: str) -> Dict[str, Any]:
         """
@@ -58,11 +115,9 @@ Return format:
 
 Flag for escalation if frustrationScore >= 7."""
 
-            model = genai.GenerativeModel(self.model)
-            response = model.generate_content(prompt)
-
-            # Parse the JSON response
-            result_text = response.text.strip()
+            # try primary model and fall back to a free-tier model if quota is hit
+            response_text = self._generate_with_fallback(prompt)
+            result_text = response_text.strip()
             # Remove markdown code blocks if present
             if result_text.startswith('```json'):
                 result_text = result_text[7:]
@@ -136,10 +191,7 @@ If you have enough information, respond with JSON in this format:
 
 Otherwise, ask one question at a time."""
 
-            model = genai.GenerativeModel(self.model)
-            response = model.generate_content(prompt)
-
-            result_text = response.text.strip()
+            result_text = self._generate_with_fallback(prompt)
 
             # Check if it's a JSON completion response
             try:
@@ -181,10 +233,8 @@ Issue Details:
 
 Write 2-3 sentences. Be clear about next steps."""
 
-            model = genai.GenerativeModel(self.model)
-            response = model.generate_content(prompt)
-
-            return response.text.strip()
+            # generate text with fallback in case of quota errors
+            return self._generate_with_fallback(prompt)
 
         except Exception as e:
             logger.exception(f"Error generating admin response draft for issue: {issue_data.get('title')}")
@@ -218,10 +268,8 @@ Include:
 
 Use clear headings and be professional."""
 
-            model = genai.GenerativeModel(self.model)
-            response = model.generate_content(prompt)
-
-            return response.text.strip()
+            # if quota exceeded on primary model, retry with free-tier fallback
+            return self._generate_with_fallback(prompt)
 
         except Exception as e:
             logger.exception("Error generating monthly report")

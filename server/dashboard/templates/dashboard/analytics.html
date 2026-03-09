@@ -380,40 +380,40 @@
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const margin = 15;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const maxLineWidth = pageWidth - margin * 2;
 
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(37, 99, 235); // #2563eb
-    doc.text("CampusFix AI Monthly Report", margin, 25);
+    // convert Markdown to HTML
+    const bodyHtml = marked.parse(reportText);
+    // build header HTML separately for better control
+    const headerHtml = `
+      <div style="font-family:helvetica,arial,sans-serif;">
+        <h2 style="color:#2563eb; margin-bottom:0.5rem;">CampusFix AI Monthly Report</h2>
+        <p style="font-size:0.8rem; color:#6b7280; margin-top:0;">
+          Generated on: ${new Date().toLocaleString()}
+        </p>
+        <hr style="border:none; border-top:1px solid #e5e7eb; margin:0.5rem 0 1rem;"/>
+      </div>
+    `;
 
-    doc.setFontSize(10);
-    doc.setTextColor(107, 114, 128); // #6b7280
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, 35);
-    
-    doc.setDrawColor(229, 231, 235); // #e5e7eb
-    doc.line(margin, 40, pageWidth - margin, 40);
+    const fullHtml = `<div>${headerHtml}${bodyHtml}</div>`;
 
-    // Content
-    doc.setFontSize(11);
-    doc.setTextColor(17, 24, 39); // #111827
-    const splitText = doc.splitTextToSize(reportText, maxLineWidth);
+    // create temporary offscreen container for html
+    const temp = document.createElement("div");
+    temp.style.position = "absolute";
+    temp.style.left = "-9999px";
+    temp.innerHTML = fullHtml;
+    document.body.appendChild(temp);
 
-    let cursorY = 50;
-    const lineHeight = 7;
-
-    for (let i = 0; i < splitText.length; i++) {
-      if (cursorY + lineHeight > pageHeight - margin) {
-        doc.addPage();
-        cursorY = margin + 10;
-      }
-      doc.text(splitText[i], margin, cursorY);
-      cursorY += lineHeight;
-    }
-
-    doc.save(`campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.pdf`);
+    doc.html(temp, {
+      x: margin,
+      y: margin,
+      width: doc.internal.pageSize.getWidth() - margin * 2,
+      html2canvas: { scale: 0.75 }, // reduce resolution for performance
+      callback: function (doc) {
+        doc.save(`campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.pdf`);
+        document.body.removeChild(temp);
+      },
+      autoPaging: 'text',
+    });
   }
 </script>
 {% endblock %}

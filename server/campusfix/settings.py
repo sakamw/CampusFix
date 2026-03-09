@@ -211,8 +211,15 @@ LOGGING = {
 # All AI calls are made server-side only. The API key is expected to be
 # provided via environment variable and is optional – if missing, AI
 # features gracefully degrade and the application continues to function.
+#
+# The app normally uses `GEMINI_MODEL_ISSUES` for LLM requests. When a
+# quota or rate‑limit error occurs the service will automatically retry
+# using `GEMINI_FREE_MODEL` (default is a free‑tier model such as
+# `models/assistant-lite`) so that reports and drafts can still be
+# generated without hitting paid quotas.
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL_ISSUES = os.environ.get("GEMINI_MODEL_ISSUES", "models/gemini-flash-latest")
+GEMINI_FREE_MODEL = os.environ.get("GEMINI_FREE_MODEL", "models/assistant-lite")
 
 USE_REDIS = os.environ.get("CAMPUSFIX_USE_REDIS", "0") == "1"
 
