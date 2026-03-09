@@ -197,6 +197,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
@@ -383,33 +384,44 @@
 
     // convert Markdown to HTML
     const bodyHtml = marked.parse(reportText);
-    // build header HTML separately for better control
-    const headerHtml = `
-      <div style="font-family:helvetica,arial,sans-serif;">
-        <h2 style="color:#2563eb; margin-bottom:0.5rem;">CampusFix AI Monthly Report</h2>
-        <p style="font-size:0.8rem; color:#6b7280; margin-top:0;">
+    
+    // build HTML with strict styling for html2canvas
+    const fullHtml = `
+      <div style="font-family: helvetica, arial, sans-serif; background-color: #ffffff; color: #000000; padding: 20px;">
+        <h2 style="color: #2563eb; margin-bottom: 0.5rem; margin-top: 0;">CampusFix AI Monthly Report</h2>
+        <p style="font-size: 0.8rem; color: #6b7280; margin-top: 0;">
           Generated on: ${new Date().toLocaleString()}
         </p>
-        <hr style="border:none; border-top:1px solid #e5e7eb; margin:0.5rem 0 1rem;"/>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0.5rem 0 1rem;"/>
+        <div style="font-size: 14px; line-height: 1.5;">
+          ${bodyHtml}
+        </div>
       </div>
     `;
 
-    const fullHtml = `<div>${headerHtml}${bodyHtml}</div>`;
-
     // create temporary offscreen container for html
     const temp = document.createElement("div");
+    // Essential: Give the element an explicit width so html2canvas can measure text wrapping
+    temp.style.width = "800px";
     temp.style.position = "absolute";
-    temp.style.left = "-9999px";
+    // Place it out of view, but not with display:none or visibility:hidden
+    temp.style.top = "-10000px";
+    temp.style.left = "0";
     temp.innerHTML = fullHtml;
+    
+    // Required by html2canvas to be in the DOM
     document.body.appendChild(temp);
+
+    const pdfWidth = doc.internal.pageSize.getWidth() - margin * 2;
 
     doc.html(temp, {
       x: margin,
       y: margin,
-      width: doc.internal.pageSize.getWidth() - margin * 2,
-      html2canvas: { scale: 0.75 }, // reduce resolution for performance
+      width: pdfWidth,     // Width of the PDF in PDF units
+      windowWidth: 800,    // CSS width of the element to scale from
       callback: function (doc) {
         doc.save(`campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.pdf`);
+        // Cleanup after PDF has generated
         document.body.removeChild(temp);
       },
       autoPaging: 'text',

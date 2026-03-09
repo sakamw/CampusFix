@@ -12,10 +12,10 @@ class GeminiAIService:
 
     def __init__(self):
         self.api_key = getattr(settings, 'GEMINI_API_KEY', '')
-        self.model = getattr(settings, 'GEMINI_MODEL_ISSUES', 'models/gemini-1.5-flash')
+        self.model = getattr(settings, 'GEMINI_MODEL_ISSUES', 'models/gemini-flash-lite-latest')
         # a fallback free-tier model to use when quota is exceeded
-        # default to `assistant-lite` which supports generate_content
-        self.free_model = getattr(settings, 'GEMINI_FREE_MODEL', 'models/assistant-lite')
+        # default to `gemini-flash-lite-latest` which supports generate_content
+        self.free_model = getattr(settings, 'GEMINI_FREE_MODEL', 'models/gemini-flash-lite-latest')
 
         if self.api_key:
             genai.configure(api_key=self.api_key)
@@ -58,19 +58,19 @@ class GeminiAIService:
                     logger.exception("Fallback AI model also failed")
                     msg2 = str(e2).lower()
                     # if the configured free model itself was unavailable, try a known-good
-                    if ('not found' in msg2 or 'unsupported' in msg2 or '404' in msg2) and self.free_model != 'models/assistant-lite':
+                    if ('not found' in msg2 or 'unsupported' in msg2 or '404' in msg2) and self.free_model != 'models/gemini-flash-lite-latest':
                         logger.warning(
-                            "Configured free model '%s' unavailable (%s); trying secondary fallback 'models/assistant-lite'",
+                            "Configured free model '%s' unavailable (%s); trying secondary fallback 'models/gemini-flash-lite-latest'",
                             self.free_model,
                             msg2,
                         )
                         try:
-                            alt2 = genai.GenerativeModel('models/assistant-lite')
+                            alt2 = genai.GenerativeModel('models/gemini-flash-lite-latest')
                             response2 = alt2.generate_content(prompt)
                             text2 = response2.text.strip()
                             return text2 + (
                                 "\n\n(Note: AI quota exceeded and configured free model '%s' "
-                                "was unavailable; used 'models/assistant-lite' instead.)" %
+                                "was unavailable; used 'models/gemini-flash-lite-latest' instead.)" %
                                 self.free_model
                             )
                         except Exception:
