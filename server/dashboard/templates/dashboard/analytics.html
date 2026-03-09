@@ -399,14 +399,16 @@
       </div>
     `;
 
-    // create temporary offscreen container for html
+    // create temporary container for html
     const temp = document.createElement("div");
-    // Essential: Give the element an explicit width so html2canvas can measure text wrapping
+    // Ensure element is exactly 800px wide for reliable html2canvas formatting
     temp.style.width = "800px";
     temp.style.position = "absolute";
-    // Place it out of view, but not with display:none or visibility:hidden
-    temp.style.top = "-10000px";
+    // Avoid any negative offsets which break html2canvas/jsPDF coordinates causing blank pages or overlaps
+    temp.style.top = "0";
     temp.style.left = "0";
+    // Hide it silently behind the dashboard to prevent visual flickering
+    temp.style.zIndex = "-9999";
     temp.innerHTML = fullHtml;
     
     // Required by html2canvas to be in the DOM
@@ -419,12 +421,12 @@
       y: margin,
       width: pdfWidth,     // Width of the PDF in PDF units
       windowWidth: 800,    // CSS width of the element to scale from
+      autoPaging: 'text',  // Safest auto-paging algorithm for jsPDF
       callback: function (doc) {
         doc.save(`campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.pdf`);
         // Cleanup after PDF has generated
         document.body.removeChild(temp);
-      },
-      autoPaging: 'text',
+      }
     });
   }
 </script>
