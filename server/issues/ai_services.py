@@ -254,11 +254,21 @@ Write 2-3 sentences. Be clear about next steps."""
             return "AI report generation unavailable."
 
         try:
+            now = timezone.now()
+            month_year = now.strftime("%B %Y")
+            current_date = now.strftime("%B %d, %Y")
             stats_json = json.dumps(stats, indent=2)
 
             prompt = f"""You are a facilities management analyst. Write a concise monthly performance report for a university campus maintenance system based on these statistics:
 
 {stats_json}
+
+The report must start exactly with this heading:
+
+# Monthly Facilities Performance Report - {month_year}
+
+**Prepared For:** University Facilities Leadership
+**Date:** {current_date}
 
 Include:
 - Overall summary
