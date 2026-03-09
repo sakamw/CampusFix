@@ -1,8 +1,6 @@
 from datetime import timedelta, datetime
 import json
 
-from django.http import JsonResponse, HttpResponse
-
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.forms import AuthenticationForm
@@ -856,54 +854,6 @@ def generate_ai_report(request):
 
     report = ai_service.generate_monthly_report(stats)
     return JsonResponse({"report": report, "stats": stats})
-
-
-@admin_required
-@require_http_methods(["POST"])
-def download_ai_report_odf(request):
-    """
-    Generate and download the AI report as an ODT (OpenDocument Text) file.
-    """
-    try:
-        data = json.loads(request.body)
-        report_text = data.get("report", "").strip()
-    except json.JSONDecodeError:
-        return HttpResponse("Invalid request data", status=400)
-
-    if not report_text:
-        return HttpResponse("Report content is missing", status=400)
-
-    try:
-        import io
-        from odf.opendocument import OpenDocumentText
-        from odf.text import P
-
-        # Create ODT document
-        textdoc = OpenDocumentText()
-        
-        # Split text by newlines and add as paragraphs
-        for line in report_text.split('\n'):
-            p = P(text=line)
-            textdoc.text.addElement(p)
-
-        # Save to memory buffer
-        buffer = io.BytesIO()
-        textdoc.save(buffer)
-        buffer.seek(0)
-
-        filename = f"campusfix-monthly-report-{timezone.now().strftime('%Y-%m-%d')}.odt"
-        response = HttpResponse(
-            buffer.getvalue(),
-            content_type="application/vnd.oasis.opendocument.text"
-        )
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
-
-    except Exception as e:
-        import logging
-        logger = logging.getLogger("security")
-        logger.exception("Error generating ODF report")
-        return HttpResponse(f"Error generating ODF: {str(e)}", status=500)
 
 
 @admin_required
