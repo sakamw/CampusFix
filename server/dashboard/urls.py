@@ -20,6 +20,7 @@ urlpatterns = [
     path("staff/", views.staff_overview, name="staff"),
     path("analytics/", views.analytics, name="analytics"),
     path("generate-ai-report/", views.generate_ai_report, name="generate_ai_report"),
+    path("download-ai-report-odf/", views.download_ai_report_odf, name="download_ai_report_odf"),
     path("calendar/", views.calendar, name="calendar"),
     path("announcements/", views.announcements, name="announcements"),
     path("settings/", views.settings_view, name="settings"),

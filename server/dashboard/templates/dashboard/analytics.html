@@ -336,7 +336,7 @@
                         <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
                             <button id="downloadAiReportBtn" 
                                     style="background: #059669; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">
-                                Download Report (.txt)
+                                Download Report (.odt)
                             </button>
                         </div>
                     </div>
@@ -366,17 +366,43 @@
       }
     });
 
-  function downloadReport(reportText) {
-    // Create a simple text download for now (can be enhanced to PDF later)
-    const blob = new Blob([reportText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  async function downloadReport(reportText) {
+    try {
+      const csrfToken =
+        document.querySelector("[name=csrfmiddlewaretoken]")?.value ||
+        document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("dashboard_csrftoken="))
+          ?.split("=")[1] ||
+        "";
+
+      const response = await fetch("/dashboard/download-ai-report-odf/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({ report: reportText }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const filename = `campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.odt`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        alert("Failed to download ODT report. Check server logs.");
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("An error occurred while downloading the report.");
+    }
   }
 </script>
 {% endblock %}
