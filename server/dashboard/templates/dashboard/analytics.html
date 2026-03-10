@@ -1,5 +1,4 @@
-{% extends "dashboard/base.html" %} {% block content %}
-{% csrf_token %}
+{% extends "dashboard/base.html" %} {% block content %} {% csrf_token %}
 <div class="page-header">
   <div class="page-title">Analytics</div>
   <div class="page-subtitle">
@@ -173,7 +172,7 @@
             {% if row.issue__assigned_to__first_name or row.issue__assigned_to__last_name %}
               {{ row.issue__assigned_to__first_name }} {{ row.issue__assigned_to__last_name }}
             {% else %}
-              <span class="text-muted">Unknown</span>
+            <span class="text-muted">Unknown</span>
             {% endif %}
           </td>
           <td>{{ row.issue__assigned_to__email }}</td>
@@ -195,16 +194,39 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
-  #aiReportContent h3 { margin-top: 1.25rem; margin-bottom: 0.5rem; color: #111827; font-size: 1.1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; }
-  #aiReportContent p { margin-bottom: 0.75rem; }
-  #aiReportContent ul { margin-bottom: 1rem; padding-left: 1.5rem; list-style-type: disc; }
-  #aiReportContent li { margin-bottom: 0.25rem; }
-  #aiReportContent strong { color: #111827; font-weight: 600; }
-  #aiReportContent blockquote { border-left: 4px solid #e5e7eb; padding-left: 1rem; margin-left: 0; color: #4b5563; font-style: italic; }
+  #aiReportContent h3 {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: #111827;
+    font-size: 1.1rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.25rem;
+  }
+  #aiReportContent p {
+    margin-bottom: 0.75rem;
+  }
+  #aiReportContent ul {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+    list-style-type: disc;
+  }
+  #aiReportContent li {
+    margin-bottom: 0.25rem;
+  }
+  #aiReportContent strong {
+    color: #111827;
+    font-weight: 600;
+  }
+  #aiReportContent blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 1rem;
+    margin-left: 0;
+    color: #4b5563;
+    font-style: italic;
+  }
 </style>
 <script>
   (function () {
@@ -263,7 +285,9 @@
           legend: { labels: { font: { size: 11 } } },
         },
         scales: {
-          x: { ticks: { autoSkip: true, maxTicksLimit: 10, font: { size: 10 } } },
+          x: {
+            ticks: { autoSkip: true, maxTicksLimit: 10, font: { size: 10 } },
+          },
           y: { beginAtZero: true, precision: 0, ticks: { font: { size: 10 } } },
         },
       },
@@ -350,16 +374,18 @@
                         </div>
                     </div>
                 `;
-          document.getElementById("aiReportContent").innerHTML = marked.parse(data.report);
-          document.getElementById("downloadAiReportBtn").onclick = () => downloadReport(data.report);
-          
+          document.getElementById("aiReportContent").innerHTML = marked.parse(
+            data.report,
+          );
+          document.getElementById("downloadAiReportBtn").onclick = () =>
+            downloadReport(data.report);
+
           loadingDiv.style.display = "none";
           resultDiv.style.display = "block";
         } else {
-          const errorMsg = data.error || data.detail || "Failed to generate report";
-          throw new Error(
-            `Server error (${response.status}): ${errorMsg}`
-          );
+          const errorMsg =
+            data.error || data.detail || "Failed to generate report";
+          throw new Error(`Server error (${response.status}): ${errorMsg}`);
         }
       } catch (error) {
         resultDiv.innerHTML = `
@@ -379,53 +405,48 @@
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const maxLineWidth = pageWidth - margin * 2;
 
-    // convert Markdown to HTML
-    const bodyHtml = marked.parse(reportText);
-    
-    // build HTML with strict styling for html2canvas
-    const fullHtml = `
-      <div style="font-family: helvetica, arial, sans-serif; background-color: #ffffff; color: #000000; padding: 20px;">
-        <h2 style="color: #2563eb; margin-bottom: 0.5rem; margin-top: 0;">CampusFix AI Monthly Report</h2>
-        <p style="font-size: 0.8rem; color: #6b7280; margin-top: 0;">
-          Generated on: ${new Date().toLocaleString()}
-        </p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0.5rem 0 1rem;"/>
-        <div style="font-size: 14px; line-height: 1.5;">
-          ${bodyHtml}
-        </div>
-      </div>
-    `;
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(37, 99, 235); // #2563eb
+    doc.text("CampusFix AI Monthly Report", margin, 25);
 
-    // create temporary container for html
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128); // #6b7280
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, 35);
+
+    doc.setDrawColor(229, 231, 235); // #e5e7eb
+    doc.line(margin, 40, pageWidth - margin, 40);
+
+    // Convert markdown to plain text for better PDF rendering
+    const htmlContent = marked.parse(reportText);
     const temp = document.createElement("div");
-    // Ensure element is exactly 800px wide for reliable html2canvas formatting
-    temp.style.width = "800px";
-    temp.style.position = "absolute";
-    // Avoid any negative offsets which break html2canvas/jsPDF coordinates causing blank pages or overlaps
-    temp.style.top = "0";
-    temp.style.left = "0";
-    // Hide it silently behind the dashboard to prevent visual flickering
-    temp.style.zIndex = "-9999";
-    temp.innerHTML = fullHtml;
-    
-    // Required by html2canvas to be in the DOM
-    document.body.appendChild(temp);
+    temp.innerHTML = htmlContent;
+    const plainText = temp.textContent || "";
 
-    const pdfWidth = doc.internal.pageSize.getWidth() - margin * 2;
+    // Content
+    doc.setFontSize(11);
+    doc.setTextColor(17, 24, 39); // #111827
+    const splitText = doc.splitTextToSize(plainText, maxLineWidth);
 
-    doc.html(temp, {
-      x: margin,
-      y: margin,
-      width: pdfWidth,     // Width of the PDF in PDF units
-      windowWidth: 800,    // CSS width of the element to scale from
-      autoPaging: 'text',  // Safest auto-paging algorithm for jsPDF
-      callback: function (doc) {
-        doc.save(`campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.pdf`);
-        // Cleanup after PDF has generated
-        document.body.removeChild(temp);
+    let cursorY = 50;
+    const lineHeight = 7;
+
+    for (let i = 0; i < splitText.length; i++) {
+      if (cursorY + lineHeight > pageHeight - margin) {
+        doc.addPage();
+        cursorY = margin + 10;
       }
-    });
+      doc.text(splitText[i], margin, cursorY);
+      cursorY += lineHeight;
+    }
+
+    doc.save(
+      `campusfix-monthly-report-${new Date().toISOString().split("T")[0]}.pdf`,
+    );
   }
 </script>
 {% endblock %}

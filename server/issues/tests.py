@@ -6,13 +6,14 @@ from . import ai_services
 
 class GeminiAIServiceTests(TestCase):
     def setUp(self):
-        # ensure service has no API key so we can configure manually
+        # ensure service has API key so fallback logic runs
         self.service = ai_services.GeminiAIService()
-        # override api_key to avoid external calls
         self.service.api_key = 'fake'
+        self.service.model = 'models/gemini-1.5-flash'
+        self.service.fallback_models = ['models/gemini-2.0-flash', 'models/gemini-pro']
 
     def test_generate_with_fallback_on_quota(self):
-        # simulate primary model raising quota error first, then free model succeeding
+        # simulate primary model raising quota error, then fallback succeeds
         prompt = 'test prompt'
 
         class DummyResponse:
@@ -22,24 +23,22 @@ class GeminiAIServiceTests(TestCase):
         def primary_generate(content):
             raise Exception('Quota exceeded: 429')
 
-        def free_generate(content):
-            return DummyResponse('free model text')
+        def fallback_generate(content):
+            return DummyResponse('fallback result')
 
         with mock.patch('google.generativeai.GenerativeModel') as MockModel:
             # primary instance
             instance_primary = mock.MagicMock()
             instance_primary.generate_content.side_effect = primary_generate
-            # free instance
-            instance_free = mock.MagicMock()
-            instance_free.generate_content.side_effect = free_generate
+            # fallback instance
+            instance_fallback = mock.MagicMock()
+            instance_fallback.generate_content.side_effect = fallback_generate
 
             # configure return values for successive calls
-            MockModel.side_effect = [instance_primary, instance_free]
+            MockModel.side_effect = [instance_primary, instance_fallback]
 
             result = self.service._generate_with_fallback(prompt)
-            # primary should have failed, so free response must appear
-            self.assertIn('free model text', result)
-            # our helper attaches a note when fallback is used
+            self.assertIn('fallback result', result)
             self.assertIn('AI quota exceeded on the primary model', result)
 
     def test_generate_no_quota_uses_primary(self):
@@ -54,35 +53,31 @@ class GeminiAIServiceTests(TestCase):
             result = self.service._generate_with_fallback(prompt)
             self.assertEqual(result, 'primary result')
 
-    def test_secondary_fallback_when_free_model_invalid(self):
-        # primary quota error, free model 404, then secondary fallback succeeds
+    def test_tries_multiple_fallbacks_on_quota(self):
+        # primary quota, first fallback quota, second fallback succeeds
         prompt = 'another prompt'
         class DummyResponse:
             def __init__(self, text):
                 self.text = text
 
-        def primary_generate(content):
+        def primary_quota(content):
             raise Exception('Quota exceeded: 429')
 
-        def free_generate_fail(content):
-            raise Exception('404 model not found')
+        def fallback1_quota(content):
+            raise Exception('Quota exceeded: 429')
 
-        def secondary_generate(content):
-            return DummyResponse('secondary success')
+        def fallback2_succeed(content):
+            return DummyResponse('third time lucky')
 
         with mock.patch('google.generativeai.GenerativeModel') as MockModel:
-            # order: primary, free, secondary
-            primary_inst = mock.MagicMock()
-            primary_inst.generate_content.side_effect = primary_generate
-            free_inst = mock.MagicMock()
-            free_inst.generate_content.side_effect = free_generate_fail
-            secondary_inst = mock.MagicMock()
-            secondary_inst.generate_content.side_effect = secondary_generate
-            MockModel.side_effect = [primary_inst, free_inst, secondary_inst]
-
-            # temporarily set free_model to something invalid
-            self.service.free_model = 'models/text-bison-001'
+            # order: primary, fallback1, fallback2
+            instances = [mock.MagicMock() for _ in range(3)]
+            instances[0].generate_content.side_effect = primary_quota
+            instances[1].generate_content.side_effect = fallback1_quota
+            instances[2].generate_content.side_effect = fallback2_succeed
+            MockModel.side_effect = instances
 
             result = self.service._generate_with_fallback(prompt)
-            self.assertIn('secondary success', result)
-            self.assertIn("configured free model 'models/text-bison-001'", result)
+            self.assertIn('third time lucky', result)
+            # should report which fallback was used
+            self.assertIn('models/gemini-pro', result)

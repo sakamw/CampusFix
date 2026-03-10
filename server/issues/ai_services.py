@@ -12,10 +12,14 @@ class GeminiAIService:
 
     def __init__(self):
         self.api_key = getattr(settings, 'GEMINI_API_KEY', '')
-        self.model = getattr(settings, 'GEMINI_MODEL_ISSUES', 'models/gemini-flash-lite-latest')
-        # a fallback free-tier model to use when quota is exceeded
-        # default to `gemini-flash-lite-latest` which supports generate_content
-        self.free_model = getattr(settings, 'GEMINI_FREE_MODEL', 'models/gemini-flash-lite-latest')
+        self.model = getattr(settings, 'GEMINI_MODEL_ISSUES', 'models/gemini-1.5-flash')
+        # list of fallback models to try when quota is exceeded
+        # these are known to work and have free tier quotas
+        self.fallback_models = [
+            getattr(settings, 'GEMINI_FREE_MODEL', 'models/gemini-1.5-flash'),
+            'models/gemini-2.0-flash',
+            'models/gemini-pro',
+        ]
 
         if self.api_key:
             genai.configure(api_key=self.api_key)
@@ -29,9 +33,8 @@ class GeminiAIService:
     def _generate_with_fallback(self, prompt: str) -> str:
         """Attempt to generate content using the configured model.
 
-        If a quota/rate-limit error is detected, retry once with the
-        `free_model` to avoid failing entirely. Exceptions are re-raised
-        when both attempts fail.
+        If a quota/rate-limit error is detected, retry with models from
+        fallback_models list in order. Returns with a note when fallback is used.
         """
         try:
             model = genai.GenerativeModel(self.model)
@@ -42,41 +45,43 @@ class GeminiAIService:
             # look for common quota-related indicators
             if 'quota' in msg.lower() or 'rate limit' in msg.lower() or '429' in msg:
                 logger.warning(
-                    "Primary AI model '%s' failed due to quota/rate limit: %s. "
-                    "Retrying with free model '%s'.",
+                    "Primary AI model '%s' failed due to quota/rate limit. "
+                    "Trying fallback models: %s",
                     self.model,
-                    msg,
-                    self.free_model,
+                    self.fallback_models,
                 )
-                try:
-                    alt_model = genai.GenerativeModel(self.free_model)
-                    response = alt_model.generate_content(prompt)
-                    text = response.text.strip()
-                    # annotate so callers know we switched models
-                    return text + "\n\n(Note: AI quota exceeded on the primary model, so a free-tier model was used.)"
-                except Exception as e2:
-                    logger.exception("Fallback AI model also failed")
-                    msg2 = str(e2).lower()
-                    # if the configured free model itself was unavailable, try a known-good
-                    if ('not found' in msg2 or 'unsupported' in msg2 or '404' in msg2) and self.free_model != 'models/gemini-flash-lite-latest':
+                # try each fallback model in order
+                for fallback_model in self.fallback_models:
+                    if fallback_model == self.model:
+                        continue  # skip if it's the same as primary
+                    try:
+                        logger.info("Attempting fallback model: %s", fallback_model)
+                        alt_model = genai.GenerativeModel(fallback_model)
+                        response = alt_model.generate_content(prompt)
+                        text = response.text.strip()
+                        # annotate so callers know we switched models
+                        return text + (
+                            "\n\n(Note: AI quota exceeded on the primary model, "
+                            "so '%s' was used instead.)" % fallback_model
+                        )
+                    except Exception as e2:
+                        msg2 = str(e2).lower()
                         logger.warning(
-                            "Configured free model '%s' unavailable (%s); trying secondary fallback 'models/gemini-flash-lite-latest'",
-                            self.free_model,
+                            "Fallback model '%s' failed: %s",
+                            fallback_model,
                             msg2,
                         )
-                        try:
-                            alt2 = genai.GenerativeModel('models/gemini-flash-lite-latest')
-                            response2 = alt2.generate_content(prompt)
-                            text2 = response2.text.strip()
-                            return text2 + (
-                                "\n\n(Note: AI quota exceeded and configured free model '%s' "
-                                "was unavailable; used 'models/gemini-flash-lite-latest' instead.)" %
-                                self.free_model
-                            )
-                        except Exception:
-                            logger.exception("Secondary fallback also failed")
-                    # raise original exception to preserve context
-                    raise
+                        # if this is also a quota issue, try the next fallback
+                        if 'quota' in msg2 or 'rate limit' in msg2 or '429' in msg2:
+                            continue
+                        # if it's a model not found or unsupported, try next
+                        if 'not found' in msg2 or 'unsupported' in msg2 or '404' in msg2:
+                            continue
+                        # any other error, stop and raise
+                        break
+                # all fallbacks tried and failed
+                logger.exception("All fallback models failed")
+                raise
             # not a quota issue; re-raise
             raise
 
@@ -254,21 +259,11 @@ Write 2-3 sentences. Be clear about next steps."""
             return "AI report generation unavailable."
 
         try:
-            now = timezone.now()
-            month_year = now.strftime("%B %Y")
-            current_date = now.strftime("%B %d, %Y")
             stats_json = json.dumps(stats, indent=2)
 
             prompt = f"""You are a facilities management analyst. Write a concise monthly performance report for a university campus maintenance system based on these statistics:
 
 {stats_json}
-
-The report must start exactly with this heading:
-
-# Monthly Facilities Performance Report - {month_year}
-
-**Prepared For:** University Facilities Leadership
-**Date:** {current_date}
 
 Include:
 - Overall summary
