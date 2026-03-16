@@ -276,6 +276,17 @@ export const authApi = {
       }),
     });
   },
+
+  submitSupportRequest: async (data: {
+    support_type: string;
+    subject: string;
+    message: string;
+  }): Promise<ApiResponse<{ message: string; success: boolean }>> => {
+    return apiFetch("/auth/support/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Issue types

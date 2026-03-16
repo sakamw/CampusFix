@@ -212,6 +212,10 @@ LOGGING = {
     },
 }
 
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'shanmwangi2020@gmail.com'
+
 # Gemini / AI configuration
 # All AI calls are made server-side only. The API key is expected to be
 # provided via environment variable and is optional – if missing, AI

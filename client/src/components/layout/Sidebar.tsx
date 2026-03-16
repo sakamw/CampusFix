@@ -13,6 +13,8 @@ import {
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import { useToast } from "../../hooks/use-toast";
+import { SupportModal } from "../SupportModal";
+import { useState } from "react";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -42,14 +44,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { toast } = useToast();
   const isAdmin = location.pathname.startsWith("/admin");
   const navItems = isAdmin ? adminNavItems : studentNavItems;
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
   const handleGetSupport = () => {
-    toast({
-      title: "Get Support",
-      description: "Opening support options...",
-    });
-    window.location.href =
-      "mailto:support@campusfix.edu?subject=Support Request";
+    setIsSupportModalOpen(true);
   };
 
   return (
@@ -109,26 +107,29 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ))}
           </nav>
 
-          {!isAdmin && (
-            <div className="p-4 mt-auto">
-              <div className="rounded-lg border bg-muted/50 p-4">
-                <p className="text-sm font-medium">Need help?</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Contact IT support for urgent issues
-                </p>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-3 w-full"
-                  onClick={handleGetSupport}
-                >
-                  Get Support
-                </Button>
-              </div>
+          <div className="p-4 mt-auto">
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <p className="text-sm font-medium">Need help?</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Contact IT support for urgent issues
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-3 w-full"
+                onClick={handleGetSupport}
+              >
+                Get Support
+              </Button>
             </div>
-          )}
+          </div>
         </div>
       </aside>
+
+      <SupportModal 
+        isOpen={isSupportModalOpen} 
+        onClose={() => setIsSupportModalOpen(false)} 
+      />
     </>
   );
 }

@@ -12,7 +12,9 @@ from .views import (
     AvatarUpdateView,
     CloudinaryImageUploadView,
     TwoFactorUpdateView,
+    TwoFactorUpdateView,
     TwoFactorSetupView,
+    SupportRequestView,
 )
 
 urlpatterns = [
@@ -28,4 +30,5 @@ urlpatterns = [
     path('upload-avatar/', CloudinaryImageUploadView.as_view(), name='cloudinary_upload'),
     path('two-factor/', TwoFactorUpdateView.as_view(), name='two_factor_update'),
     path('2fa/setup/', TwoFactorSetupView.as_view(), name='two_factor_setup'),
+    path('support/', SupportRequestView.as_view(), name='support_request'),
 ]

@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
+from django.core.mail import send_mail
+from django.conf import settings
 
 from .serializers import (
     UserSerializer, 
@@ -395,3 +397,69 @@ class TwoFactorSetupView(APIView):
             'two_factor_enabled': True,
             'user': UserSerializer(user).data
         }, status=status.HTTP_200_OK)
+
+
+class SupportRequestView(APIView):
+    """View for handling in-app support requests."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    @user_rate_limit(rate='5/h', block_time=3600)  # 5 support requests per hour
+    def post(self, request):
+        user = request.user
+        support_type = request.data.get('support_type')
+        subject = request.data.get('subject')
+        message = request.data.get('message')
+        
+        if not all([support_type, subject, message]):
+            return Response(
+                {
+                    'error': 'Missing required fields',
+                    'message': 'Please provide the support type, subject, and message.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Construct email content
+        email_subject = f"[{support_type}] {subject} - From: {user.first_name} {user.last_name}"
+        email_body = f"""
+New support request from CampusFix Application:
+
+Reporter Details:
+-----------------
+Name: {user.first_name} {user.last_name}
+Email: {user.email}
+Role: {user.role}
+Student ID: {getattr(user, 'student_id', 'N/A')}
+
+Support Details:
+----------------
+Type: {support_type}
+Subject: {subject}
+
+Message:
+--------
+{message}
+"""
+
+        try:
+            send_mail(
+                subject=email_subject,
+                message=email_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=['shanmwangi2020@gmail.com'], # Replace with actual support email from settings if it exists
+                fail_silently=False,
+            )
+            
+            return Response({
+                'message': 'Your support request has been sent successfully. Our team will get back to you shortly.',
+                'success': True
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Failed to send support request',
+                'message': 'An error occurred while sending your request. Please try again later or email us directly.',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
