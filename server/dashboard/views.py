@@ -1129,7 +1129,18 @@ def settings_view(request):
         messages.success(request, "SLA settings updated successfully.")
         return redirect("dashboard:settings")
 
-    # Prepare context for rendering the SLA settings form
+    # Default fallback if not defined based on categories
+    defaults = {
+        'safety': 24,
+        'electrical': 48,
+        'plumbing': 48,
+        'it-infrastructure': 48,
+        'facilities': 120,
+        'equipment': 120,
+        'maintenance': 120,
+        'other': 120,
+    }
+    
     sla_rows = []
     for value, label in Issue.CATEGORY_CHOICES:
         rule = existing_rules.get(value)
@@ -1137,7 +1148,7 @@ def settings_view(request):
             {
                 "value": value,
                 "label": label,
-                "hours": rule.response_time_hours if rule else "",
+                "hours": rule.response_time_hours if rule else defaults.get(value, 120),
             }
         )
 

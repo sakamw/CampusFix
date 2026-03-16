@@ -182,11 +182,13 @@
             {% endif %} {% endwith %}
           </td>
           <td>
-            {% if issue.is_overdue %}
+            {% if issue.sla_breached %}
             <span class="badge badge-red">OVERDUE</span>
-            {% elif issue.sla_due_at %}
+            {% elif issue.status == 'open' %}
+            <span class="text-muted">Awaiting Assignment</span>
+            {% elif issue.sla_deadline %}
             <span class="badge badge-gray">
-              Due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
+              Due {{ issue.sla_deadline|date:"Y-m-d H:i" }}
             </span>
             {% else %}
             <span class="text-muted">—</span>

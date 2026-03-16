@@ -59,16 +59,18 @@
       </p>
       <p>
         <strong>SLA:</strong>
-        {% if issue.is_overdue %}
+        {% if issue.sla_breached %}
           <span class="badge badge-red">OVERDUE</span>
-          {% if issue.sla_due_at %}
+          {% if issue.sla_deadline %}
             <span class="text-muted" style="margin-left:0.25rem;font-size:0.8rem;">
-              Was due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
+              Was due {{ issue.sla_deadline|date:"Y-m-d H:i" }}
             </span>
           {% endif %}
-        {% elif issue.sla_due_at %}
+        {% elif issue.status == 'open' %}
+          <span class="text-muted">Clock starts when issue is In-Progress</span>
+        {% elif issue.sla_deadline %}
           <span class="badge badge-gray">
-            Due {{ issue.sla_due_at|date:"Y-m-d H:i" }}
+            Due {{ issue.sla_deadline|date:"Y-m-d H:i" }}
           </span>
         {% else %}
           <span class="text-muted">No SLA configured for this category.</span>
