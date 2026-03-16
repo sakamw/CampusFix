@@ -25,11 +25,11 @@ class IssueProgressLogSerializer(serializers.ModelSerializer):
 
 
 class ResolutionEvidenceSerializer(serializers.ModelSerializer):
-    uploaded_by = UserSerializer(read_only=True)
+    admin = UserSerializer(read_only=True)
     
     class Meta:
         model = ResolutionEvidence
-        fields = ['id', 'issue', 'file', 'filename', 'description', 'uploaded_by', 'uploaded_at']
+        fields = ['id', 'issue', 'file', 'filename', 'file_type', 'file_size', 'description', 'admin', 'uploaded_at']
         read_only_fields = ['id', 'uploaded_at']
 
 
