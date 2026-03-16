@@ -6,36 +6,7 @@
     <div class="page-subtitle">Broadcast important campus-wide messages.</div>
 </div>
 
-<div class="card mt-md">
-    <div class="card-title">Create Announcement</div>
-    <form method="post" class="space-y-3" style="margin-top:0.75rem;">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="create">
-        <div>
-            <label for="title"><strong>Title</strong></label>
-            <input type="text" id="title" name="title" placeholder="Gym closed for repairs until Friday" required>
-        </div>
-        <div>
-            <label for="body"><strong>Body</strong></label>
-            <textarea id="body" name="body" rows="3" placeholder="Provide more detail about the announcement" required></textarea>
-        </div>
-        <div>
-            <label for="expires_at"><strong>Expiry (optional)</strong></label>
-            <input
-                type="datetime-local"
-                id="expires_at"
-                name="expires_at"
-                placeholder="YYYY-MM-DDThh:mm"
-            >
-            <p class="card-muted" style="margin-top:0.25rem;font-size:0.8rem;">
-                After this date, the announcement will no longer appear for students.
-            </p>
-        </div>
-        <div style="margin-top:0.5rem;">
-            <button type="submit">Publish Announcement</button>
-        </div>
-    </form>
-</div>
+
 
 <div class="table-wrapper mt-md">
     <div class="table-header">

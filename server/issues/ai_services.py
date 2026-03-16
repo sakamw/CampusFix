@@ -260,10 +260,14 @@ Write 2-3 sentences. Be clear about next steps."""
 
         try:
             stats_json = json.dumps(stats, indent=2)
+            current_month_year = timezone.now().strftime("%B %Y")
 
             prompt = f"""You are a facilities management analyst. Write a concise monthly performance report for a university campus maintenance system based on these statistics:
 
 {stats_json}
+
+The report is for the period: {current_month_year}.
+Please ensure the title of your report explicitly includes this period instead of "[Insert Month/Year]".
 
 Include:
 - Overall summary
