@@ -890,7 +890,9 @@ export default function IssueDetails() {
               <div className="rounded-xl border bg-card p-6 space-y-4">
                 <h3 className="font-semibold">How was your experience?</h3>
                 <p className="text-sm text-muted-foreground">
-                  Rate the resolution so campus staff can keep improving.
+                  {issue.my_feedback
+                    ? "Thank you for rating this resolution!"
+                    : "Rate the resolution so campus staff can keep improving."}
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   {[1, 2, 3, 4, 5].map((n) => (
@@ -900,7 +902,7 @@ export default function IssueDetails() {
                       variant={feedbackRating === n ? "default" : "outline"}
                       size="sm"
                       onClick={() => setFeedbackRating(n)}
-                      disabled={submittingFeedback}
+                      disabled={submittingFeedback || !!issue.my_feedback}
                     >
                       {n}★
                     </Button>
@@ -911,16 +913,18 @@ export default function IssueDetails() {
                   value={feedbackComment}
                   onChange={(e) => setFeedbackComment(e.target.value)}
                   className="input-focus"
-                  disabled={submittingFeedback}
+                  disabled={submittingFeedback || !!issue.my_feedback}
                 />
-                <Button
-                  type="button"
-                  className="w-full md:w-auto"
-                  disabled={!feedbackRating || submittingFeedback}
-                  onClick={handleSubmitFeedback}
-                >
-                  {submittingFeedback ? "Submitting..." : "Submit Feedback"}
-                </Button>
+                {!issue.my_feedback && (
+                  <Button
+                    type="button"
+                    className="w-full md:w-auto"
+                    disabled={!feedbackRating || submittingFeedback}
+                    onClick={handleSubmitFeedback}
+                  >
+                    {submittingFeedback ? "Submitting..." : "Submit Feedback"}
+                  </Button>
+                )}
                 {typeof issue.average_feedback_rating === "number" &&
                   (issue.feedback_count || 0) > 0 && (
                     <p className="text-xs text-muted-foreground">
