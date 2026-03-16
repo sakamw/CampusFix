@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="300">
+    <title>System Under Maintenance - CampusFix</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #334155; display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
+        .container { max-width: 600px; width: 90%; padding: 2.5rem; background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .logo { font-size: 2.25rem; font-weight: 800; color: #2563eb; margin-bottom: 2rem; letter-spacing: -0.02em; }
+        .icon-container { display: flex; justify-content: center; margin-bottom: 1.5rem; }
+        .gear-icon { font-size: 4.5rem; animation: spin 4s linear infinite; display: inline-block; color: #64748b; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        h1 { font-size: 1.875rem; margin-top: 0; margin-bottom: 0.5rem; color: #0f172a; font-weight: 700; }
+        .subheading { font-size: 1.125rem; color: #475569; margin-bottom: 2rem; }
+        .details-box { background-color: #f1f5f9; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: left; border: 1px solid #e2e8f0; }
+        .details-box h2 { font-size: 1.125rem; margin-top: 0; margin-bottom: 0.75rem; color: #1e293b; font-weight: 600; }
+        .details-box p { font-size: 1rem; margin: 0; margin-bottom: 1rem; color: #475569; line-height: 1.6; }
+        .expected-time { font-weight: 600; color: #ea580c; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 0.5rem; background: #fff7ed; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #fed7aa; }
+        .contact { font-size: 0.95rem; color: #64748b; margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">CampusFix</div>
+        <div class="icon-container">
+            <div class="gear-icon">⚙️</div>
+        </div>
+        <h1>System Under Maintenance</h1>
+        <p class="subheading">We're performing scheduled maintenance to improve your experience.</p>
+        
+        <div class="details-box">
+            {% if maintenance_window %}
+            <h2>{{ maintenance_window.title }}</h2>
+            <p>{{ maintenance_window.description }}</p>
+            <span class="expected-time">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Expected to be back online by: {{ maintenance_window.scheduled_end }}
+            </span>
+            {% else %}
+            <p>Routine system updates are currently in progress.</p>
+            {% endif %}
+        </div>
+        
+        <div class="contact">
+            For urgent issues, please contact facilities at <strong>support@campusfix.edu</strong> or <strong>(555) 0192</strong>.
+        </div>
+    </div>
+</body>
+</html>

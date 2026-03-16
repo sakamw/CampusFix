@@ -138,6 +138,28 @@ class Issue(models.Model):
         help_text="Whether this issue is part of a recurring pattern for the same location and category",
     )
     
+    # New SLA Tracking Fields
+    sla_deadline = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this issue is due according to SLA rules starting from acknowledgement",
+    )
+    sla_paused_duration = models.DurationField(
+        default=timedelta(0),
+        help_text="Total time SLA was paused due to maintenance",
+    )
+    sla_pause_start = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Timestamp when the SLA was paused due to maintenance"
+    )
+    sla_breached = models.BooleanField(
+        default=False,
+        help_text="True if not resolved by sla_deadline",
+    )
+    sla_reminded_5d = models.BooleanField(default=False, help_text="Tracks if 5-day reminder was sent")
+    sla_reminded_2d = models.BooleanField(default=False, help_text="Tracks if 2-day reminder was sent")
+    sla_reminded_day = models.BooleanField(default=False, help_text="Tracks if same-day reminder was sent")
+    
     # AI Analysis Fields
     sentiment = models.CharField(
         max_length=20,
@@ -551,3 +573,39 @@ class IssueFeedback(models.Model):
 
     def __str__(self):
         return f"Feedback {self.rating}/5 by {self.user.email} on issue #{self.issue_id}"
+
+
+class MaintenanceWindow(models.Model):
+    """
+    Admin-scheduled planned system maintenance window.
+    """
+    title = models.CharField(max_length=255, validators=[NoMaliciousContentValidator()])
+    description = models.TextField(validators=[NoMaliciousContentValidator()])
+    scheduled_start = models.DateTimeField(help_text="When maintenance begins")
+    scheduled_end = models.DateTimeField(help_text="When maintenance is planned to end")
+    actual_end = models.DateTimeField(
+        null=True, blank=True, help_text="Set if admin ends maintenance early"
+    )
+    is_active = models.BooleanField(
+        default=False, help_text="True when system is currently in maintenance"
+    )
+    is_cancelled = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_maintenance_windows",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    notified_48h = models.BooleanField(
+        default=False, help_text="Tracks if 48hr warning was sent"
+    )
+    notified_24h = models.BooleanField(
+        default=False, help_text="Tracks if 24hr warning was sent"
+    )
+
+    class Meta:
+        ordering = ["-scheduled_start"]
+
+    def __str__(self):
+        return f"{self.title} ({self.scheduled_start} to {self.scheduled_end})"

@@ -21,6 +21,7 @@ urlpatterns = [
     path("analytics/", views.analytics, name="analytics"),
     path("generate-ai-report/", views.generate_ai_report, name="generate_ai_report"),
     path("calendar/", views.calendar, name="calendar"),
+    path("api/calendar-events/", views.calendar_events_api, name="calendar_events_api"),
     path("announcements/", views.announcements, name="announcements"),
     path("settings/", views.settings_view, name="settings"),
     path(

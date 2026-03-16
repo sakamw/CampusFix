@@ -361,7 +361,11 @@ def issue_detail(request, pk):
                     issue.is_blocked = False
                     issue.blocker_note = None
                     issue._modified_by_user = request.user  # type: ignore[attr-defined]
-                    issue.save(update_fields=["status", "is_blocked", "blocker_note", "updated_at"])
+                    
+                    from issues.services import calculate_sla_deadline
+                    issue.sla_deadline = calculate_sla_deadline(issue)
+                    
+                    issue.save(update_fields=["status", "is_blocked", "blocker_note", "updated_at", "sla_deadline"])
 
                     IssueProgressLog.objects.create(
                         issue=issue,
@@ -884,94 +888,192 @@ def generate_ai_report(request):
 
 
 @admin_required
+def calendar_events_api(request):
+    """
+    Returns JSON data for FullCalendar.
+    Staff users only see their own assigned issues and maintenance windows.
+    Admins see everything based on the `view_mode` query param.
+    """
+    from django.http import JsonResponse
+    
+    now = timezone.now()
+    is_admin = request.user.is_superuser or request.user.role == "admin"
+    view_mode = request.GET.get('view_mode', 'combined') # 'maintenance', 'sla', 'combined'
+    
+    events = []
+    
+    # 1. Maintenance Windows
+    if view_mode in ['combined', 'maintenance'] or not is_admin:
+        windows = MaintenanceWindow.objects.all()
+        for w in windows:
+            color = "#ef4444" # RED
+            if w.is_cancelled:
+                color = "#9ca3af" # GREY
+            elif w.actual_end:
+                color = "#10b981" # GREEN
+                
+            events.append({
+                "id": f"mw_{w.id}",
+                "title": f"Maintenance: {w.title}",
+                "start": w.scheduled_start.isoformat(),
+                "end": (w.actual_end if w.actual_end else w.scheduled_end).isoformat(),
+                "color": color,
+                "extendedProps": {
+                    "type": "maintenance",
+                    "description": w.description,
+                    "is_cancelled": w.is_cancelled,
+                    "is_active": w.is_active,
+                    "actual_end": w.actual_end.isoformat() if w.actual_end else None,
+                    "scheduled_start": w.scheduled_start.isoformat(),
+                    "scheduled_end": w.scheduled_end.isoformat(),
+                }
+            })
+
+    # 2. SLA Issues
+    if view_mode in ['combined', 'sla'] or not is_admin:
+        issues_qs = Issue.objects.filter(sla_deadline__isnull=False, assigned_to__isnull=False)
+        if not is_admin:
+            issues_qs = issues_qs.filter(assigned_to=request.user)
+            
+        for issue in issues_qs:
+            color = "#3b82f6" # BLUE
+            if issue.status in ["resolved", "closed"]:
+                color = "#9ca3af" # GREY
+            elif issue.sla_breached or (now > issue.sla_deadline and issue.status not in ["resolved", "closed"]):
+                color = "#f97316" # ORANGE
+                
+            # For start, use acknowledged log or assigned_at or created_at
+            ack_log = issue.progress_logs.filter(log_type="acknowledged").order_by("created_at").first()
+            start_time = ack_log.created_at if ack_log else (issue.assigned_at if issue.assigned_at else issue.created_at)
+
+            events.append({
+                "id": f"is_{issue.id}",
+                "title": f"Issue #{issue.id}: {issue.title}",
+                "start": start_time.isoformat(),
+                "end": issue.sla_deadline.isoformat(),
+                "color": color,
+                "extendedProps": {
+                    "type": "issue",
+                    "issue_id": issue.id,
+                    "location": issue.location,
+                    "category": issue.get_category_display(),
+                    "status": issue.get_status_display(),
+                    "assigned_to": issue.assigned_to.get_full_name() or issue.assigned_to.email,
+                }
+            })
+
+    return JsonResponse(events, safe=False)
+
+
+@admin_required
 def calendar(request):
     """
-    Admin maintenance scheduling calendar.
-    Allows admins to create preventive maintenance tasks and see upcoming work.
+    Admin and Staff calendar view mapping Maintenance Windows and SLA deadlines.
     """
-    now = timezone.now()
-
-    # Send 24-hour reminders for upcoming tasks that haven't been reminded yet.
-    reminder_window_start = now + timedelta(hours=24)
-    reminder_window_end = now + timedelta(hours=25)
-    reminder_candidates = MaintenanceTask.objects.filter(
-        reminder_sent=False,
-        scheduled_for__gte=reminder_window_start,
-        scheduled_for__lte=reminder_window_end,
-        assigned_to__isnull=False,
-    ).select_related("assigned_to")
-
-    for task in reminder_candidates:
-        NotificationService.create_notification(
-            user=task.assigned_to,
-            title=f"Upcoming maintenance: {task.title}",
-            message=(
-                f"You have a scheduled maintenance task at {task.location} on "
-                f"{timezone.localtime(task.scheduled_for).strftime('%Y-%m-%d %H:%M')}."
-            ),
-            notification_type="assignment",
-        )
-        task.reminder_sent = True
-        task.save(update_fields=["reminder_sent", "updated_at"])
-
-    if request.method == "POST":
-        title = (request.POST.get("title") or "").strip()
-        location = (request.POST.get("location") or "").strip()
-        notes = (request.POST.get("notes") or "").strip()
-        assigned_to_id = request.POST.get("assigned_to") or ""
-        date_str = (request.POST.get("scheduled_date") or "").strip()
-        time_str = (request.POST.get("scheduled_time") or "").strip()
-
-        if not title or not location or not date_str or not time_str:
-            messages.error(
-                request,
-                "Title, location, date, and time are required for a maintenance task.",
-            )
-            return redirect("dashboard:calendar")
-
-        try:
-            dt = datetime.fromisoformat(f"{date_str}T{time_str}")
-            scheduled_for = timezone.make_aware(dt, timezone.get_current_timezone())
-        except Exception:
-            messages.error(request, "Invalid date or time for scheduled task.")
-            return redirect("dashboard:calendar")
-
-        assignee = None
-        if assigned_to_id:
+    is_admin = request.user.is_superuser or request.user.role == "admin"
+    
+    if request.method == "POST" and is_admin:
+        action = request.POST.get("action")
+        
+        if action == "schedule_maintenance":
+            title = (request.POST.get("title") or "").strip()
+            description = (request.POST.get("description") or "").strip()
+            start_str = (request.POST.get("scheduled_start") or "").strip()
+            end_str = (request.POST.get("scheduled_end") or "").strip()
+            
             try:
-                assignee = User.objects.get(
-                    id=assigned_to_id, role__in=["staff", "admin"]
+                start_dt = timezone.make_aware(datetime.fromisoformat(start_str))
+                end_dt = timezone.make_aware(datetime.fromisoformat(end_str))
+                
+                # Simple conflict check (warning should be handled in frontend by querying API, but this stops creating if overlapping? No, we just create it as requested.)
+                
+                window = MaintenanceWindow.objects.create(
+                    title=title,
+                    description=description,
+                    scheduled_start=start_dt,
+                    scheduled_end=end_dt,
+                    created_by=request.user
                 )
-            except User.DoesNotExist:
-                messages.error(request, "Selected staff member is not valid.")
-                return redirect("dashboard:calendar")
-
-        MaintenanceTask.objects.create(
-            title=title,
-            location=location,
-            notes=notes,
-            assigned_to=assignee,
-            scheduled_for=scheduled_for,
-        )
-        messages.success(request, "Maintenance task scheduled successfully.")
+                
+                # Notify all users immediately
+                start_fmt = timezone.localtime(start_dt).strftime('%Y-%m-%d %H:%M')
+                end_fmt = timezone.localtime(end_dt).strftime('%Y-%m-%d %H:%M')
+                
+                msg = f"📢 Scheduled Maintenance: {title} — The system will be unavailable on {timezone.localtime(start_dt).strftime('%Y-%m-%d')} from {timezone.localtime(start_dt).strftime('%H:%M')} to {timezone.localtime(end_dt).strftime('%H:%M')}. {description}"
+                
+                for user in User.objects.all():
+                    NotificationService.create_notification(
+                        user=user,
+                        title="Scheduled Maintenance",
+                        message=msg,
+                        notification_type="system"
+                    )
+                
+                messages.success(request, "Maintenance window scheduled successfully.")
+            except Exception as e:
+                messages.error(request, f"Error scheduling maintenance: {e}")
+                
+        elif action == "cancel_maintenance":
+            mw_id = request.POST.get("maintenance_id")
+            if mw_id:
+                window = get_object_or_404(MaintenanceWindow, id=mw_id)
+                if not window.is_active and not window.actual_end:
+                    window.is_cancelled = True
+                    window.save(update_fields=["is_cancelled"])
+                    msg = f"📢 Maintenance '{window.title}' scheduled for {timezone.localtime(window.scheduled_start).strftime('%Y-%m-%d')} has been cancelled. No downtime expected."
+                    for user in User.objects.all():
+                        NotificationService.create_notification(
+                            user=user,
+                            title="Maintenance Cancelled",
+                            message=msg,
+                            notification_type="system"
+                        )
+                    messages.success(request, "Maintenance window cancelled.")
+                
+        elif action == "end_maintenance":
+            mw_id = request.POST.get("maintenance_id")
+            if mw_id:
+                window = get_object_or_404(MaintenanceWindow, id=mw_id)
+                if window.is_active and not window.actual_end:
+                    window.actual_end = timezone.now()
+                    window.is_active = False
+                    window.save(update_fields=["actual_end", "is_active"])
+                    msg = "✅ Maintenance has ended early. The system is back online."
+                    for user in User.objects.all():
+                        NotificationService.create_notification(
+                            user=user,
+                            title="Maintenance Complete",
+                            message=msg,
+                            notification_type="system"
+                        )
+                    messages.success(request, "Maintenance ended early.")
+                
         return redirect("dashboard:calendar")
-
-    upcoming_tasks = (
-        MaintenanceTask.objects.select_related("assigned_to")
-        .filter(scheduled_for__gte=now - timedelta(days=1))
-        .order_by("scheduled_for")
-    )
-
-    staff_users = (
-        User.objects.filter(role__in=["staff", "admin"])
-        .order_by("first_name", "last_name", "email")
-        .distinct()
-    )
+        
+    # Get staff workload indicator
+    staff_workload = []
+    if is_admin:
+        staff_users = User.objects.filter(role__in=["staff", "admin"]).distinct()
+        for su in staff_users:
+            active_count = Issue.objects.filter(
+                assigned_to=su, status__in=["open", "in-progress"]
+            ).count()
+            status = "Available"
+            if active_count >= 3:
+                status = "Overloaded"
+            elif active_count > 0:
+                status = "Busy"
+                
+            staff_workload.append({
+                "name": su.get_full_name() or su.email,
+                "count": active_count,
+                "status": status
+            })
 
     context = {
         **_get_active_context(request, "calendar"),
-        "upcoming_tasks": upcoming_tasks,
-        "staff_users": staff_users,
+        "is_admin": is_admin,
+        "staff_workload": staff_workload,
     }
     return render(request, "dashboard/calendar.html", context)
 

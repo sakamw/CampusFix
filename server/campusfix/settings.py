@@ -60,6 +60,7 @@ MIDDLEWARE = [
     'security.middleware.SecurityHeadersMiddleware',
     'security.middleware.InputValidationMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'campusfix.middleware.MaintenanceModeMiddleware',
     'security.middleware.PathBasedSessionMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
