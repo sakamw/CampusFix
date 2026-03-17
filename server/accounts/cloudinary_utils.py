@@ -9,21 +9,31 @@ def upload_image_to_cloudinary(file):
     cloud_name = "dv8k0z6na"
     upload_preset = "newisakrandom"
     
-    # Prepare the file for upload
+    # upload_preset must be sent as a regular form data field, NOT as a file.
+    # The file must be sent in the 'files' dict with its name and content type.
+    data = {
+        'upload_preset': upload_preset,
+    }
+    
+    # Ensure the file pointer is at the beginning, then read the bytes.
+    # Otherwise, subsequent reads might get 0 bytes if DRF already read it.
+    file.seek(0)
+    file_bytes = file.read()
+    
     files = {
-        'file': file,
-        'upload_preset': upload_preset
+        'file': (file.name, file_bytes, file.content_type),
     }
     
     try:
         response = requests.post(
             f'https://api.cloudinary.com/v1_1/{cloud_name}/image/upload',
-            files=files
+            data=data,
+            files=files,
         )
         
         if response.status_code == 200:
-            data = response.json()
-            return data.get('secure_url')
+            result = response.json()
+            return result.get('secure_url')
         else:
             raise Exception(f"Cloudinary upload failed: {response.status_code} - {response.text}")
             

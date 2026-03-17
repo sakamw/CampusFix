@@ -171,6 +171,11 @@ export const authApi = {
     email: string,
     password: string,
   ): Promise<ApiResponse<LoginResponse>> => {
+    // Clear any existing tokens before login so the request doesn't carry
+    // a stale Bearer token from a previous session (which could cause the
+    // server to associate this request with the wrong user).
+    clearTokens();
+
     const result = await apiFetch<LoginResponse>("/auth/login/", {
       method: "POST",
       body: JSON.stringify({ email, password }),
