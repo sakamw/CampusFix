@@ -47,13 +47,23 @@ export default function EditIssue() {
   useEffect(() => {
     async function fetchIssue() {
       const res = await issuesApi.getIssue(Number(id));
-      if (res.data) setFormData(res.data);
-      else
+      if (res.data) {
+        if (res.data.status === "resolved" || res.data.status === "closed") {
+          toast({
+            title: "Issue Closed",
+            description: "Resolved issues cannot be edited.",
+          });
+          navigate(`/issues/${res.data.id}`);
+          return;
+        }
+        setFormData(res.data);
+      } else {
         toast({
           title: "Error",
           description: res.error || "Issue not found",
           variant: "destructive",
         });
+      }
     }
     fetchIssue();
   }, [id, toast]);

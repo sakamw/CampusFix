@@ -374,7 +374,7 @@ export default function IssueDetails() {
       </Link>
 
       {/* Edit Issue Button (only for reporter) */}
-      {isReporter && (
+      {isReporter && issue.status !== "resolved" && issue.status !== "closed" && (
         <div className="flex justify-end mb-2">
           <Button
             variant="outline"
@@ -401,13 +401,13 @@ export default function IssueDetails() {
             variant={issue.upvoted_by_user ? "default" : "outline"}
             onClick={handleUpvote}
             className="gap-2"
-            disabled={upvoting}
+            disabled={upvoting || issue.status === "resolved" || issue.status === "closed"}
           >
             <ThumbsUp
               className={`h-4 w-4 ${issue.upvoted_by_user ? "fill-current" : ""}`}
             />
             <span>{issue.upvote_count}</span>
-            Upvote
+            {issue.status === "resolved" || issue.status === "closed" ? "Closed" : "Upvote"}
           </Button>
         </div>
 
@@ -621,39 +621,45 @@ export default function IssueDetails() {
 
             <div className="space-y-4">
               {canComment ? (
-                <>
-                  <Textarea
-                    placeholder="Add a comment..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    className="input-focus"
-                    disabled={postingComment}
-                  />
-                  <div className="flex justify-between items-center">
-                    {isAdmin && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleGenerateDraft}
-                        disabled={generatingDraft}
-                        className="gap-2"
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        {generatingDraft
-                          ? "Generating..."
-                          : "✨ Draft Response"}
-                      </Button>
-                    )}
-                    <Button
-                      disabled={!comment.trim() || postingComment}
-                      onClick={handlePostComment}
-                    >
-                      <Send className="mr-2 h-4 w-4" />
-                      Post Comment
-                    </Button>
+                issue.status === "resolved" || issue.status === "closed" ? (
+                  <div className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
+                    This issue is resolved and closed for further comments.
                   </div>
-                </>
+                ) : (
+                  <>
+                    <Textarea
+                      placeholder="Add a comment..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      className="input-focus"
+                      disabled={postingComment}
+                    />
+                    <div className="flex justify-between items-center">
+                      {isAdmin && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateDraft}
+                          disabled={generatingDraft}
+                          className="gap-2"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          {generatingDraft
+                            ? "Generating..."
+                            : "✨ Draft Response"}
+                        </Button>
+                      )}
+                      <Button
+                        disabled={!comment.trim() || postingComment}
+                        onClick={handlePostComment}
+                      >
+                        <Send className="mr-2 h-4 w-4" />
+                        Post Comment
+                      </Button>
+                    </div>
+                  </>
+                )
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Only the original reporter and campus staff can comment on
@@ -889,41 +895,51 @@ export default function IssueDetails() {
             (issue.status === "resolved" || issue.status === "closed") && (
               <div className="rounded-xl border bg-card p-6 space-y-4">
                 <h3 className="font-semibold">How was your experience?</h3>
-                <p className="text-sm text-muted-foreground">
-                  {issue.my_feedback
-                    ? "Thank you for rating this resolution!"
-                    : "Rate the resolution so campus staff can keep improving."}
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {[1, 2, 3, 4, 5].map((n) => (
+                {!issue.my_feedback ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Rate the resolution so campus staff can keep improving.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Button
+                          key={n}
+                          type="button"
+                          variant={feedbackRating === n ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFeedbackRating(n)}
+                          disabled={submittingFeedback}
+                        >
+                          {n}★
+                        </Button>
+                      ))}
+                    </div>
+                    <Textarea
+                      placeholder="Optional feedback about the resolution"
+                      value={feedbackComment}
+                      onChange={(e) => setFeedbackComment(e.target.value)}
+                      className="input-focus"
+                      disabled={submittingFeedback}
+                    />
                     <Button
-                      key={n}
                       type="button"
-                      variant={feedbackRating === n ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFeedbackRating(n)}
-                      disabled={submittingFeedback || !!issue.my_feedback}
+                      className="w-full md:w-auto"
+                      disabled={!feedbackRating || submittingFeedback}
+                      onClick={handleSubmitFeedback}
                     >
-                      {n}★
+                      {submittingFeedback ? "Submitting..." : "Submit Feedback"}
                     </Button>
-                  ))}
-                </div>
-                <Textarea
-                  placeholder="Optional feedback about the resolution"
-                  value={feedbackComment}
-                  onChange={(e) => setFeedbackComment(e.target.value)}
-                  className="input-focus"
-                  disabled={submittingFeedback || !!issue.my_feedback}
-                />
-                {!issue.my_feedback && (
-                  <Button
-                    type="button"
-                    className="w-full md:w-auto"
-                    disabled={!feedbackRating || submittingFeedback}
-                    onClick={handleSubmitFeedback}
-                  >
-                    {submittingFeedback ? "Submitting..." : "Submit Feedback"}
-                  </Button>
+                  </>
+                ) : (
+                  <div className="rounded-lg bg-green-50 p-4 border border-green-100">
+                    <p className="text-sm font-medium text-green-800">
+                      Thank you for your feedback!
+                    </p>
+                    <p className="text-sm text-green-700 mt-1">
+                      You rated this: {issue.my_feedback.rating}★
+                      {issue.my_feedback.comment && ` - "${issue.my_feedback.comment}"`}
+                    </p>
+                  </div>
                 )}
                 {typeof issue.average_feedback_rating === "number" &&
                   (issue.feedback_count || 0) > 0 && (

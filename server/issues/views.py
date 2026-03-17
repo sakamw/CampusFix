@@ -100,6 +100,11 @@ class IssueViewSet(viewsets.ModelViewSet):
         user = request.user
         
         # Check if user already upvoted
+        if issue.status in ["resolved", "closed"]:
+            return Response(
+                {"error": "Cannot upvote a resolved or closed issue."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         upvote = Upvote.objects.filter(issue=issue, user=user).first()
         
         if upvote:
@@ -178,6 +183,11 @@ class IssueViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         
         elif request.method == 'POST':
+            if issue.status in ["resolved", "closed"]:
+                return Response(
+                    {"error": "Cannot comment on a resolved or closed issue."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             # Only:
             # - the reporter, OR
             # - admins/superusers, OR
