@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User
+from .models import User, SupportRequest
 
 
 class CustomUserAdmin(UserAdmin):
@@ -23,6 +23,15 @@ class CustomUserAdmin(UserAdmin):
             'fields': ('email', 'first_name', 'last_name', 'student_id', 'password1', 'password2', 'role', 'is_active', 'is_staff'),
         }),
     )
+
+
+@admin.register(SupportRequest)
+class SupportRequestAdmin(admin.ModelAdmin):
+    list_display = ['support_type', 'subject', 'user', 'is_resolved', 'created_at']
+    list_filter = ['support_type', 'is_resolved', 'created_at']
+    search_fields = ['subject', 'message', 'user__email', 'user__first_name', 'user__last_name']
+    readonly_fields = ['user', 'support_type', 'subject', 'message', 'created_at', 'updated_at']
+    ordering = ['-created_at']
 
 
 admin.site.register(User, CustomUserAdmin)

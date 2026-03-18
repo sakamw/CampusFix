@@ -18,7 +18,7 @@ from .serializers import (
     CloudinaryImageUploadSerializer,
     TwoFactorUpdateSerializer,
 )
-from .models import PasswordResetToken, EmailVerificationToken
+from .models import PasswordResetToken, EmailVerificationToken, SupportRequest
 from .cloudinary_utils import upload_image_to_cloudinary
 from security.decorators import auth_rate_limit, user_rate_limit
 from utils.email_service import (
@@ -452,12 +452,20 @@ Message:
 {message}
 """
 
+        # Save to database
+        support_request = SupportRequest.objects.create(
+            user=user,
+            support_type=support_type,
+            subject=subject,
+            message=message
+        )
+        
         try:
             send_mail(
                 subject=email_subject,
                 message=email_body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=['shanmwangi2020@gmail.com'], # Replace with actual support email from settings if it exists
+                recipient_list=[settings.SUPPORT_EMAIL],
                 fail_silently=False,
             )
             

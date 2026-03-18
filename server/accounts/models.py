@@ -1,5 +1,7 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.conf import settings
+from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
@@ -64,17 +66,17 @@ class PasswordResetToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reset_tokens')
     token = models.CharField(max_length=100, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    used = models.BooleanField(default=False)
+    is_used = models.BooleanField(default=False) # Changed from 'used' to 'is_used'
     
     def __str__(self):
-        return f"Reset token for {self.user.email}"
+        return f"Token for {self.user.email} - {'Used' if self.is_used else 'Available'}"
     
     def is_valid(self):
         """Check if token is valid (not used and less than 1 hour old)."""
         from django.utils import timezone
         from datetime import timedelta
         
-        if self.used:
+        if self.is_used: # Changed from self.used to self.is_used
             return False
         if timezone.now() > self.created_at + timedelta(hours=1):
             return False
@@ -104,3 +106,28 @@ class EmailVerificationToken(models.Model):
 
     def __str__(self):
         return f"Verification token for {self.user.email}"
+
+
+class SupportRequest(models.Model):
+    """Model to store in-app support requests."""
+    
+    SUPPORT_TYPES = [
+        ('Technical', 'Technical Issue'),
+        ('Account', 'Account Related'),
+        ('Feedback', 'General Feedback'),
+        ('Other', 'Other'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_requests')
+    support_type = models.CharField(max_length=50, choices=SUPPORT_TYPES)
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    is_resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.support_type}: {self.subject} ({self.user.email})"

@@ -223,7 +223,10 @@ DEFAULT_FROM_EMAIL = f"CampusFix <{EMAIL_HOST_USER}>"
 EMAIL_TIMEOUT = 10
 
 # Frontend Base URL (used in email links)
-SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:5173')
+
+# Support recipient email
+SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'shanmwangi2020@gmail.com')
 
 # Gemini / AI configuration
 # All AI calls are made server-side only. The API key is expected to be
