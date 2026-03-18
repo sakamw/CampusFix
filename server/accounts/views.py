@@ -18,10 +18,22 @@ from .serializers import (
     CloudinaryImageUploadSerializer,
     TwoFactorUpdateSerializer,
 )
-from .models import PasswordResetToken
+from .models import PasswordResetToken, EmailVerificationToken
 from .cloudinary_utils import upload_image_to_cloudinary
 from security.decorators import auth_rate_limit, user_rate_limit
+from utils.email_service import (
+    send_verification_email,
+    send_account_verified_email,
+    send_password_reset_email,
+    send_password_changed_email
+)
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
 import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -39,16 +51,19 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
-        # Generate tokens
-        refresh = RefreshToken.for_user(user)
+        # Accounts are created inactive until email is verified
+        user.is_active = False
+        user.save()
+        
+        # Generate verification token
+        token_obj = EmailVerificationToken.objects.create(user=user)
+        
+        # Send verification email
+        send_verification_email(user, token_obj.token)
         
         return Response({
             'user': UserSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
-            'message': 'Account created successfully! Welcome to CampusFix.',
+            'message': 'Account created successfully! Please check your email to verify your account.',
             'success': True
         }, status=status.HTTP_201_CREATED)
 
@@ -167,6 +182,9 @@ class ChangePasswordView(APIView):
         user.set_password(serializer.validated_data['new_password'])
         user.save()
         
+        # Send security notification
+        send_password_changed_email(user)
+        
         return Response({
             'message': 'Your password has been successfully changed.',
             'success': True
@@ -185,30 +203,27 @@ class ForgotPasswordView(APIView):
         
         email = serializer.validated_data['email']
         
+        # Use a generic message to prevent email enumeration
+        success_response = Response({
+            'message': 'If an account with this email exists, a password reset link has been sent to your email address.',
+            'success': True
+        })
+
         try:
             user = User.objects.get(email=email)
             
-            # Invalidate any existing tokens
-            PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
+            # Generate token using Django's built-in generator
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
             
-            # Create new token
-            token = secrets.token_urlsafe(32)
-            PasswordResetToken.objects.create(user=user, token=token)
+            reset_url = f"{settings.SITE_URL}/auth/reset-password/{uid}/{token}/"
             
-            #TODO: In production, send email with reset link
-            # For now, return success message
-            return Response({
-                'message': 'If an account with this email exists, a password reset link has been sent to your email address.',
-                'success': True,
-                # Include token in dev mode for testing - remove in production!
-                'reset_token': token,
-            })
+            # Send email
+            send_password_reset_email(user, reset_url)
+            
+            return success_response
         except User.DoesNotExist:
-            # Return same message to prevent email enumeration
-            return Response({
-                'message': 'If an account with this email exists, a password reset link has been sent to your email address.',
-                'success': True
-            })
+            return success_response
 
 
 class ResetPasswordView(APIView):
@@ -217,41 +232,36 @@ class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
-        serializer = ResetPasswordSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        # The request expects token, uidb64 (if following Django pattern) and new_password
+        # Let's adjust to the uidb64/token pattern from the request
+        uidb64 = request.data.get('uidb64')
+        token = request.data.get('token')
+        new_password = request.data.get('new_password')
         
-        token = serializer.validated_data['token']
-        
+        if not all([uidb64, token, new_password]):
+            return Response({'error': 'Missing required fields'}, status=status.HTTP_400_BAD_REQUEST)
+            
         try:
-            reset_token = PasswordResetToken.objects.get(token=token)
-            
-            if not reset_token.is_valid():
-                return Response(
-                    {
-                        'error': 'Invalid or expired reset link',
-                        'message': 'This password reset link has expired or has already been used. Please request a new password reset.'
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Reset password
-            user = reset_token.user
-            user.set_password(serializer.validated_data['new_password'])
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            user.set_password(new_password)
             user.save()
             
-            # Mark token as used
-            reset_token.used = True
-            reset_token.save()
+            # Send confirmation email
+            send_password_changed_email(user)
             
             return Response({
                 'message': 'Your password has been successfully reset. You can now log in with your new password.',
                 'success': True
             })
-            
-        except PasswordResetToken.DoesNotExist:
+        else:
             return Response(
                 {
-                    'error': 'Invalid reset token',
+                    'error': 'Invalid or expired reset link',
                     'message': 'This password reset link is invalid or has expired. Please request a new password reset.'
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -462,4 +472,83 @@ Message:
                 'message': 'An error occurred while sending your request. Please try again later or email us directly.',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VerifyEmailView(APIView):
+    """View for verifying user email."""
+    permission_classes = [AllowAny]
+    
+    def get(self, request, token):
+        try:
+            token_obj = EmailVerificationToken.objects.get(token=token)
+            
+            if not token_obj.is_valid():
+                return Response(
+                    {
+                        'error': 'Link expired or invalid',
+                        'message': 'This verification link has expired or is invalid. Please request a new verification email.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Activate user
+            user = token_obj.user
+            user.is_active = True
+            user.save()
+            
+            # Mark token as used
+            token_obj.is_used = True
+            token_obj.save()
+            
+            # Send confirmation email
+            send_account_verified_email(user)
+            
+            return Response({
+                'message': 'Your email has been verified successfully! You can now log in.',
+                'success': True
+            })
+            
+        except (EmailVerificationToken.DoesNotExist, ValueError):
+            return Response(
+                {
+                    'error': 'Invalid verification link',
+                    'message': 'This verification link is invalid. Please check your email for the correct link.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class ResendVerificationView(APIView):
+    """View for resending verification email."""
+    permission_classes = [AllowAny]
+    
+    @auth_rate_limit(rate='3/h', block_time=3600)  # 3 resends per hour
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user = User.objects.get(email=email)
+            if user.is_active:
+                return Response({'message': 'Account is already active.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Invalidate old tokens
+            EmailVerificationToken.objects.filter(user=user, is_used=False).delete()
+            
+            # Generate new token
+            token_obj = EmailVerificationToken.objects.create(user=user)
+            
+            # Send email
+            send_verification_email(user, token_obj.token)
+            
+            return Response({
+                'message': 'Verification email has been resent. Please check your inbox.',
+                'success': True
+            })
+        except User.DoesNotExist:
+            # Generic response to prevent enumeration
+            return Response({
+                'message': 'If an account with this email exists and is not yet verified, a new verification link has been sent.',
+                'success': True
+            })
 

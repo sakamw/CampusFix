@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8000/api";
+export const API_BASE_URL = "http://localhost:8000/api";
 
 interface ApiResponse<T = unknown> {
   data?: T;
@@ -33,7 +33,7 @@ interface LoginResponse {
 
 interface RegisterResponse {
   user: UserData;
-  tokens: TokenResponse;
+  tokens?: TokenResponse;
   message: string;
 }
 
@@ -201,7 +201,7 @@ export const authApi = {
       body: JSON.stringify(userData),
     });
 
-    if (result.data) {
+    if (result.data && result.data.tokens) {
       setTokens(result.data.tokens.access, result.data.tokens.refresh);
     }
 
@@ -257,6 +257,7 @@ export const authApi = {
   },
 
   resetPassword: async (
+    uidb64: string,
     token: string,
     newPassword: string,
     newPasswordConfirm: string,
@@ -264,6 +265,7 @@ export const authApi = {
     return apiFetch("/auth/reset-password/", {
       method: "POST",
       body: JSON.stringify({
+        uidb64,
         token,
         new_password: newPassword,
         new_password_confirm: newPasswordConfirm,

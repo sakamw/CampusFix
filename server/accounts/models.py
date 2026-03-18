@@ -41,6 +41,10 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # Email Preferences
+    email_issue_updates = models.BooleanField(default=True)
+    email_maintenance_alerts = models.BooleanField(default=True)
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
     
@@ -77,17 +81,26 @@ class PasswordResetToken(models.Model):
         return True
 
 
+import uuid
+from django.utils import timezone
+from datetime import timedelta
+
 class EmailVerificationToken(models.Model):
     """Token for email verification after registration."""
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='email_verification_token')
-    token = models.CharField(max_length=32, unique=True)
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
-    expires_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
     
-    class __Meta__:
-        db_table = 'accounts_emailverificationtoken'
-    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return not self.is_used and timezone.now() < self.expires_at
+
     def __str__(self):
         return f"Verification token for {self.user.email}"

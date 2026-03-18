@@ -5,6 +5,11 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from .models import Notification, NotificationPreference
+from utils.email_service import (
+    send_issue_status_update_email,
+    send_issue_assigned_email
+)
+from issues.models import FeedbackToken
 
 User = get_user_model()
 channel_layer = get_channel_layer()
@@ -78,26 +83,13 @@ class NotificationService:
     
     @staticmethod
     def _send_email_notification(user, notification):
-        """Send email notification (placeholder for email service)."""
+        """Send email notification using the base email service."""
+        from utils.email_service import send_email
         subject = notification.title or "CampusFix notification"
         message = notification.message or ""
-
-        from_email = getattr(
-            settings, "DEFAULT_FROM_EMAIL", "no-reply@campusfix.local"
-        )
-
-        # Best-effort email send; failures should not break the app
-        try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=from_email,
-                recipient_list=[user.email],
-                fail_silently=True,
-            )
-        except Exception:
-            # Intentionally swallow exceptions; logging can be added later
-            return
+        # For simple notifications that don't have dedicated templates, 
+        # we can use a basic wrapper or just the base send_email
+        send_email(user.email, subject, f"<p>{message}</p>", text_content=message)
     
     @staticmethod
     def notify_issue_comment(issue, comment_author, comment_content):
@@ -134,6 +126,10 @@ class NotificationService:
                 notification_type='status_change',
                 related_issue=issue
             )
+            # Send HTML email if status changed to something other than resolved/closed
+            # (Resolution has its own notify method)
+            if new_status not in ['resolved', 'closed']:
+                send_issue_status_update_email(issue.reporter, issue, old_status, new_status)
         
         # Notify assigned staff (if not the changer)
         if hasattr(issue, 'assigned_to') and issue.assigned_to and issue.assigned_to != changed_by:
@@ -156,6 +152,8 @@ class NotificationService:
                 notification_type='assignment',
                 related_issue=issue
             )
+            # Send HTML email to staff
+            send_issue_assigned_email(issue.assigned_to, issue)
     
     @staticmethod
     def notify_issue_upvote(issue, upvoter):
@@ -183,6 +181,18 @@ class NotificationService:
                 message=f"Your issue '{issue.title}' has been resolved.{summary_text} Please rate your experience.",
                 notification_type="resolution",
                 related_issue=issue,
+            )
+            
+            # Generate feedback token
+            token_obj = FeedbackToken.objects.create(issue=issue)
+            
+            # Send HTML email with feedback link
+            send_issue_status_update_email(
+                issue.reporter, 
+                issue, 
+                issue.status, 
+                'resolved', 
+                feedback_token=token_obj.token
             )
         
         # Notify all participants in the issue

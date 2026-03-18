@@ -88,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.register(userData);
 
     if (result.data) {
-      setUser(result.data.user);
       return { success: true };
     }
 

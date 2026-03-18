@@ -1,0 +1,22 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 style="margin-top: 0; color: #333333;">New issue assigned to you: {{ issue_title }}</h2>
+<p>Hi {{ first_name }},</p>
+<p>A new issue has been assigned to you for resolution.</p>
+
+<div style="background-color: #f8f9fa; border-left: 4px solid #1a73e8; padding: 20px; margin: 20px 0;">
+    <p style="margin: 0 0 10px 0;"><strong>Issue:</strong> {{ issue_title }} (ID: #{{ issue_id }})</p>
+    <p style="margin: 0 0 10px 0;"><strong>Location:</strong> {{ location }}</p>
+    <p style="margin: 0 0 10px 0;"><strong>Category:</strong> {{ category }}</p>
+    <p style="margin: 0 0 10px 0;"><strong>Priority:</strong> <span style="background-color: {{ priority_color }}; color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">{{ priority_display }}</span></p>
+    <p style="margin: 0 0 10px 0;"><strong>SLA Deadline:</strong> {{ deadline }}</p>
+    <p style="margin: 0;"><strong>Reported by:</strong> {{ reporter_name }} on {{ reported_at }}</p>
+</div>
+
+<p>Please log in to acknowledge and begin working on this issue.</p>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ SITE_URL }}/dashboard/issues/{{ issue_id }}" style="background-color: #1a73e8; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">View Issue</a>
+</div>
+{% endblock %}

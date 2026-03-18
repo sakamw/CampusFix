@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.apps import apps
 from datetime import timedelta, datetime
+import uuid
 from security.validators import (
     NoMaliciousContentValidator,
     secure_location_validator,
@@ -613,3 +614,17 @@ class MaintenanceWindow(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.scheduled_start} to {self.scheduled_end})"
+
+class FeedbackToken(models.Model):
+    """One-time token for rating an issue directly from email."""
+    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='feedback_tokens')
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+    
+    def is_valid(self):
+        # Valid for 7 days
+        return not self.is_used and timezone.now() < self.created_at + timedelta(days=7)
+
+    def __str__(self):
+        return f"Feedback token for Issue #{self.issue_id}"

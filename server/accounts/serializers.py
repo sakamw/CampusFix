@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from rest_framework.validators import UniqueValidator
 from security.validators import (
     secure_email_validator, 
     secure_phone_validator,
@@ -19,13 +20,34 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'email', 'first_name', 'last_name', 'student_id', 'phone', 'role', 'avatar', 'two_factor_enabled', 'created_at', 'is_superuser', 'is_staff']
         read_only_fields = ['id', 'email', 'role', 'created_at', 'is_superuser', 'is_staff']
 
+    def validate_student_id(self, value):
+        if value == "":
+            return None
+        
+        # Check uniqueness if value is not None
+        if value:
+            user = self.instance
+            qs = User.objects.filter(student_id=value)
+            if user:
+                qs = qs.exclude(id=user.id)
+            if qs.exists():
+                raise serializers.ValidationError("This student ID is already in use by another account.")
+        
+        return value
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     """Serializer for user registration."""
     
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True, required=True)
-    email = serializers.EmailField(required=True, validators=[secure_email_validator])
+    email = serializers.EmailField(
+        required=True, 
+        validators=[
+            secure_email_validator,
+            UniqueValidator(queryset=User.objects.all(), message="An account with this email already exists.")
+        ]
+    )
     first_name = serializers.CharField(required=True, validators=[NoMaliciousContentValidator()])
     last_name = serializers.CharField(required=True, validators=[NoMaliciousContentValidator()])
     student_id = serializers.CharField(required=False, allow_blank=True, validators=[NoMaliciousContentValidator()])
@@ -45,6 +67,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         for field in ['first_name', 'last_name', 'student_id']:
             if field in attrs and attrs[field]:
                 attrs[field] = sanitize_input(attrs[field])
+            elif field == 'student_id':
+                # Normalize blank student_id to None
+                attrs[field] = None
+        
+        # Check if student_id is already taken (only if not None)
+        if attrs.get('student_id') and User.objects.filter(student_id=attrs['student_id']).exists():
+            raise serializers.ValidationError({
+                "student_id": "This student ID is already registered. Please check the ID or contact support."
+            })
         
         return attrs
     

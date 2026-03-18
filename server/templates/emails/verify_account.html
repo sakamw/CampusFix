@@ -1,0 +1,12 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 style="margin-top: 0; color: #333333;">Verify your CampusFix account</h2>
+<p>Hi {{ first_name }},</p>
+<p>Thank you for registering with CampusFix. Please verify your email address to activate your account and start reporting campus issues.</p>
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ verification_url }}" style="background-color: #1a73e8; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Verify My Email</a>
+</div>
+<p>This link expires in 24 hours.</p>
+<p>If you did not create an account, you can safely ignore this email.</p>
+{% endblock %}

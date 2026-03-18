@@ -132,5 +132,17 @@ class AnnouncementDismissal(models.Model):
         unique_together = ("announcement", "user")
         ordering = ["-dismissed_at"]
 
+
+class FailedEmail(models.Model):
+    """Log of failed email attempts for admin review."""
+    to_email = models.EmailField()
+    subject = models.CharField(max_length=255)
+    error_message = models.TextField()
+    attempted_at = models.DateTimeField(auto_now_add=True)
+    retry_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-attempted_at']
+
     def __str__(self):
-        return f"{self.user.email} dismissed '{self.announcement.title}'"
+        return f"Failed: {self.subject} to {self.to_email}"

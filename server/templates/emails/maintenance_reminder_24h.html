@@ -1,0 +1,16 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 style="margin-top: 0; color: #1a73e8;">&#9200; Maintenance starts tomorrow &mdash; {{ date }} at {{ time }}</h2>
+<p>Just a reminder that scheduled maintenance begins tomorrow.</p>
+
+<div style="background-color: #f8f9fa; border: 1px solid #eeeeee; padding: 20px; margin: 20px 0; border-radius: 4px;">
+    <h3 style="margin-top: 0;">{{ maintenance_title }}</h3>
+    <p style="margin-bottom: 0;">
+        <strong>Start time:</strong> {{ start_time }}<br>
+        <strong>End time:</strong> {{ end_time }}
+    </p>
+</div>
+
+<p>Please save your work and complete any pending submissions before {{ start_time }}.</p>
+{% endblock %}

@@ -23,6 +23,8 @@ import Notifications from "./pages/Notifications";
 import Leaderboard from "./pages/Leaderboard";
 
 import NotFound from "./pages/NotFound";
+import VerifyEmail from "./pages/VerifyEmail";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,8 @@ const App = () => (
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/auth/verify-email/:token" element={<VerifyEmail />} />
+                <Route path="/auth/reset-password/:uidb64/:token" element={<ResetPassword />} />
 
                 {/* Student Routes */}
                 <Route element={<DashboardLayout />}>

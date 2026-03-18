@@ -1,0 +1,35 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 style="margin-top: 0; color: #333333;">Update on your issue: {{ issue_title }}</h2>
+<p>Hi {{ first_name }},</p>
+<p>There's an update on your reported issue.</p>
+
+<div style="background-color: #f8f9fa; border-left: 4px solid #1a73e8; padding: 20px; margin: 20px 0;">
+    <p style="margin: 0 0 10px 0;"><strong>Issue:</strong> {{ issue_title }}</p>
+    <p style="margin: 0 0 10px 0;"><strong>Location:</strong> {{ location }}</p>
+    <p style="margin: 0 0 10px 0;"><strong>Status:</strong> <span style="background-color: {{ status_color }}; color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">{{ status_display }}</span></p>
+    <p style="margin: 0;"><strong>Updated:</strong> {{ updated_at }}</p>
+</div>
+
+{% if resolution_summary %}
+<p><strong>Resolution Summary:</strong><br>{{ resolution_summary }}</p>
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ SITE_URL }}/issues/{{ issue_id }}" style="background-color: #1a73e8; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">View Issue Details</a>
+</div>
+
+{% if is_resolved %}
+<div style="border-top: 1px solid #eeeeee; padding-top: 20px; text-align: center;">
+    <p>Please take a moment to rate your experience:</p>
+    <div style="font-size: 24px;">
+        <a href="{{ SITE_URL }}/issues/{{ issue_id }}/rate/1?token={{ feedback_token }}" style="text-decoration: none;">&#9734;</a>
+        <a href="{{ SITE_URL }}/issues/{{ issue_id }}/rate/2?token={{ feedback_token }}" style="text-decoration: none;">&#9734;</a>
+        <a href="{{ SITE_URL }}/issues/{{ issue_id }}/rate/3?token={{ feedback_token }}" style="text-decoration: none;">&#9734;</a>
+        <a href="{{ SITE_URL }}/issues/{{ issue_id }}/rate/4?token={{ feedback_token }}" style="text-decoration: none;">&#9734;</a>
+        <a href="{{ SITE_URL }}/issues/{{ issue_id }}/rate/5?token={{ feedback_token }}" style="text-decoration: none;">&#9734;</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

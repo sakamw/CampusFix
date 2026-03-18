@@ -6,9 +6,10 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import Issue, Comment, Upvote
+from .models import Issue, Comment, Upvote, MaintenanceWindow
 from notifications.services import NotificationService, AdminDashboardService
 from .ai_services import ai_service
+from utils.email_service import send_maintenance_scheduled_email
 
 User = get_user_model()
 
@@ -169,3 +170,15 @@ def upvote_created(sender, instance, created, **kwargs):
         issue.save(update_fields=['upvote_count'])
         
         NotificationService.notify_issue_upvote(issue, instance.user)
+
+
+@receiver(post_save, sender=MaintenanceWindow)
+def maintenance_window_created(sender, instance, created, **kwargs):
+    """Notify all users when a new maintenance window is scheduled."""
+    if created and not instance.is_cancelled:
+        # Schedule email to all users
+        # Note: In a large system, this should be a background task
+        # But for this project's requirements, we send it here
+        users = User.objects.filter(is_active=True)
+        for user in users:
+            send_maintenance_scheduled_email(user, instance)

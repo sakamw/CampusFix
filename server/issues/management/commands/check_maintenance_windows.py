@@ -6,6 +6,11 @@ from django.db.models import Q
 from issues.models import MaintenanceWindow, Issue
 from notifications.services import NotificationService
 from accounts.models import User
+from utils.email_service import (
+    send_maintenance_reminder_email,
+    send_maintenance_ended_email,
+    send_sla_breach_email
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +37,10 @@ class Command(BaseCommand):
                 elif window.scheduled_start - timedelta(hours=24) <= now < window.scheduled_start:
                     if not window.notified_24h:
                         self.notify_all(f"⏰ Final Reminder: System maintenance starts in 24 hours — {timezone.localtime(window.scheduled_start).strftime('%Y-%m-%d %H:%M')}. Please save your work.")
+                        # Send HTML email reminder to all users
+                        for user in User.objects.all():
+                            send_maintenance_reminder_email(user, window)
+                        
                         window.notified_24h = True
                         window.save(update_fields=["notified_24h"])
 
@@ -60,6 +69,9 @@ class Command(BaseCommand):
                 # Notify users if scheduled_end was reached
                 if window.actual_end is None:
                     self.notify_all("✅ Maintenance complete. CampusFix is back online.")
+                    # Send HTML email to all users
+                    for user in User.objects.all():
+                        send_maintenance_ended_email(user, window)
                 
                 # Recalculate paused SLAs
                 paused_issues = Issue.objects.filter(
@@ -109,6 +121,11 @@ class Command(BaseCommand):
                         notification_type="assignment",
                         related_issue=issue
                     )
+                
+                # Send SLA breach email to all admins
+                for admin in admins:
+                    send_sla_breach_email(admin, issue)
+                    
                 for admin in admins:
                     deadline_str = timezone.localtime(issue.sla_deadline).strftime('%Y-%m-%d %H:%M')
                     staff_name = issue.assigned_to.get_full_name() if issue.assigned_to else "Unassigned"

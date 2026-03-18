@@ -1,0 +1,10 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 style="margin-top: 0; color: #0f9d58;">&#10003; CampusFix is back online</h2>
+<p>Scheduled maintenance is complete. CampusFix is now fully operational.</p>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ SITE_URL }}" style="background-color: #1a73e8; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Return to CampusFix</a>
+</div>
+{% endblock %}
