@@ -23,7 +23,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.decorators import admin_required, superuser_required
 from accounts.models import User
-from issues.models import Issue, IssueProgressLog, SLARule, MaintenanceTask, IssueFeedback
+from issues.models import Issue, IssueProgressLog, SLARule, MaintenanceTask, IssueFeedback, MaintenanceWindow
 from issues.analytics import AnalyticsService
 from notifications.models import Notification
 from notifications.services import NotificationService
@@ -929,28 +929,77 @@ def calendar_events_api(request):
                 }
             })
 
-    # 2. SLA Issues
-    if view_mode in ['combined', 'sla'] or not is_admin:
-        issues_qs = Issue.objects.filter(sla_deadline__isnull=False, assigned_to__isnull=False)
+    # 2. Maintenance Tasks (Preventive)
+    if view_mode in ['combined', 'maintenance'] or not is_admin:
+        tasks = MaintenanceTask.objects.all()
         if not is_admin:
-            issues_qs = issues_qs.filter(assigned_to=request.user)
+            tasks = tasks.filter(assigned_to=request.user)
+            
+        for t in tasks:
+            # Maintenance tasks are single points in time usually, but we give them 1h duration for visibility
+            start_dt = t.scheduled_for
+            end_dt = start_dt + timedelta(hours=1)
+            
+            events.append({
+                "id": f"mt_{t.id}",
+                "title": f"🛠️ {t.title}",
+                "start": start_dt.isoformat(),
+                "end": end_dt.isoformat(),
+                "color": "#10b981", # GREEN
+                "extendedProps": {
+                    "type": "maintenance",
+                    "description": t.notes,
+                    "location": t.location,
+                }
+            })
+
+    # 3. SLA & Assigned Issues
+    if view_mode in ['combined', 'sla'] or not is_admin:
+        # Get all issues for admins, or assigned issues for staff
+        if is_admin:
+            issues_qs = Issue.objects.all()
+        else:
+            issues_qs = Issue.objects.filter(assigned_to=request.user)
             
         for issue in issues_qs:
-            color = "#3b82f6" # BLUE
-            if issue.status in ["resolved", "closed"]:
-                color = "#9ca3af" # GREY
-            elif issue.sla_breached or (now > issue.sla_deadline and issue.status not in ["resolved", "closed"]):
-                color = "#f97316" # ORANGE
+            is_closed = issue.status in ["resolved", "closed"]
+            
+            # 1. Determine End Date (The "Deadline" or "Resolution" marker)
+            # Use resolved_at if closed. Else use sla_deadline or sla_due_at.
+            # If both missing, fallback to 3 days after creation.
+            end_time = None
+            if is_closed:
+                end_time = issue.resolved_at
+            
+            if not end_time:
+                end_time = issue.sla_deadline or issue.sla_due_at
                 
-            # For start, use acknowledged log or assigned_at or created_at
+            if not end_time:
+                # Absolute fallback for issues with no SLA data at all
+                end_time = issue.created_at + timedelta(days=3)
+
+            # 2. Determine Start Date (When it appeared on the radar)
             ack_log = issue.progress_logs.filter(log_type="acknowledged").order_by("created_at").first()
             start_time = ack_log.created_at if ack_log else (issue.assigned_at if issue.assigned_at else issue.created_at)
 
+            # 3. Date Safety: Ensure start <= end for FullCalendar stability
+            if start_time >= end_time:
+                # If resolution happened before assignment/log (e.g. manual import),
+                # just show it as a point in time at the end date.
+                start_time = end_time - timedelta(minutes=15)
+
+            # 4. Color Logic
+            color = "#3b82f6" # BLUE (Active/Pending)
+            if is_closed:
+                color = "#9ca3af" # GREY (Resolved/Cancelled)
+            elif issue.sla_breached or (issue.sla_deadline and now > issue.sla_deadline) or (issue.sla_due_at and now > issue.sla_due_at) or (now > end_time):
+                color = "#f97316" # ORANGE (Overdue)
+                
             events.append({
                 "id": f"is_{issue.id}",
                 "title": f"Issue #{issue.id}: {issue.title}",
                 "start": start_time.isoformat(),
-                "end": issue.sla_deadline.isoformat(),
+                "end": end_time.isoformat(),
                 "color": color,
                 "extendedProps": {
                     "type": "issue",
@@ -958,7 +1007,7 @@ def calendar_events_api(request):
                     "location": issue.location,
                     "category": issue.get_category_display(),
                     "status": issue.get_status_display(),
-                    "assigned_to": issue.assigned_to.get_full_name() or issue.assigned_to.email,
+                    "assigned_to": (issue.assigned_to.get_full_name() or issue.assigned_to.email) if issue.assigned_to else "Unassigned",
                 }
             })
 

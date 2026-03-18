@@ -219,10 +219,10 @@ class Issue(models.Model):
         if qs.count() >= 2:
             self.is_recurring = True
 
-    def apply_sla(self):
+    def apply_sla(self, start_time=None):
         """
         Ensure sla_due_at and is_overdue reflect the current SLA rule
-        for this issue's category, based on created_at.
+        for this issue's category, based on start_time or created_at.
         """
         SLARule = apps.get_model("issues", "SLARule")  # type: ignore[assignment]
         try:
@@ -230,20 +230,23 @@ class Issue(models.Model):
         except SLARule.DoesNotExist:  # type: ignore[attr-defined]
             return
 
-        if not self.created_at:
+        base_time = start_time or self.created_at or timezone.now()
+        if not base_time:
             return
 
-        self.sla_due_at = self.created_at + timedelta(hours=rule.response_time_hours)
+        self.sla_due_at = base_time + timedelta(hours=rule.response_time_hours)
 
         # Only mark overdue for non-resolved/closed issues
-        if self.status not in {"resolved", "closed"} and timezone.now() > self.sla_due_at:
+        if self.status not in {"resolved", "closed"} and self.sla_due_at and timezone.now() > self.sla_due_at:
             self.is_overdue = True
 
     def save(self, *args, **kwargs):
         # Recompute SLA fields when creating the issue or when category/status changes.
         # For safety, always ensure sla_due_at is set if possible.
         self.mark_recurring()
-        if self.created_at and not self.sla_due_at:
+        
+        # If created_at is not yet set (new instance), use timezone.now() as fallback for SLA
+        if not self.sla_due_at:
             self.apply_sla()
         else:
             # If status changed to a non-final state, keep overdue flag up to date
