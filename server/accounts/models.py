@@ -75,3 +75,19 @@ class PasswordResetToken(models.Model):
         if timezone.now() > self.created_at + timedelta(hours=1):
             return False
         return True
+
+
+class EmailVerificationToken(models.Model):
+    """Token for email verification after registration."""
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='email_verification_token')
+    token = models.CharField(max_length=32, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    class __Meta__:
+        db_table = 'accounts_emailverificationtoken'
+    
+    def __str__(self):
+        return f"Verification token for {self.user.email}"
