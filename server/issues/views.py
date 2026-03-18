@@ -619,8 +619,10 @@ class DashboardStatsView(viewsets.ViewSet):
         start_of_month = today.replace(day=1)
 
         base_qs = Issue.objects.select_related("reporter").filter(
-            reporter__isnull=False
-        )
+            reporter__isnull=False,
+            reporter__is_superuser=False,
+            reporter__is_staff=False,
+        ).exclude(reporter__role='admin')
 
         def _build_qs(qs):
             return (
