@@ -21,16 +21,16 @@
     <div>
       <label for="range"><strong>Date range</strong></label>
       <select id="range" name="range">
-        <option value="7" {% if range == "7" %}selected{% endif %}>
+        <option value="7" {% if range="" ="7" %}selected{% endif %}>
           Last 7 days
         </option>
-        <option value="30" {% if range == "30" %}selected{% endif %}>
+        <option value="30" {% if range="" ="30" %}selected{% endif %}>
           Last 30 days
         </option>
-        <option value="90" {% if range == "90" %}selected{% endif %}>
+        <option value="90" {% if range="" ="90" %}selected{% endif %}>
           Last 90 days
         </option>
-        <option value="custom" {% if range == "custom" %}selected{% endif %}>
+        <option value="custom" {% if range="" ="custom" %}selected{% endif %}>
           Custom
         </option>
       </select>
@@ -108,11 +108,8 @@
   <div class="card">
     <div class="card-title">Feedback Overview</div>
     <div class="card-value">
-      {% if feedback_overall_avg %}
-      {{ feedback_overall_avg|floatformat:1 }}★
-      {% else %}
-      N/A
-      {% endif %}
+      {% if feedback_overall_avg %} {{ feedback_overall_avg|floatformat:1 }}★ {%
+      else %} N/A {% endif %}
     </div>
     <div class="card-muted">
       {{ feedback_total }} ratings submitted by reporters
@@ -173,19 +170,17 @@
         {% for row in feedback_staff_ratings %}
         <tr>
           <td>
-            {% if row.issue__assigned_to__first_name or row.issue__assigned_to__last_name %}
-            {{ row.issue__assigned_to__first_name }} {{ row.issue__assigned_to__last_name }}
-            {% else %}
+            {% if row.issue__assigned_to__first_name or
+            row.issue__assigned_to__last_name %} {{
+            row.issue__assigned_to__first_name }} {{
+            row.issue__assigned_to__last_name }} {% else %}
             <span class="text-muted">Unknown</span>
             {% endif %}
           </td>
           <td>{{ row.issue__assigned_to__email }}</td>
           <td>
-            {% if row.avg_rating %}
-            {{ row.avg_rating|floatformat:2 }}★
-            {% else %}
-            N/A
-            {% endif %}
+            {% if row.avg_rating %} {{ row.avg_rating|floatformat:2 }}★ {% else
+            %} N/A {% endif %}
           </td>
           <td>{{ row.rating_count }}</td>
         </tr>
