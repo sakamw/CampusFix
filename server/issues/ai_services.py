@@ -275,7 +275,13 @@ Include:
 - Areas of concern
 - 2-3 actionable recommendations
 
-Use clear headings and be professional."""
+Formatting Instructions:
+- Use standard Markdown ONLY.
+- Avoid all LaTeX or math-style formatting (no $\mathbf{{...}}$, no $\sim$).
+- Use plain text for numbers and percentages (e.g., "3" instead of $\mathbf{{3}}$).
+- Use ## for main headings and - or * for bullet points.
+- Do not include any code blocks or technical markers.
+- Be professional, empathetic, and concise."""
 
             # if quota exceeded on primary model, retry with free-tier fallback
             return self._generate_with_fallback(prompt)
