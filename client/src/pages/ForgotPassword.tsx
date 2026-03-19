@@ -95,7 +95,7 @@ export default function ForgotPassword() {
 
     setIsLoading(true);
     const result = await authApi.resetPassword(
-      "", // uidb64 not available in manual mode
+      "",
       token,
       password,
       confirmPassword,
@@ -170,7 +170,7 @@ export default function ForgotPassword() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="email@university.edu"
+                    placeholder="email@example.com"
                     className="input-focus"
                   />
                 </div>

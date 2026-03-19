@@ -5,7 +5,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.utils import timezone
-from notifications.models import Notification  # We'll use this or a new model for failed emails
+from notifications.models import Notification
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +180,7 @@ def send_sla_breach_email(admin_user, issue):
         'SITE_URL': settings.SITE_URL
     }
     html_content = render_to_string('emails/sla_breach_admin.html', context)
-    return send_email(admin_user.email, f"⚠️ SLA Breach: Issue #{issue.id} — {issue.title}", html_content)
+    return send_email(admin_user.email, f"SLA Breach: Issue #{issue.id} — {issue.title}", html_content)
 
 def send_maintenance_scheduled_email(user, window):
     """Send maintenance scheduled email to user."""
@@ -200,7 +200,7 @@ def send_maintenance_scheduled_email(user, window):
         'SITE_URL': settings.SITE_URL
     }
     html_content = render_to_string('emails/maintenance_scheduled.html', context)
-    return send_email(user.email, f"📢 Scheduled Maintenance — {context['date']}", html_content)
+    return send_email(user.email, f"Scheduled Maintenance — {context['date']}", html_content)
 
 def send_maintenance_reminder_email(user, window):
     """Send 24h maintenance reminder email."""
@@ -216,7 +216,7 @@ def send_maintenance_reminder_email(user, window):
         'SITE_URL': settings.SITE_URL
     }
     html_content = render_to_string('emails/maintenance_reminder_24h.html', context)
-    return send_email(user.email, f"⏰ Maintenance starts tomorrow — {context['date']} at {context['time']}", html_content)
+    return send_email(user.email, f"Maintenance starts tomorrow — {context['date']} at {context['time']}", html_content)
 
 def send_maintenance_ended_email(user, window):
     """Send maintenance ended confirmation email."""
@@ -227,4 +227,4 @@ def send_maintenance_ended_email(user, window):
         'SITE_URL': settings.SITE_URL
     }
     html_content = render_to_string('emails/maintenance_ended.html', context)
-    return send_email(user.email, "✅ CampusFix is back online", html_content)
+    return send_email(user.email, "CampusFix is back online", html_content)

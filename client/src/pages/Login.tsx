@@ -148,9 +148,7 @@ export default function Login() {
           </p>
           <div className="mt-12 grid grid-cols-3 gap-4 text-center">
             <div className="rounded-lg bg-primary-foreground/10 p-4">
-              <p className="text-2xl font-bold text-primary-foreground">
-                2.5k+
-              </p>
+              <p className="text-2xl font-bold text-primary-foreground">500+</p>
               <p className="text-sm text-primary-foreground/70">
                 Issues Resolved
               </p>
@@ -194,17 +192,22 @@ export default function Login() {
                 </div>
                 <h2 className="text-2xl font-bold">Check your email</h2>
                 <p className="text-muted-foreground">
-                  We've sent an activation link to <span className="font-medium text-foreground">{registeredEmail}</span>. 
-                  Please click the link in the email to activate your account.
+                  We've sent an activation link to{" "}
+                  <span className="font-medium text-foreground">
+                    {registeredEmail}
+                  </span>
+                  . Please click the link in the email to activate your account.
                 </p>
                 <div className="pt-4">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={() => {
                       setRegisteredEmail(null);
                       const tabs = document.querySelector('[role="tablist"]');
-                      const loginTab = tabs?.querySelector('[value="login"]') as HTMLButtonElement;
+                      const loginTab = tabs?.querySelector(
+                        '[value="login"]',
+                      ) as HTMLButtonElement;
                       loginTab?.click();
                     }}
                   >
@@ -214,200 +217,209 @@ export default function Login() {
               </div>
             ) : (
               <>
+                <TabsContent value="login">
+                  <div className="space-y-6">
+                    <div className="space-y-2 text-center">
+                      <h2 className="text-2xl font-bold">Welcome back</h2>
+                      <p className="text-muted-foreground">
+                        Enter your credentials to access your account
+                      </p>
+                    </div>
 
-            <TabsContent value="login">
-              <div className="space-y-6">
-                <div className="space-y-2 text-center">
-                  <h2 className="text-2xl font-bold">Welcome back</h2>
-                  <p className="text-muted-foreground">
-                    Enter your credentials to access your account
-                  </p>
-                </div>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="email@example.com"
+                          className="input-focus"
+                        />
+                      </div>
 
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="email@example.com"
-                      className="input-focus"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            className="pr-10 input-focus"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        className="pr-10 input-focus"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="rounded border-input"
+                          />
+                          Remember me
+                        </label>
+                        <Link
+                          to="/forgot-password"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Forgot password?
+                        </Link>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        size="lg"
+                        disabled={isLoading}
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
+                        {isLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Sign In
+                      </Button>
+                    </form>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="register">
+                  <div className="space-y-6">
+                    <div className="space-y-2 text-center">
+                      <h2 className="text-2xl font-bold">Create an account</h2>
+                      <p className="text-muted-foreground">
+                        Register with your email
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="rounded border-input" />
-                      Remember me
-                    </label>
-                    <Link
-                      to="/forgot-password"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
+                    <form onSubmit={handleRegister} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName">First Name</Label>
+                          <Input
+                            id="firstName"
+                            placeholder="John"
+                            className="input-focus"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName">Last Name</Label>
+                          <Input
+                            id="lastName"
+                            placeholder="Doe"
+                            className="input-focus"
+                          />
+                        </div>
+                      </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    size="lg"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : null}
-                    Sign In
-                  </Button>
-                </form>
+                      <div className="space-y-2">
+                        <Label htmlFor="studentId">Student ID</Label>
+                        <Input
+                          id="studentId"
+                          placeholder="STU123456"
+                          className="input-focus"
+                        />
+                      </div>
 
-              </div>
-            </TabsContent>
+                      <div className="space-y-2">
+                        <Label htmlFor="regEmail">Email</Label>
+                        <Input
+                          id="regEmail"
+                          type="email"
+                          placeholder="student@university.edu"
+                          className="input-focus"
+                        />
+                      </div>
 
-            <TabsContent value="register">
-              <div className="space-y-6">
-                <div className="space-y-2 text-center">
-                  <h2 className="text-2xl font-bold">Create an account</h2>
-                  <p className="text-muted-foreground">
-                    Register with your email
-                  </p>
-                </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="regPassword">Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="regPassword"
+                            type={showRegPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            className="pr-10 input-focus"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowRegPassword(!showRegPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showRegPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
 
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        placeholder="John"
-                        className="input-focus"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        placeholder="Doe"
-                        className="input-focus"
-                      />
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">
+                          Confirm Password
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="confirmPassword"
+                            type={showRegConfirmPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            className="pr-10 input-focus"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowRegConfirmPassword(!showRegConfirmPassword)
+                            }
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showRegConfirmPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="studentId">Student ID</Label>
-                    <Input
-                      id="studentId"
-                      placeholder="STU123456"
-                      className="input-focus"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="regEmail">Email</Label>
-                    <Input
-                      id="regEmail"
-                      type="email"
-                      placeholder="student@university.edu"
-                      className="input-focus"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="regPassword">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="regPassword"
-                        type={showRegPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        className="pr-10 input-focus"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegPassword(!showRegPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        size="lg"
+                        disabled={isLoading}
                       >
-                        {showRegPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                        {isLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Create Account
+                      </Button>
+                    </form>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        type={showRegConfirmPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        className="pr-10 input-focus"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowRegConfirmPassword(!showRegConfirmPassword)
-                        }
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    <p className="text-center text-sm text-muted-foreground">
+                      By registering, you agree to our{" "}
+                      <Link
+                        to="/terms"
+                        className="text-primary hover:underline"
                       >
-                        {showRegConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
+                        Terms of Service
+                      </Link>{" "}
+                      and{" "}
+                      <Link
+                        to="/privacy"
+                        className="text-primary hover:underline"
+                      >
+                        Privacy Policy
+                      </Link>
+                    </p>
                   </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    size="lg"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : null}
-                    Create Account
-                  </Button>
-                </form>
-
-                <p className="text-center text-sm text-muted-foreground">
-                  By registering, you agree to our{" "}
-                  <Link to="/terms" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link to="/privacy" className="text-primary hover:underline">
-                    Privacy Policy
-                  </Link>
-                </p>
-              </div>
-            </TabsContent>
+                </TabsContent>
               </>
             )}
           </Tabs>
