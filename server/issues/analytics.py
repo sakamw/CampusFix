@@ -1,7 +1,3 @@
-"""
-Analytics and metrics for the admin dashboard.
-"""
-
 from django.db.models import Count, Avg, Q, F, ExpressionWrapper, DurationField, Sum
 from django.db.models.functions import TruncDate, TruncHour, ExtractHour
 from django.utils import timezone
