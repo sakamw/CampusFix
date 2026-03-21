@@ -68,6 +68,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ refresh }),
+      credentials: "omit",
     });
 
     if (response.ok) {
@@ -141,7 +142,11 @@ const apiFetch = async <T>(
   }
 
   try {
-    let response = await fetch(url, { ...options, headers });
+    let response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: "omit",
+    });
 
     // If unauthorized, try to refresh token
     if (response.status === 401 && token) {
@@ -149,7 +154,11 @@ const apiFetch = async <T>(
       if (newToken) {
         (headers as Record<string, string>)["Authorization"] =
           `Bearer ${newToken}`;
-        response = await fetch(url, { ...options, headers });
+        response = await fetch(url, {
+          ...options,
+          headers,
+          credentials: "omit",
+        });
       }
     }
 
@@ -566,6 +575,7 @@ export const issuesApi = {
         method: "POST",
         body: formData,
         headers,
+        credentials: "omit",
       });
 
       const data = await response.json();
@@ -674,18 +684,14 @@ export const dashboardApi = {
   },
 
   getLeaderboard: async (): Promise<
-    ApiResponse<{ this_month: LeaderboardEntry[]; all_time: LeaderboardEntry[] }>
+    ApiResponse<{
+      this_month: LeaderboardEntry[];
+      all_time: LeaderboardEntry[];
+    }>
   > => {
     return apiFetch("/dashboard/leaderboard/");
   },
 };
 
 export { getAccessToken, getRefreshToken, clearTokens, setTokens };
-export type {
-  UserData,
-  LoginResponse,
-  RegisterResponse,
-  ApiResponse,
-  Announcement,
-  LeaderboardEntry,
-};
+export type { UserData, LoginResponse, RegisterResponse, ApiResponse };
