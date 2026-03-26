@@ -87,7 +87,11 @@ export default function Notifications() {
           {unreadCount > 0 && (
             <Badge variant="destructive">{unreadCount} unread</Badge>
           )}
-          <Button variant="outline" onClick={markAllRead} disabled={!unreadCount}>
+          <Button
+            variant="outline"
+            onClick={markAllRead}
+            disabled={!unreadCount}
+          >
             <Check className="mr-2 h-4 w-4" />
             Mark all read
           </Button>
@@ -116,11 +120,15 @@ export default function Notifications() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-medium">{n.title}</p>
-                      <p className="text-sm text-muted-foreground">{n.message}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {n.message}
+                      </p>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span>{formatTime(n.created_at)}</span>
                         <Separator orientation="vertical" className="h-3" />
-                        <span className="uppercase tracking-wide">{n.type}</span>
+                        <span className="uppercase tracking-wide">
+                          {n.type}
+                        </span>
                       </div>
                       {n.related_issue_id && (
                         <Link
@@ -151,4 +159,3 @@ export default function Notifications() {
     </div>
   );
 }
-

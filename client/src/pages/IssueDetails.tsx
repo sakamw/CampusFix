@@ -374,16 +374,18 @@ export default function IssueDetails() {
       </Link>
 
       {/* Edit Issue Button (only for reporter) */}
-      {isReporter && issue.status !== "resolved" && issue.status !== "closed" && (
-        <div className="flex justify-end mb-2">
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/issues/${issue.id}/edit`)}
-          >
-            Edit Issue
-          </Button>
-        </div>
-      )}
+      {isReporter &&
+        issue.status !== "resolved" &&
+        issue.status !== "closed" && (
+          <div className="flex justify-end mb-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/issues/${issue.id}/edit`)}
+            >
+              Edit Issue
+            </Button>
+          </div>
+        )}
 
       {/* Header */}
       <div className="space-y-4">
@@ -401,13 +403,19 @@ export default function IssueDetails() {
             variant={issue.upvoted_by_user ? "default" : "outline"}
             onClick={handleUpvote}
             className="gap-2"
-            disabled={upvoting || issue.status === "resolved" || issue.status === "closed"}
+            disabled={
+              upvoting ||
+              issue.status === "resolved" ||
+              issue.status === "closed"
+            }
           >
             <ThumbsUp
               className={`h-4 w-4 ${issue.upvoted_by_user ? "fill-current" : ""}`}
             />
             <span>{issue.upvote_count}</span>
-            {issue.status === "resolved" || issue.status === "closed" ? "Closed" : "Upvote"}
+            {issue.status === "resolved" || issue.status === "closed"
+              ? "Closed"
+              : "Upvote"}
           </Button>
         </div>
 
@@ -937,7 +945,8 @@ export default function IssueDetails() {
                     </p>
                     <p className="text-sm text-green-700 mt-1">
                       You rated this: {issue.my_feedback.rating}★
-                      {issue.my_feedback.comment && ` - "${issue.my_feedback.comment}"`}
+                      {issue.my_feedback.comment &&
+                        ` - "${issue.my_feedback.comment}"`}
                     </p>
                   </div>
                 )}

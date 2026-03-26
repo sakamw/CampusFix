@@ -267,29 +267,27 @@ export default function IssueResponses() {
             "reopened",
             "closed",
           ] as const
-        ).map(
-          (status) => (
-            <Button
-              key={status}
-              variant={filter === status ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter(status)}
-            >
+        ).map((status) => (
+          <Button
+            key={status}
+            variant={filter === status ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(status)}
+          >
+            {status === "all"
+              ? "All Issues"
+              : status
+                  .replace("-", " ")
+                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+            <span className="ml-2 text-xs">
+              (
               {status === "all"
-                ? "All Issues"
-                : status
-                    .replace("-", " ")
-                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-              <span className="ml-2 text-xs">
-                (
-                {status === "all"
-                  ? issues.length
-                  : issues.filter((i) => i.status === status).length}
-                )
-              </span>
-            </Button>
-          ),
-        )}
+                ? issues.length
+                : issues.filter((i) => i.status === status).length}
+              )
+            </span>
+          </Button>
+        ))}
       </div>
 
       {/* Issues List */}

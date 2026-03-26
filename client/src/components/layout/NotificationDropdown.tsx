@@ -202,7 +202,10 @@ export function NotificationDropdown() {
         </ScrollArea>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to="/notifications" className="w-full text-sm text-muted-foreground">
+          <Link
+            to="/notifications"
+            className="w-full text-sm text-muted-foreground"
+          >
             View all notifications
           </Link>
         </DropdownMenuItem>

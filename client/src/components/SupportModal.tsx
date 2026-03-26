@@ -64,14 +64,15 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
       } else {
         toast({
           title: "Request Sent",
-          description: "Your support request has been successfully sent to the IT team.",
+          description:
+            "Your support request has been successfully sent to the IT team.",
         });
-        
+
         // Reset form
         setSupportType("");
         setSubject("");
         setMessage("");
-        
+
         // Close modal
         onClose();
       }
@@ -93,7 +94,8 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
           <DialogHeader>
             <DialogTitle>Contact IT Support</DialogTitle>
             <DialogDescription>
-              Submit a support request directly to the IT team. We'll get back to you as soon as possible.
+              Submit a support request directly to the IT team. We'll get back
+              to you as soon as possible.
             </DialogDescription>
           </DialogHeader>
 
@@ -105,10 +107,16 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
                   <SelectValue placeholder="Select the type of issue" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Account Issue">Account Issue (Login, Profiles)</SelectItem>
+                  <SelectItem value="Account Issue">
+                    Account Issue (Login, Profiles)
+                  </SelectItem>
                   <SelectItem value="App Bug">Application Bug</SelectItem>
-                  <SelectItem value="Feature Request">Feature Request</SelectItem>
-                  <SelectItem value="General Question">General Question</SelectItem>
+                  <SelectItem value="Feature Request">
+                    Feature Request
+                  </SelectItem>
+                  <SelectItem value="General Question">
+                    General Question
+                  </SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>

@@ -195,7 +195,7 @@ export default function Dashboard() {
             <p className="text-muted-foreground">
               {searchQuery
                 ? `No issues found matching "${searchQuery}". Try a different search.`
-                : "No issues reported yet. Click \"Report New Issue\" to get started."}
+                : 'No issues reported yet. Click "Report New Issue" to get started.'}
             </p>
           </div>
         )}

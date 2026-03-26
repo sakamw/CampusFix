@@ -126,9 +126,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       </aside>
 
-      <SupportModal 
-        isOpen={isSupportModalOpen} 
-        onClose={() => setIsSupportModalOpen(false)} 
+      <SupportModal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
       />
     </>
   );

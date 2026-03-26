@@ -41,8 +41,14 @@ const App = () => (
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/auth/verify-email/:token" element={<VerifyEmail />} />
-                <Route path="/auth/reset-password/:uidb64/:token" element={<ResetPassword />} />
+                <Route
+                  path="/auth/verify-email/:token"
+                  element={<VerifyEmail />}
+                />
+                <Route
+                  path="/auth/reset-password/:uidb64/:token"
+                  element={<ResetPassword />}
+                />
 
                 {/* Student Routes */}
                 <Route element={<DashboardLayout />}>
@@ -134,7 +140,6 @@ const App = () => (
                   />
                 </Route>
 
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </TooltipProvider>

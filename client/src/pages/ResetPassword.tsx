@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { GraduationCap, Eye, EyeOff, Loader2, KeyRound, ArrowLeft } from "lucide-react";
+import {
+  GraduationCap,
+  Eye,
+  EyeOff,
+  Loader2,
+  KeyRound,
+  ArrowLeft,
+} from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -18,8 +25,11 @@ export default function ResetPassword() {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const password = (form.querySelector("#password") as HTMLInputElement)?.value;
-    const confirmPassword = (form.querySelector("#confirmPassword") as HTMLInputElement)?.value;
+    const password = (form.querySelector("#password") as HTMLInputElement)
+      ?.value;
+    const confirmPassword = (
+      form.querySelector("#confirmPassword") as HTMLInputElement
+    )?.value;
 
     if (!uidb64 || !token || !password || !confirmPassword) {
       toast({
@@ -57,7 +67,8 @@ export default function ResetPassword() {
     } else {
       toast({
         title: "Error",
-        description: result.error || "Failed to reset password. The link may be expired.",
+        description:
+          result.error || "Failed to reset password. The link may be expired.",
         variant: "destructive",
       });
     }
@@ -72,7 +83,9 @@ export default function ResetPassword() {
               <GraduationCap className="h-10 w-10 text-accent-foreground" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-primary-foreground mb-4">CampusFix</h1>
+          <h1 className="text-4xl font-bold text-primary-foreground mb-4">
+            CampusFix
+          </h1>
           <p className="text-lg text-primary-foreground/80 leading-relaxed">
             Secure your account with a new password.
           </p>
@@ -88,7 +101,9 @@ export default function ResetPassword() {
               </div>
             </div>
             <h2 className="text-2xl font-bold">Reset Password</h2>
-            <p className="text-muted-foreground">Enter your new password below.</p>
+            <p className="text-muted-foreground">
+              Enter your new password below.
+            </p>
           </div>
 
           <form onSubmit={handleResetPassword} className="space-y-4">
@@ -107,7 +122,11 @@ export default function ResetPassword() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -127,19 +146,32 @@ export default function ResetPassword() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+            <Button
+              type="submit"
+              className="w-full h-12 text-lg"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              ) : null}
               Reset Password
             </Button>
           </form>
 
           <div className="text-center">
-            <Link to="/login" className="inline-flex items-center text-sm text-primary hover:underline">
+            <Link
+              to="/login"
+              className="inline-flex items-center text-sm text-primary hover:underline"
+            >
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back to Sign In
             </Link>

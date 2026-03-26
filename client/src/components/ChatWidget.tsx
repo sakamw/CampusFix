@@ -7,7 +7,7 @@ import { useToast } from "../hooks/use-toast";
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant';
+  type: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
@@ -25,11 +25,12 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      type: 'assistant',
-      content: "Hi! I can help you report an issue. Which building or area is the problem in?",
+      id: "1",
+      type: "assistant",
+      content:
+        "Hi! I can help you report an issue. Which building or area is the problem in?",
       timestamp: new Date(),
-    }
+    },
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +40,9 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      const scrollContainer = scrollAreaRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
       if (scrollContainer) {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
@@ -51,24 +54,24 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      type: 'user',
+      type: "user",
       content: inputValue.trim(),
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsLoading(true);
 
     try {
       // Prepare conversation history for API
-      const history = messages.map(msg => msg.content);
+      const history = messages.map((msg) => msg.content);
 
-      const response = await fetch('/api/ai/chatbot_message/', {
-        method: 'POST',
+      const response = await fetch("/api/ai/chatbot_message/", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
         body: JSON.stringify({
           message: userMessage.content,
@@ -78,14 +81,14 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
 
       if (!response.ok) {
         if (response.status === 503) {
-          throw new Error('AI assistant is currently unavailable');
+          throw new Error("AI assistant is currently unavailable");
         }
-        throw new Error('Failed to send message');
+        throw new Error("Failed to send message");
       }
 
       const data = await response.json();
 
-      if (data.type === 'completion' && data.data?.complete) {
+      if (data.type === "completion" && data.data?.complete) {
         // Form completion - fill the form
         const completionData = data.data;
         if (onFormFill) {
@@ -99,43 +102,48 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
 
         const completionMessage: Message = {
           id: (Date.now() + 1).toString(),
-          type: 'assistant',
-          content: "Great! I've filled out the form for you. Please review and submit.",
+          type: "assistant",
+          content:
+            "Great! I've filled out the form for you. Please review and submit.",
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, completionMessage]);
+        setMessages((prev) => [...prev, completionMessage]);
       } else {
         // Regular chat message
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          type: 'assistant',
-          content: data.message || "I apologize, but I'm having trouble responding right now.",
+          type: "assistant",
+          content:
+            data.message ||
+            "I apologize, but I'm having trouble responding right now.",
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error("Chat error:", error);
       toast({
         title: "AI Assistant Unavailable",
-        description: "The AI assistant is temporarily unavailable. Please fill out the form manually.",
+        description:
+          "The AI assistant is temporarily unavailable. Please fill out the form manually.",
         variant: "destructive",
       });
 
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: "I'm sorry, but I'm having trouble right now. Please fill out the form manually.",
+        type: "assistant",
+        content:
+          "I'm sorry, but I'm having trouble right now. Please fill out the form manually.",
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -181,22 +189,22 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
               <div
                 key={message.id}
                 className={`flex gap-2 ${
-                  message.type === 'user' ? 'justify-end' : 'justify-start'
+                  message.type === "user" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
                   className={`flex gap-2 max-w-[80%] ${
-                    message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
+                    message.type === "user" ? "flex-row-reverse" : "flex-row"
                   }`}
                 >
                   <div
                     className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.type === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
+                      message.type === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
                     }`}
                   >
-                    {message.type === 'user' ? (
+                    {message.type === "user" ? (
                       <User className="h-4 w-4" />
                     ) : (
                       <Bot className="h-4 w-4" />
@@ -204,9 +212,9 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
                   </div>
                   <div
                     className={`rounded-lg px-3 py-2 text-sm ${
-                      message.type === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
+                      message.type === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
                     }`}
                   >
                     {message.content}
@@ -223,8 +231,14 @@ export default function ChatWidget({ onFormFill }: ChatWidgetProps) {
                   <div className="bg-muted rounded-lg px-3 py-2 text-sm">
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div
+                        className="w-2 h-2 bg-current rounded-full animate-bounce"
+                        style={{ animationDelay: "0.1s" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-current rounded-full animate-bounce"
+                        style={{ animationDelay: "0.2s" }}
+                      ></div>
                     </div>
                   </div>
                 </div>
