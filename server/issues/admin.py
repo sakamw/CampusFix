@@ -71,21 +71,26 @@ class IssueAdmin(admin.ModelAdmin):
         }),
     )
 
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """
         Restrict foreign key dropdowns:
-        - 'assigned_to' should only list staff/admin users (and is_staff Django users),
-          never regular student accounts.
+        - 'assigned_to' should only list staff users (role='staff'),
+          exclude super admins (role='admin', is_superuser=True).
         """
         if db_field.name == "assigned_to":
             from django.contrib.auth import get_user_model
+            from django.db.models import Q
 
             User = get_user_model()
             kwargs["queryset"] = User.objects.filter(
-                Q(role__in=["staff", "admin"]) | Q(is_staff=True)
-            ).distinct()
+                role="staff"
+            ).exclude(
+                Q(role="admin") | Q(is_superuser=True)
+            )
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
     def save_model(self, request, obj, form, change):
         """
