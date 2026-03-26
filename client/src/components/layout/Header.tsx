@@ -20,6 +20,7 @@ import {
   AvatarFallback,
 } from "../../components/ui/avatar";
 import { useUserSettings } from "../../contexts/UserSettingsContext";
+import { getImageUrl } from "../../lib/utils";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -97,7 +98,10 @@ export function Header({ onMenuClick }: HeaderProps) {
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
                   {settings.profile.avatar ? (
-                    <AvatarImage src={settings.profile.avatar} alt="Profile" />
+                    <AvatarImage
+                      src={getImageUrl(settings.profile.avatar)}
+                      alt="Profile"
+                    />
                   ) : (
                     <AvatarFallback>
                       {settings.profile.firstName[0]}

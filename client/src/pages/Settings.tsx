@@ -30,6 +30,7 @@ import {
 import { useToast } from "../hooks/use-toast";
 import { useTheme } from "../contexts/ThemeContext";
 import { useUserSettings } from "../contexts/UserSettingsContext";
+import { getImageUrl } from "../lib/utils";
 import { TwoFactorSetup } from "../components/TwoFactorSetup";
 import { dashboardApi } from "../lib/api";
 
@@ -348,7 +349,7 @@ export default function Settings() {
                   <Avatar className="h-20 w-20">
                     {settings.profile.avatar ? (
                       <AvatarImage
-                        src={settings.profile.avatar}
+                        src={getImageUrl(settings.profile.avatar)}
                         alt="Profile"
                       />
                     ) : null}

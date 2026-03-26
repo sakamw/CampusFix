@@ -153,36 +153,41 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
       let avatarUrl: string | null = null;
 
       if (avatar instanceof File) {
-        // Upload file to Cloudinary via backend
-        avatarUrl = await uploadImageToCloudinary(avatar);
-      } else if (typeof avatar === "string") {
-        avatarUrl = avatar;
+        // Upload file to Cloudinary via backend - returns {avatar_url, user}
+        const uploadResponseRaw = await uploadImageToCloudinary(avatar);
+        const uploadResponse = uploadResponseRaw as unknown as {
+          avatar_url: string;
+          user: Record<string, any>;
+        };
+        avatarUrl = uploadResponse.avatar_url;
+      } else {
+        avatarUrl =
+          avatar === null ? null : typeof avatar === "string" ? avatar : null;
       }
 
-      // Update local state immediately for responsive UI
+      // Update backend
+      await authApi.updateProfile({ avatar: avatarUrl });
+
+      // Update local state
       setSettings((prev) => ({
         ...prev,
-        profile: { ...prev.profile, avatar: avatarUrl },
+        profile: {
+          ...prev.profile,
+          avatar: avatarUrl,
+        },
       }));
 
-      // If it's a file upload, the backend already updated the avatar
-      // If it's a URL update or removal, sync with server
-      if (avatar instanceof File) {
-        // Backend already updated the avatar, just refresh to ensure sync
-        await fetchUserProfile();
-      } else {
-        // Handle URL update or removal
-        if (avatarUrl) {
-          await updateUserAvatarUrl(avatarUrl);
-        } else {
-          // Handle avatar removal - update profile with null avatar
-          await authApi.updateProfile({ avatar: null });
-        }
-        await fetchUserProfile();
-      }
+      // Dispatch event
+      window.dispatchEvent(
+        new CustomEvent("userProfileUpdated", {
+          detail: { avatar: avatarUrl },
+        }),
+      );
+
+      // Refetch to sync
+      await fetchUserProfile();
     } catch (error) {
       console.error("Failed to update avatar:", error);
-      // Revert to previous state on error
       await fetchUserProfile();
       throw error;
     }

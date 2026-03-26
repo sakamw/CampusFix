@@ -91,6 +91,7 @@ export default function ReportIssue() {
 
     const files = Array.from(e.dataTransfer.files);
     handleFiles(files);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFiles = (files: File[]) => {

@@ -55,6 +55,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
+  // Listen for profile updates from other contexts
+  useEffect(() => {
+    const handleProfileUpdate = async (event: CustomEvent) => {
+      const { avatar, user } = event.detail;
+      if (user && user.role === "student") {
+        setUser(user);
+      } else if (avatar && user) {
+        setUser((prev) => (prev ? { ...prev, avatar, ...user } : null));
+      }
+    };
+
+    window.addEventListener(
+      "userProfileUpdated",
+      handleProfileUpdate as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        "userProfileUpdated",
+        handleProfileUpdate as EventListener,
+      );
+    };
+  }, []);
+
   const login = async (email: string, password: string) => {
     const result = await authApi.login(email, password);
 

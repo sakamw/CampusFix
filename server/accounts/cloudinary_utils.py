@@ -24,7 +24,11 @@ def upload_image_to_cloudinary(file):
         'file': (file.name, file_bytes, file.content_type),
     }
     
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
+        logger.info(f"Uploading {file.name} ({file.size} bytes) to Cloudinary")
         response = requests.post(
             f'https://api.cloudinary.com/v1_1/{cloud_name}/image/upload',
             data=data,
@@ -33,11 +37,16 @@ def upload_image_to_cloudinary(file):
         
         if response.status_code == 200:
             result = response.json()
-            return result.get('secure_url')
+            url = result.get('secure_url')
+            logger.info(f"Cloudinary upload success: {url}")
+            return url
         else:
+            logger.error(f"Cloudinary failed: {response.status_code} - {response.text}")
             raise Exception(f"Cloudinary upload failed: {response.status_code} - {response.text}")
             
     except requests.exceptions.RequestException as e:
+        logger.error(f"Cloudinary network error: {str(e)}")
         raise Exception(f"Network error during Cloudinary upload: {str(e)}")
     except Exception as e:
+        logger.error(f"Cloudinary error: {str(e)}")
         raise Exception(f"Error during Cloudinary upload: {str(e)}")

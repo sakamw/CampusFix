@@ -1,4 +1,6 @@
-export async function uploadImageToCloudinary(file: File): Promise<string> {
+export async function uploadImageToCloudinary(
+  file: File,
+): Promise<{ avatar_url: string; user: any }> {
   const formData = new FormData();
   formData.append("image", file);
 
@@ -18,7 +20,7 @@ export async function uploadImageToCloudinary(file: File): Promise<string> {
   }
 
   const data = await response.json();
-  return data.avatar_url as string;
+  return data;
 }
 
 interface User {
