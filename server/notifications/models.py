@@ -52,21 +52,25 @@ class NotificationPreference(models.Model):
         related_name='notification_preferences'
     )
     
+
     # Email notification preferences
-    email_on_comment = models.BooleanField(default=True)
-    email_on_status_change = models.BooleanField(default=True)
-    email_on_assignment = models.BooleanField(default=True)
-    email_on_upvote = models.BooleanField(default=False)
-    email_on_resolution = models.BooleanField(default=True)
+    email_on_comment = models.BooleanField(default=True, null=True, blank=True)
+    email_on_status_change = models.BooleanField(default=True, null=True, blank=True)
+    email_on_assignment = models.BooleanField(default=True, null=True, blank=True)
+    email_on_upvote = models.BooleanField(default=False, null=True, blank=True)
+    email_on_resolution = models.BooleanField(default=True, null=True, blank=True)
+    email_issue_updates = models.BooleanField(default=True, null=True, blank=True)
+    email_maintenance_alerts = models.BooleanField(default=True, null=True, blank=True)
     
     # Real-time notification preferences
-    real_time_notifications = models.BooleanField(default=True)
+    real_time_notifications = models.BooleanField(default=True, null=True, blank=True)
     
     # Daily digest
-    daily_digest = models.BooleanField(default=False)
+    daily_digest = models.BooleanField(default=False, null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     
     def __str__(self):
         return f"Notification Preferences - {self.user.email}"

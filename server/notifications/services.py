@@ -18,16 +18,11 @@ channel_layer = get_channel_layer()
 class NotificationService:
     """Service for managing notifications."""
     
+
     @staticmethod
     def create_notification(user, title, message, notification_type='system', related_issue=None):
         """Create and send a notification."""
-        # Check user preferences
-        try:
-            preferences = user.notification_preferences
-        except NotificationPreference.DoesNotExist:
-            preferences = NotificationPreference.objects.create(user=user)
-        
-        # Create notification in database
+        # Create notification in database first (preferences access after)
         notification = Notification.objects.create(
             user=user,
             title=title,
@@ -35,6 +30,21 @@ class NotificationService:
             notification_type=notification_type,
             related_issue=related_issue
         )
+        
+        # Check user preferences (safe now since notification saved)
+        try:
+            preferences = user.notification_preferences
+        except NotificationPreference.DoesNotExist:
+            preferences = NotificationPreference.objects.create(
+                user=user,
+                email_on_comment=True,
+                email_on_status_change=True,
+                email_on_assignment=True,
+                email_on_upvote=False,
+                email_on_resolution=True,
+                real_time_notifications=True,
+                daily_digest=False,
+            )
         
         # Send real-time notification if enabled
         if preferences.real_time_notifications:
@@ -45,6 +55,7 @@ class NotificationService:
             NotificationService._send_email_notification(user, notification)
         
         return notification
+
     
     @staticmethod
     def _send_real_time_notification(user, notification):
