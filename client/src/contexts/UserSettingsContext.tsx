@@ -157,6 +157,7 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
         const uploadResponseRaw = await uploadImageToCloudinary(avatar);
         const uploadResponse = uploadResponseRaw as unknown as {
           avatar_url: string;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           user: Record<string, any>;
         };
         avatarUrl = uploadResponse.avatar_url;

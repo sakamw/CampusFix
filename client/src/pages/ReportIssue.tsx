@@ -426,9 +426,10 @@ export default function ReportIssue() {
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>
             Cancel
           </Button>
-          <Button type="submit" size="lg">
+
+          <Button type="submit" size="lg" disabled={isSubmitting}>
             <CheckCircle className="mr-2 h-5 w-5" />
-            Submit Report
+            {isSubmitting ? "Submitting..." : "Submit Report"}
           </Button>
         </div>
       </form>
