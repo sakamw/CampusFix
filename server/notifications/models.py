@@ -81,12 +81,24 @@ class Announcement(models.Model):
     Admin-authored campus-wide announcements shown in the student dashboard.
     """
 
+    AUDIENCE_CHOICES = [
+        ('all', 'All Users'),
+        ('staff', 'Staff Only'),
+        ('students', 'Students Only'),
+    ]
+
     title = models.CharField(
         max_length=255,
         validators=[NoMaliciousContentValidator()],
     )
     body = models.TextField(
         validators=[NoMaliciousContentValidator()],
+    )
+    audience = models.CharField(
+        max_length=10,
+        choices=AUDIENCE_CHOICES,
+        default='all',
+        help_text="Who should see this announcement.",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

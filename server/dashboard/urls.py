@@ -23,6 +23,11 @@ urlpatterns = [
     path("calendar/", views.calendar, name="calendar"),
     path("api/calendar-events/", views.calendar_events_api, name="calendar_events_api"),
     path("announcements/", views.announcements, name="announcements"),
+    path(
+        "announcements/<int:pk>/dismiss/",
+        views.dismiss_announcement,
+        name="dismiss_announcement",
+    ),
     path("settings/", views.settings_view, name="settings"),
     path(
         "notifications/assignments/mark-all-read/",

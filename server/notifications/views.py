@@ -99,9 +99,23 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         now = timezone.now()
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
 
-        # When listing for students, hide announcements they have dismissed
+        user = self.request.user
+        role = getattr(user, "role", "student")
+        
+        # Filter by audience
+        if user.is_superuser or role == "admin":
+            # Admins see all active announcements
+            pass
+        elif role == "staff" or user.is_staff:
+            # Staff see 'all' and 'staff' announcements
+            qs = qs.filter(Q(audience='all') | Q(audience='staff'))
+        else:
+            # Students see 'all' and 'students' announcements
+            qs = qs.filter(Q(audience='all') | Q(audience='students'))
+
+        # When listing, hide announcements the user has dismissed
         if self.action == "list":
-            qs = qs.exclude(dismissals__user=self.request.user)
+            qs = qs.exclude(dismissals__user=user)
 
         return qs.order_by("-created_at")
 

@@ -53,6 +53,79 @@
             position: fixed;
             inset-block: 0;
             z-index: 40;
+            transition: width 0.25s ease, transform 0.25s ease;
+            overflow: hidden;
+        }
+
+        /* Desktop collapsed state */
+        .sidebar.collapsed {
+            width: 68px;
+        }
+
+        .sidebar.collapsed .sidebar-logo span,
+        .sidebar.collapsed .nav-section-label,
+        .sidebar.collapsed .nav-item span:not(.icon) {
+            display: none;
+        }
+
+        .sidebar.collapsed .sidebar-header {
+            padding: 1rem 0.75rem;
+            justify-content: center;
+        }
+
+        .sidebar.collapsed .nav-item {
+            justify-content: center;
+            padding: 0.7rem;
+        }
+
+        .sidebar.collapsed .nav-item span.icon {
+            width: auto;
+            font-size: 1.1rem;
+        }
+
+        .sidebar.collapsed .sidebar-nav {
+            padding: 1rem 0.5rem;
+        }
+
+        /* Collapse toggle button */
+        .sidebar-collapse-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: transparent;
+            color: var(--sidebar-muted);
+            cursor: pointer;
+            margin-left: auto;
+            font-size: 0.85rem;
+            transition: background 0.15s;
+        }
+
+        .sidebar-collapse-btn:hover {
+            background: rgba(148, 163, 184, 0.25);
+        }
+
+        .sidebar.collapsed .sidebar-collapse-btn {
+            margin: 0 auto;
+        }
+
+        /* Mobile overlay backdrop */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 39;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .sidebar-backdrop.visible {
+            display: block;
+            opacity: 1;
         }
 
         .sidebar-header {
@@ -140,6 +213,11 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            transition: margin-left 0.25s ease;
+        }
+
+        .sidebar.collapsed ~ .main-column {
+            margin-left: 68px;
         }
 
         .topbar {
@@ -486,16 +564,34 @@
 
         @media (max-width: 900px) {
             .sidebar {
+                width: 260px !important;
                 transform: translateX(-100%);
-                transition: transform 0.2s ease-out;
+                transition: transform 0.25s ease-out;
             }
 
             .sidebar.open {
                 transform: translateX(0);
             }
 
+            /* Always show full labels on mobile when open */
+            .sidebar.open .sidebar-logo span,
+            .sidebar.open .nav-section-label,
+            .sidebar.open .nav-item span:not(.icon) {
+                display: inline;
+            }
+
+            .sidebar.open .sidebar-header {
+                padding: 1rem 1.5rem;
+                justify-content: flex-start;
+            }
+
+            .sidebar.open .nav-item {
+                justify-content: flex-start;
+                padding: 0.6rem 0.75rem;
+            }
+
             .main-column {
-                margin-left: 0;
+                margin-left: 0 !important;
             }
 
             .topbar {
@@ -504,6 +600,10 @@
 
             .hamburger {
                 display: inline-flex;
+            }
+
+            .sidebar-collapse-btn {
+                display: none;
             }
 
             .cards-grid {
@@ -528,18 +628,48 @@
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('dashboard-sidebar');
-            sidebar.classList.toggle('open');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const isOpen = sidebar.classList.toggle('open');
+            if (isOpen) {
+                backdrop.classList.add('visible');
+            } else {
+                backdrop.classList.remove('visible');
+            }
         }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('dashboard-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            sidebar.classList.remove('open');
+            backdrop.classList.remove('visible');
+        }
+
+        function toggleCollapse() {
+            const sidebar = document.getElementById('dashboard-sidebar');
+            sidebar.classList.toggle('collapsed');
+            // Remember preference
+            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+        }
+
+        // Restore collapsed state on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed && window.innerWidth > 900) {
+                document.getElementById('dashboard-sidebar').classList.add('collapsed');
+            }
+        });
     </script>
 </head>
 <body>
 <div class="layout">
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
     <aside class="sidebar" id="dashboard-sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">
                 <div class="sidebar-logo-mark">CF</div>
                 <span>CampusFix</span>
             </div>
+            <button class="sidebar-collapse-btn" onclick="toggleCollapse()" title="Collapse sidebar">◀</button>
         </div>
         <nav class="sidebar-nav">
             <div class="nav-section">
@@ -589,10 +719,7 @@
                 </a>
             </div>
         </nav>
-        <div class="sidebar-footer">
-            <div>CampusFix Admin</div>
-            <div class="text-muted">v1 · Dashboard Foundation</div>
-        </div>
+        
     </aside>
 
     <div class="main-column">

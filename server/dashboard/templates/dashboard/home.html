@@ -4,6 +4,31 @@
   <div class="page-subtitle">Only issues assigned to you appear here.</div>
 </div>
 
+{% if announcements %}
+<div class="announcements-section mt-md">
+    {% for a in announcements %}
+    <div class="card" style="border-left: 4px solid var(--primary); margin-bottom: 0.75rem; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h3 style="font-size: 1rem; color: #1e3a8a; margin-bottom: 0.25rem;">📣 {{ a.title }}</h3>
+                <p style="font-size: 0.9rem; white-space: pre-line; color: #374151;">{{ a.body }}</p>
+                <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">
+                    Posted {{ a.created_at|timesince }} ago
+                </div>
+            </div>
+            <form method="post" action="{% url 'dashboard:dismiss_announcement' a.id %}">
+                {% csrf_token %}
+                <button type="submit" title="Dismiss"
+                        style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #9ca3af;">
+                    ×
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="cards-grid mt-md">
   <div class="card">
     <div class="card-title">My Open Issues</div>
@@ -147,6 +172,31 @@
   <div class="page-title">Overview</div>
   <div class="page-subtitle">Campus-wide maintenance activity at a glance.</div>
 </div>
+
+{% if announcements %}
+<div class="announcements-section mt-md">
+    {% for a in announcements %}
+    <div class="card" style="border-left: 4px solid var(--primary); margin-bottom: 0.75rem; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h3 style="font-size: 1rem; color: #1e3a8a; margin-bottom: 0.25rem;">📣 {{ a.title }}</h3>
+                <p style="font-size: 0.9rem; white-space: pre-line; color: #374151;">{{ a.body }}</p>
+                <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">
+                    Posted {{ a.created_at|timesince }} ago
+                </div>
+            </div>
+            <form method="post" action="{% url 'dashboard:dismiss_announcement' a.id %}">
+                {% csrf_token %}
+                <button type="submit" title="Dismiss"
+                        style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #9ca3af;">
+                    ×
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <div class="cards-grid mt-md">
   <div class="card">

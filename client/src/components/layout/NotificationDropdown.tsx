@@ -19,6 +19,13 @@ import {
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
 import { ScrollArea } from "../../components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../../components/ui/dialog";
 import { notificationsApi, Notification } from "../../lib/api";
 import { useToast } from "../../hooks/use-toast";
 import { cn } from "../../lib/utils";
@@ -49,6 +56,7 @@ export function NotificationDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -114,8 +122,22 @@ export function NotificationDropdown() {
     }
   };
 
+  const handleNotificationClick = (e: React.MouseEvent, notification: Notification) => {
+    if (!notification.related_issue_id) {
+      e.preventDefault();
+      setIsOpen(false); // Close dropdown
+      setSelectedNotification(notification);
+      
+      // Mark as read automatically when viewing full details
+      if (!notification.is_read) {
+        handleMarkAsRead(notification.id, e);
+      }
+    }
+  };
+
   return (
-    <DropdownMenu onOpenChange={handleOpenChange}>
+    <>
+    <DropdownMenu onOpenChange={handleOpenChange} open={isOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -168,6 +190,7 @@ export function NotificationDropdown() {
                         ? `/issues/${notification.related_issue_id}`
                         : "#"
                     }
+                    onClick={(e) => handleNotificationClick(e, notification)}
                     className="w-full"
                   >
                     <div className="flex w-full items-start gap-2">
@@ -211,5 +234,31 @@ export function NotificationDropdown() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <Dialog open={!!selectedNotification} onOpenChange={(open) => !open && setSelectedNotification(null)}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {selectedNotification && (() => {
+              const Icon = notificationIcons[selectedNotification.type] || Info;
+              return <Icon className="h-5 w-5 text-primary" />;
+            })()}
+            {selectedNotification?.title}
+          </DialogTitle>
+          <DialogDescription>
+            {selectedNotification && formatTimeAgo(selectedNotification.created_at)}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+            {selectedNotification?.message}
+          </p>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={() => setSelectedNotification(null)}>Close</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

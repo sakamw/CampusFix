@@ -9,7 +9,8 @@ from accounts.models import User
 from utils.email_service import (
     send_maintenance_reminder_email,
     send_maintenance_ended_email,
-    send_sla_breach_email
+    send_sla_breach_email,
+    send_account_deactivation_email
 )
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,33 @@ class Command(BaseCommand):
             if delta.total_seconds() < 0 and not issue.sla_breached:
                 issue.sla_breached = True
                 issue.save(update_fields=["sla_breached"])
+                
                 if issue.assigned_to:
+                    # Automatic Deactivation Check
+                    breached_count = Issue.objects.filter(
+                        assigned_to=issue.assigned_to,
+                        sla_breached=True
+                    ).count()
+                    
+                    if breached_count >= 2:
+                        staff_user = issue.assigned_to
+                        staff_user.is_active = False
+                        staff_user.deactivation_reason = (
+                            "Account deactivated because of SLA breach (2 or more issues). "
+                            "Please contact admin if you need a review."
+                        )
+                        staff_user.save(update_fields=["is_active", "deactivation_reason"])
+                        
+                        # Send deactivation email
+                        send_account_deactivation_email(staff_user, staff_user.deactivation_reason)
+                        
+                        NotificationService.create_notification(
+                            user=staff_user,
+                            title="Account Deactivated",
+                            message="Your account has been automatically deactivated due to multiple SLA breaches.",
+                            notification_type="system"
+                        )
+
                     NotificationService.create_notification(
                         user=issue.assigned_to,
                         title=f"SLA Breach: Issue #{issue.id}",

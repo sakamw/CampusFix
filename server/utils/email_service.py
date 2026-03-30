@@ -228,3 +228,46 @@ def send_maintenance_ended_email(user, window):
     }
     html_content = render_to_string('emails/maintenance_ended.html', context)
     return send_email(user.email, "CampusFix is back online", html_content)
+def send_announcement_email(user, announcement):
+    """Send broadcast announcement email."""
+    context = {
+        'first_name': user.first_name,
+        'title': announcement.title,
+        'body': announcement.body,
+        'admin_name': announcement.created_by.get_full_name() if announcement.created_by else "CampusFix Admin",
+        'SITE_URL': settings.SITE_URL
+    }
+    html_content = render_to_string('emails/announcement_broadcast.html', context)
+    
+    # Custom sender format as requested: "Admin Name <admin@email.com>"
+    from_email = settings.DEFAULT_FROM_EMAIL
+    if announcement.created_by and announcement.created_by.get_full_name():
+        from_email = f"{announcement.created_by.get_full_name()} <{settings.DEFAULT_FROM_EMAIL}>"
+    
+    subject = f"Announcement: {announcement.title}"
+    
+    # Use send_mail directly or wrap send_email to allow custom from_email
+    text_content = strip_tags(html_content)
+    try:
+        send_mail(
+            subject=subject,
+            message=text_content,
+            from_email=from_email,
+            recipient_list=[user.email],
+            html_message=html_content,
+            fail_silently=True,
+        )
+        return True
+    except Exception:
+        return False
+
+def send_account_deactivation_email(user, reason):
+    """Send account deactivation notification email."""
+    context = {
+        'first_name': user.first_name,
+        'reason': reason,
+        'admin_email': settings.DEFAULT_FROM_EMAIL,
+        'SITE_URL': settings.SITE_URL
+    }
+    html_content = render_to_string('emails/account_deactivated.html', context)
+    return send_email(user.email, "CampusFix Account Deactivated", html_content)

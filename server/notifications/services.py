@@ -1,3 +1,4 @@
+from django.db import models
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
@@ -221,6 +222,43 @@ class NotificationService:
                 notification_type='resolution',
                 related_issue=issue
             )
+    @staticmethod
+    def broadcast_announcement(announcement):
+        """Broadcast an announcement to targeted users based on audience."""
+        from utils.email_service import send_announcement_email
+        
+        active_users = User.objects.filter(is_active=True)
+        
+        # Filter by audience
+        if announcement.audience == 'staff':
+            active_users = active_users.filter(
+                models.Q(role='staff') | models.Q(role='admin') | models.Q(is_staff=True)
+            )
+        elif announcement.audience == 'students':
+            active_users = active_users.filter(role='student', is_staff=False, is_superuser=False)
+        # 'all' = no filtering
+        
+        # 1. Dashboard Notifications (Real-time + DB)
+        try:
+            async_to_sync(channel_layer.group_send)(
+                "announcements",
+                {
+                    'type': 'announcement_message',
+                    'announcement': {
+                        'id': announcement.id,
+                        'title': announcement.title,
+                        'body': announcement.body,
+                        'audience': announcement.audience,
+                        'created_at': announcement.created_at.isoformat(),
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"Failed to broadcast real-time announcement: {e}")
+            
+        # 2. Bulk Email
+        for user in active_users:
+            send_announcement_email(user, announcement)
 
 
 class AdminDashboardService:

@@ -5,6 +5,13 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import { ScrollArea } from "../components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../components/ui/dialog";
 import { notificationsApi, Notification } from "../lib/api";
 import { useToast } from "../hooks/use-toast";
 
@@ -17,6 +24,7 @@ const formatTime = (dateString: string): string => {
 export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const { toast } = useToast();
 
   const fetchNotifications = async () => {
@@ -130,13 +138,24 @@ export default function Notifications() {
                           {n.type}
                         </span>
                       </div>
-                      {n.related_issue_id && (
+                      {n.related_issue_id ? (
                         <Link
                           to={`/issues/${n.related_issue_id}`}
                           className="text-sm text-primary hover:underline"
                         >
                           View issue #{n.related_issue_id}
                         </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedNotification(n);
+                            if (!n.is_read) markOneRead(n.id);
+                          }}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          View details
+                        </button>
                       )}
                     </div>
                     {!n.is_read && (
@@ -156,6 +175,25 @@ export default function Notifications() {
           )}
         </ScrollArea>
       </div>
+
+      <Dialog open={!!selectedNotification} onOpenChange={(open) => !open && setSelectedNotification(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{selectedNotification?.title}</DialogTitle>
+            <DialogDescription>
+              {selectedNotification && formatTime(selectedNotification.created_at)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+              {selectedNotification?.message}
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => setSelectedNotification(null)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

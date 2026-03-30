@@ -117,6 +117,7 @@ const friendlyMessage = (msg: string): string => {
   if (m.includes("already exists"))
     return "An account with this email already exists.";
   if (m.includes("do not match")) return "Passwords do not match.";
+  if (m.includes("deactivated")) return msg;
   if (m.includes("invalid") || m.includes("incorrect"))
     return "Invalid email or password.";
   if (m.includes("required") || m.includes("blank"))

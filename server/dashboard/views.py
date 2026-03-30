@@ -3,6 +3,7 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.paginator import Paginator
 from django.db.models import (
@@ -25,8 +26,9 @@ from accounts.decorators import admin_required, superuser_required
 from accounts.models import User
 from issues.models import Issue, IssueProgressLog, SLARule, MaintenanceTask, IssueFeedback, MaintenanceWindow
 from issues.analytics import AnalyticsService
-from notifications.models import Notification
+from notifications.models import Notification, Announcement, AnnouncementDismissal
 from notifications.services import NotificationService
+from utils.email_service import send_account_deactivation_email
 
 
 @require_http_methods(["GET", "POST"])
@@ -42,21 +44,34 @@ def dashboard_login(request):
         auth_logout(request)
 
     form = AuthenticationForm(request, data=request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        authed_user = form.get_user()
-        if not (
-            authed_user.is_superuser
-            or authed_user.is_staff
-            or getattr(authed_user, "role", None) in {"admin", "staff"}
-        ):
-            messages.error(
-                request,
-                "This account does not have access to the dashboard. Use an admin/staff account.",
-            )
+    if request.method == "POST":
+        if form.is_valid():
+            authed_user = form.get_user()
+            if not (
+                authed_user.is_superuser
+                or authed_user.is_staff
+                or getattr(authed_user, "role", None) in {"admin", "staff"}
+            ):
+                messages.error(
+                    request,
+                    "This account does not have access to the dashboard. Use an admin/staff account.",
+                )
+            else:
+                auth_login(request, authed_user)
+                next_url = (request.GET.get("next") or "").strip()
+                return redirect(next_url or "dashboard:home")
         else:
-            auth_login(request, authed_user)
-            next_url = (request.GET.get("next") or "").strip()
-            return redirect(next_url or "dashboard:home")
+            # Handle inactive users with specific reasons
+            email = request.POST.get("username")
+            if email:
+                try:
+                    inactive_user = User.objects.get(email=email, is_active=False)
+                    # Check if password is correct manually since authenticate() returns None for inactive
+                    if inactive_user.check_password(request.POST.get("password")):
+                        reason = inactive_user.deactivation_reason or 'No reason provided'
+                        messages.error(request, f"Account Deactivated: {reason}. Please contact admin for assistance.")
+                except User.DoesNotExist:
+                    pass
 
     return render(request, "dashboard/login.html", {"form": form})
 
@@ -155,6 +170,11 @@ def dashboard_home(request):
             "status_filter": status_filter,
             "sort": sort,
             "status_choices": Issue.STATUS_CHOICES,
+            "announcements": Announcement.objects.filter(
+                is_active=True
+            ).exclude(dismissals__user=request.user).filter(
+                Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+            ),
         }
         return render(request, "dashboard/home.html", context)
 
@@ -235,6 +255,11 @@ def dashboard_home(request):
         **_get_active_context(request, "home"),
         "total_issues": total_issues,
         "open_issues": open_issues,
+        "announcements": Announcement.objects.filter(
+            is_active=True
+        ).exclude(dismissals__user=request.user).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+        ),
         "resolved_this_month": resolved_this_month,
         "avg_resolution_days": avg_resolution_days,
         "recent_issues": recent_issues,
@@ -600,27 +625,53 @@ def user_management(request):
             | Q(email__icontains=search)
         )
 
+    # Exclude admins/superusers from the list as requested
+    users_qs = users_qs.exclude(Q(role="admin") | Q(is_superuser=True))
+
     if request.method == "POST":
         user_id = request.POST.get("user_id")
-        role = request.POST.get("role")
+        action = request.POST.get("action")
         user = get_object_or_404(User, pk=user_id)
 
-        valid_roles = {choice[0] for choice in User.ROLE_CHOICES}
-        if role not in valid_roles:
-            messages.error(request, "Invalid role selected.")
-            return redirect("dashboard:users")
+        if action == "update_role":
+            role = request.POST.get("role")
+            valid_roles = {choice[0] for choice in User.ROLE_CHOICES}
+            if role not in valid_roles:
+                messages.error(request, "Invalid role selected.")
+                return redirect("dashboard:users")
 
-        user.role = role
-        # Keep is_staff aligned with elevated roles
-        if role in {"staff", "admin"}:
-            user.is_staff = True
-        else:
-            # Do not silently unset is_staff for superusers
-            if not user.is_superuser:
-                user.is_staff = False
+            user.role = role
+            # Keep is_staff aligned with elevated roles
+            if role in {"staff", "admin"}:
+                user.is_staff = True
+            else:
+                # Do not silently unset is_staff for superusers
+                if not user.is_superuser:
+                    user.is_staff = False
 
-        user.save(update_fields=["role", "is_staff"])
-        messages.success(request, f"Updated role for {user.email} to {role}.")
+            user.save(update_fields=["role", "is_staff"])
+            messages.success(request, f"Updated role for {user.email} to {role}.")
+
+        elif action == "deactivate":
+            reason = (request.POST.get("reason") or "").strip()
+            if not reason:
+                messages.error(request, "A reason for deactivation is required.")
+            else:
+                user.is_active = False
+                user.deactivation_reason = reason
+                user.save(update_fields=["is_active", "deactivation_reason"])
+                
+                # Send deactivation email
+                send_account_deactivation_email(user, reason)
+                
+                messages.success(request, f"Account for {user.email} has been deactivated.")
+
+        elif action == "activate":
+            user.is_active = True
+            user.deactivation_reason = None
+            user.save(update_fields=["is_active", "deactivation_reason"])
+            messages.success(request, f"Account for {user.email} has been reactivated.")
+
         return redirect("dashboard:users")
 
     users = users_qs
@@ -775,6 +826,15 @@ def analytics(request):
             (resolved_within_sla / total_resolved_with_sla) * 100, 1
         )
 
+    # All non-compliances (breached and active, or resolved outside SLA)
+    active_breached_count = issues_qs.filter(
+        sla_breached=True, 
+        status__in=["new", "assigned", "in-progress", "on_hold"]
+    ).count()
+    
+    sla_non_compliant_total = (total_resolved_with_sla - resolved_within_sla) + active_breached_count
+    sla_compliant_total = resolved_within_sla
+
     # Feedback Analytics
     feedback_qs = IssueFeedback.objects.filter(
         created_at__date__gte=date_from,
@@ -810,6 +870,8 @@ def analytics(request):
         "top_locations": top_locations,
         "sla_compliance_rate": sla_compliance_rate,
         "total_resolved_with_sla": total_resolved_with_sla,
+        "sla_compliant_total": sla_compliant_total,
+        "sla_non_compliant_total": sla_non_compliant_total,
         "feedback_total": feedback_total,
         "feedback_overall_avg": feedback_overall_avg,
         "feedback_staff_ratings": feedback_staff_ratings,
@@ -1129,8 +1191,63 @@ def calendar(request):
 
 @admin_required
 def announcements(request):
+    """
+    Admin-only view to manage and broadcast campus-wide announcements.
+    """
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "deactivate":
+            announcement_id = request.POST.get("announcement_id")
+            announcement = get_object_or_404(Announcement, pk=announcement_id)
+            announcement.is_active = False
+            announcement.save(update_fields=["is_active", "updated_at"])
+            messages.success(request, f"Announcement '{announcement.title}' has been deactivated.")
+            return redirect("dashboard:announcements")
+            
+        title = (request.POST.get("title") or "").strip()
+        body = (request.POST.get("body") or "").strip()
+        audience = request.POST.get("audience", "all")
+        expires_at_raw = request.POST.get("expires_at")
+        
+        if not title or not body:
+            messages.error(request, "Both title and body are required for an announcement.")
+        else:
+            expires_at = None
+            if expires_at_raw:
+                try:
+                    expires_at = timezone.datetime.fromisoformat(expires_at_raw)
+                    if timezone.is_naive(expires_at):
+                        expires_at = timezone.make_aware(expires_at)
+                except ValueError:
+                    messages.warning(request, "Invalid expiration date format. Setting to none.")
+
+            # Validate audience
+            valid_audiences = {c[0] for c in Announcement.AUDIENCE_CHOICES}
+            if audience not in valid_audiences:
+                audience = "all"
+
+            announcement = Announcement.objects.create(
+                title=title,
+                body=body,
+                audience=audience,
+                created_by=request.user,
+                expires_at=expires_at
+            )
+            
+            # Broadcast to targeted users
+            NotificationService.broadcast_announcement(announcement)
+            
+            audience_label = dict(Announcement.AUDIENCE_CHOICES).get(audience, "all users")
+            messages.success(request, f"Announcement '{title}' has been created and broadcasted to {audience_label.lower()}.")
+            return redirect("dashboard:announcements")
+
+    # List recent announcements
+    recent_announcements = Announcement.objects.all().order_by("-created_at")[:20]
+    
     context = {
         **_get_active_context(request, "announcements"),
+        "announcements": recent_announcements,
+        "audience_choices": Announcement.AUDIENCE_CHOICES,
     }
     return render(request, "dashboard/announcements.html", context)
 
@@ -1230,4 +1347,21 @@ def assignment_notifications_mark_all_read(request):
         return redirect(redirect_to)
     except Exception:
         return redirect("dashboard:home")
+
+
+@login_required
+def dismiss_announcement(request, pk):
+    """
+    Allow a user to dismiss an announcement so it no longer appears for them.
+    """
+    if request.method == "POST":
+        announcement = get_object_or_404(Announcement, pk=pk)
+        AnnouncementDismissal.objects.get_or_create(
+            announcement=announcement,
+            user=request.user
+        )
+        messages.success(request, "Announcement dismissed.")
+
+    # Redirect back to where they came from
+    return redirect(request.META.get("HTTP_REFERER", "dashboard:home"))
 

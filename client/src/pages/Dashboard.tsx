@@ -11,9 +11,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
 import { StatCard } from "../components/dashboard/StatCard";
 import { IssueTable } from "../components/dashboard/IssueTable";
-import { dashboardApi, issuesApi, Issue, DashboardStats } from "../lib/api";
+import { dashboardApi, issuesApi, announcementsApi, Issue, DashboardStats, Announcement } from "../lib/api";
 import { useToast } from "../hooks/use-toast";
 
 export default function Dashboard() {
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,9 +44,10 @@ export default function Dashboard() {
     setError(null);
 
     try {
-      // Fetch stats and recent issues in parallel
-      const [statsResult, issuesResult] = await Promise.all([
+      // Fetch stats, announcements, and recent issues in parallel
+      const [statsResult, announcementsResult, issuesResult] = await Promise.all([
         dashboardApi.getStats(),
+        announcementsApi.getAnnouncements(),
         searchQuery
           ? issuesApi.getIssues({ search: searchQuery })
           : dashboardApi.getRecentIssues(5),
@@ -69,6 +72,7 @@ export default function Dashboard() {
           avg_response_time_hours: 0,
         },
       );
+      setAnnouncements(announcementsResult.data || []);
       setIssues(issuesResult.data || []);
     } catch (err) {
       const errorMessage =
@@ -84,6 +88,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const dismissAnnouncement = async (id: number) => {
+    await announcementsApi.dismissAnnouncement(id);
+    setAnnouncements((prev) => prev.filter((a) => a.id !== id));
   };
 
   if (loading && !stats) {
@@ -177,6 +186,51 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Announcements */}
+      {announcements.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Campus Announcements</h2>
+          <div className="grid gap-4">
+            {announcements.map((announcement) => (
+              <div
+                key={announcement.id}
+                className="relative rounded-lg border bg-blue-50/50 p-6 dark:bg-blue-950/20"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                       <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                         {announcement.title}
+                       </h3>
+                       {announcement.audience && announcement.audience !== "all" && (
+                         <Badge variant="outline" className="text-xs uppercase">
+                           {announcement.audience}
+                         </Badge>
+                       )}
+                    </div>
+                    <p className="text-sm text-blue-800/80 whitespace-pre-wrap dark:text-blue-200/80">
+                      {announcement.body}
+                    </p>
+                    <p className="text-xs text-blue-600/60 dark:text-blue-400/60">
+                      Posted on {new Date(announcement.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-blue-600/60 hover:text-blue-600 dark:text-blue-400/60"
+                    onClick={() => dismissAnnouncement(announcement.id)}
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="sr-only">Dismiss</span>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Issues */}
       <div className="space-y-4">

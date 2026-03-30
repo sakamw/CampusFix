@@ -5,21 +5,57 @@
     <div class="page-title">Announcements</div>
     <div class="page-subtitle">Broadcast important campus-wide messages.</div>
 </div>
-
+<div class="card mt-md">
+    <div class="card-title">Create New Announcement</div>
+    <form method="post" style="margin-top: 1rem;" onsubmit="const btn = document.getElementById('broadcastBtn'); btn.disabled = true; btn.innerText = 'Broadcasting...'; return true;">
+        {% csrf_token %}
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem;"><strong>Title</strong></label>
+            <input type="text" name="title" placeholder="e.g. Campus Power Outage" required 
+                   style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #d1d5db;">
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem;"><strong>Message</strong></label>
+            <textarea name="body" placeholder="Broadcast your message here..." required 
+                      style="width: 100%; height: 100px; padding: 0.5rem; border-radius: 8px; border: 1px solid #d1d5db; font-family: inherit;"></textarea>
+        </div>
+        <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+            <div>
+                <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem;"><strong>Audience</strong></label>
+                <select name="audience" style="padding: 0.45rem 0.75rem; border-radius: 8px; border: 1px solid #d1d5db; font-size: 0.9rem;">
+                    {% for value, label in audience_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem;"><strong>Expiration (Optional)</strong></label>
+                <input type="datetime-local" name="expires_at" 
+                       style="padding: 0.4rem; border-radius: 8px; border: 1px solid #d1d5db;">
+            </div>
+        </div>
+        <button id="broadcastBtn" type="submit" 
+                style="background: var(--primary); color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 500;">
+            Create & Broadcast
+        </button>
+    </form>
+</div>
 
 
 <div class="table-wrapper mt-md">
     <div class="table-header">
-        <h2>Active Announcements</h2>
+        <h2>All Announcements</h2>
     </div>
     <div style="overflow-x:auto;">
         <table>
             <thead>
             <tr>
                 <th>Title</th>
+                <th>Audience</th>
                 <th>Body</th>
                 <th>Created</th>
                 <th>Expires</th>
+                <th>Status</th>
                 <th></th>
             </tr>
             </thead>
@@ -27,9 +63,18 @@
             {% for a in announcements %}
                 <tr>
                     <td>{{ a.title }}</td>
+                    <td>
+                        {% if a.audience == 'all' %}
+                            <span class="badge badge-blue">All Users</span>
+                        {% elif a.audience == 'staff' %}
+                            <span class="badge badge-yellow">Staff Only</span>
+                        {% elif a.audience == 'students' %}
+                            <span class="badge badge-green">Students Only</span>
+                        {% endif %}
+                    </td>
                     <td style="max-width:320px;">
                         <span style="font-size:0.85rem;white-space:pre-line;">
-                            {{ a.body }}
+                            {{ a.body|truncatewords:20 }}
                         </span>
                     </td>
                     <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
@@ -41,17 +86,26 @@
                         {% endif %}
                     </td>
                     <td>
+                        {% if a.is_active %}
+                            <span class="badge badge-green">Active</span>
+                        {% else %}
+                            <span class="badge badge-gray">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if a.is_active %}
                         <form method="post" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="deactivate">
                             <input type="hidden" name="announcement_id" value="{{ a.id }}">
                             <button type="submit" class="link-danger">Deactivate</button>
                         </form>
+                        {% endif %}
                     </td>
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="5" class="text-muted">No active announcements.</td>
+                    <td colspan="7" class="text-muted">No announcements yet.</td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -59,4 +113,3 @@
     </div>
 </div>
 {% endblock %}
-

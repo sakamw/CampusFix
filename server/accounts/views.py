@@ -84,6 +84,21 @@ class LoginView(APIView):
         user = authenticate(request, email=email, password=password)
         
         if user is None:
+            # Check if it was an inactive user with correct password
+            try:
+                inactive_user = User.objects.get(email=email, is_active=False)
+                if inactive_user.check_password(password):
+                    reason = inactive_user.deactivation_reason or 'No reason provided'
+                    message = f"Account Deactivated: {reason}. Please contact admin for assistance."
+                    return Response(
+                        {
+                            'error': message,
+                        },
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+            except User.DoesNotExist:
+                pass
+
             return Response(
                 {
                     'error': 'Invalid login credentials',
@@ -103,15 +118,6 @@ class LoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if not user.is_active:
-            return Response(
-                {
-                    'error': 'Account deactivated',
-                    'message': 'Your account has been deactivated. Please contact support for assistance.'
-                },
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        
         # Generate tokens
         refresh = RefreshToken.for_user(user)
         

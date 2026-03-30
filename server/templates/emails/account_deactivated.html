@@ -1,0 +1,24 @@
+{% extends "emails/base_email.html" %}
+
+{% block email_content %}
+<div style="font-family: sans-serif; line-height: 1.6; color: #111827;">
+    <p>Hello {{ first_name|default:"there" }},</p>
+    
+    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 1.25rem; margin: 1.5rem 0;">
+        <h2 style="margin-top: 0; color: #991b1b; font-size: 1.25rem;">Account Deactivated</h2>
+        <p>We are writing to inform you that your CampusFix account has been deactivated.</p>
+        <p><strong>Reason:</strong> {{ reason }}</p>
+    </div>
+    
+    <div style="margin-top: 1.5rem;">
+        <h3 style="font-size: 1.1rem; color: #111827; margin-bottom: 0.5rem;">Way Forward</h3>
+        <p>If you believe this is an error or if you wish to request reactivation, please contact the campus administration at <a href="mailto:{{ admin_email }}" style="color: #2563eb; text-decoration: none;">{{ admin_email }}</a>.</p>
+        <p>Our team will review your request and get back to you as soon as possible.</p>
+    </div>
+
+    <p style="font-size: 0.9rem; color: #6b7280; margin-top: 2rem;">
+        Regards,<br>
+        CampusFix Administration
+    </p>
+</div>
+{% endblock %}

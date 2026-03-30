@@ -38,6 +38,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
     avatar = models.TextField(max_length=500, blank=True, null=True)
+    deactivation_reason = models.TextField(blank=True, null=True)
     two_factor_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=32, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
